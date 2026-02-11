@@ -1,14 +1,12 @@
 import { ThemeProvider } from "@/shared/store";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { HomePage } from "@/pages/Home";
+import { BrowserRouter } from "react-router-dom";
+import { AppRoutes } from "..";
 
 export function AppProviders() {
   return (
     <ThemeProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-        </Routes>
+        <AppRoutes />
       </BrowserRouter>
     </ThemeProvider>
   );

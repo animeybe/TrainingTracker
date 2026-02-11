@@ -1,15 +1,13 @@
-// import { useTheme } from "@/shared/hooks/useTheme";
-import { Header } from "@/shared/ui";
+import { useTheme } from "@/shared/hooks/useTheme";
 
 export function HomePage() {
-  // const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <>
-      <div className="wrapper">
-        <Header />
-        <main className="content"></main>
-      </div>
+      <button onClick={toggleTheme} className="theme">
+        Сменить тему (Сейчас {theme})
+      </button>
     </>
   );
 }
