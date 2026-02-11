@@ -1,0 +1,6 @@
+@use "reset" as *;
+@use "variables" as *;
+
+body {
+  background-color: var(--bg-primary);
+}

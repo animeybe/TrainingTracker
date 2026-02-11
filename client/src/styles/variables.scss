@@ -1,0 +1,23 @@
+:root {
+  --bg-primary: #e0e4d9; // 60%
+  --bg-secondary: #e0e4d9; // 30%
+  --bg-accent: #e0e4d9; // 10%
+
+  --text-primary: #e0e4d9; // 60%
+  --text-secondary: #e0e4d9; // 30%
+  --text-accent: #e0e4d9; // 10%
+}
+
+[data-theme="dark"] {
+  --bg-primary: #212427; // 60%
+  --bg-secondary: #e0e4d9; // 30%
+  --bg-accent: #e0e4d9; // 10%
+
+  --text-primary: #e0e4d9; // 60%
+  --text-secondary: #e0e4d9; // 30%
+  --text-accent: #e0e4d9; // 10%
+}
+
+// :root,
+// [data-theme="dark"] {
+// }
