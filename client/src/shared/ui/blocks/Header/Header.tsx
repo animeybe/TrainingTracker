@@ -33,12 +33,12 @@ export function Header() {
         </ul>
       </div>
 
-      {/* ✅ АВТОРИЗАЦИЯ / НИК ПОЛЬЗОВАТЕЛЯ */}
+      {/* АВТОРИЗАЦИЯ / НИК ПОЛЬЗОВАТЕЛЯ */}  
       <div className="header-auth">
         {isAuthenticated && user ? (
           /* Пользователь авторизован → показываем ник + выход */
           <div className="header-user">
-            <span className="header-user__name">{user.username}</span>
+            <span className="header-user__name">{user.login}</span>
             <button onClick={handleLogout} className="header-user__logout">
               Выйти
             </button>

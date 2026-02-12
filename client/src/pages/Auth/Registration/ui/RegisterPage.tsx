@@ -51,7 +51,11 @@ export function RegisterPage() {
     if (!validateForm()) return;
 
     try {
-      await register(formData.login, formData.password);
+      await register(
+        formData.login,
+        formData.password,
+        formData.email || undefined,
+      );
       alert("Регистрация успешна! Теперь войдите.");
       setFormData({ login: "", password: "", repeatPassword: "", email: "" });
     } catch (err: unknown) {

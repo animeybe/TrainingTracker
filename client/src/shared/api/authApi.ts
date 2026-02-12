@@ -1,46 +1,76 @@
-import axios from "axios";
-import type { User } from "../store";
+import type { SafeUser } from "@/types";
 
 export interface AuthResponse {
-  user: User;
+  message: string;
+  user: SafeUser;
   token: string;
 }
 
-class AuthApi {
-  private api = axios.create({
-    baseURL: "http://localhost:3001/api",
-  });
-
-  constructor() {
-    this.api.interceptors.request.use((config) => {
-      const token = localStorage.getItem("token");
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    });
-  }
-
-  register = async (username: string, password: string) => {
-    const response = await this.api.post("/auth/register", {
-      username,
-      password,
-    });
-    return response.data;
-  };
-
-  login = async (username: string, password: string) => {
-    const response = await this.api.post("/auth/login", { username, password });
-    if (response.data.token) {
-      localStorage.setItem("token", response.data.token);
-    }
-    return response.data;
-  };
-
-  getProfile = async () => {
-    const response = await this.api.get("/protected/profile");
-    return response.data;
-  };
+export interface ProfileResponse {
+  user: SafeUser;
 }
 
-export const authApi = new AuthApi();
+// Полный authApi с getProfile!
+export const authApi = {
+  // Регистрация (3 аргумента)
+  register: async (
+    login: string,
+    password: string,
+    email?: string,
+  ): Promise<AuthResponse> => {
+    const body = { login, password, email: email || undefined };
+    const response = await fetch("http://localhost:3001/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw error;
+    }
+
+    return response.json();
+  },
+
+  // Логин (2 аргумента)
+  login: async (login: string, password: string): Promise<AuthResponse> => {
+    const response = await fetch("http://localhost:3001/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ login, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw error;
+    }
+
+    return response.json();
+  },
+
+  // getProfile - восстановление профиля по токену!
+  getProfile: async (): Promise<ProfileResponse> => {
+    const token = localStorage.getItem("token");
+    if (!token) throw new Error("No token");
+
+    const response = await fetch("http://localhost:3001/api/auth/profile", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      localStorage.removeItem("token");
+      throw new Error("Invalid token");
+    }
+
+    return response.json();
+  },
+
+  // Логаут
+  logout: async () => {
+    localStorage.removeItem("token");
+  },
+};
