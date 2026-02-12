@@ -7,6 +7,7 @@
   align-items: center;
   padding: 0 1.5em;
   font-family: "Righteous", sans-serif;
+
   &__logo {
     display: flex;
     flex-direction: row;
@@ -14,6 +15,7 @@
     cursor: pointer;
   }
 }
+
 .header-logo {
   &__item {
     font-size: 1.5em;
@@ -27,6 +29,7 @@
     }
   }
 }
+
 .header-nav {
   flex: 1 1 auto;
 
@@ -41,6 +44,7 @@
     cursor: pointer;
   }
 }
+
 .header-auth {
   &__list {
     display: flex;
@@ -48,12 +52,43 @@
     justify-content: space-between;
     align-items: center;
   }
+
   &__item {
     cursor: pointer;
+
     &_login {
       margin-right: 1.5em;
     }
     &_register {
     }
+  }
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  font-family: Arial, sans-serif;
+}
+
+.header-user__name {
+  font-weight: 500;
+  color: #029d40;
+  font-size: 1.1em;
+}
+
+.header-user__logout {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.5em 1em;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 500;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #dc2626;
   }
 }
