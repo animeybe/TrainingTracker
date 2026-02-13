@@ -1,19 +1,14 @@
 "use client";
 import { useReducer, useEffect, useCallback } from "react";
-import type { AuthState, AuthAction, AuthContextType, SafeUser } from "@/types";
+import type {
+  AuthState,
+  AuthAction,
+  AuthContextType,
+  SafeUser,
+  ApiError,
+} from "@/types";
 import { AuthContext } from "./auth-context";
 import { authApi } from "@/shared/api";
-
-// Тип для API ошибок
-interface ApiError {
-  response?: {
-    data: {
-      message?: string;
-      error?: string;
-      details?: string[];
-    };
-  };
-}
 
 const initialState: AuthState = {
   user: null,
@@ -27,7 +22,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     case "SET_USER":
       return {
         ...state,
-        user: action.payload as SafeUser, // SafeUser!
+        user: action.payload as SafeUser,
         isAuthenticated: !!action.payload,
         isLoading: false,
         error: null,
@@ -46,18 +41,18 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Восстановление токена
   useEffect(() => {
     const initAuth = async () => {
+      dispatch({ type: "SET_LOADING", payload: true });
+
       try {
         const token = localStorage.getItem("token");
         if (token) {
-          dispatch({ type: "SET_LOADING", payload: true });
           const profileResponse = await authApi.getProfile();
           dispatch({ type: "SET_USER", payload: profileResponse.user });
         }
-      } catch {
-        localStorage.removeItem("token");
+      } catch (error) {
+        console.error("Auth init failed:", error);
       } finally {
         dispatch({ type: "SET_LOADING", payload: false });
       }
@@ -65,12 +60,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth();
   }, []);
 
-  // Регистрация: login вместо email
   const register = useCallback(
     async (login: string, password: string, email?: string) => {
       dispatch({ type: "SET_LOADING", payload: true });
       try {
-        await authApi.register(login, password, email); // login!
+        await authApi.register(login, password, email);
         dispatch({ type: "SET_ERROR", payload: null });
       } catch (error: unknown) {
         let message = "Ошибка регистрации";
@@ -87,13 +81,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  // Логин: login вместо email
   const login = useCallback(async (login: string, password: string) => {
     dispatch({ type: "SET_LOADING", payload: true });
     try {
-      const response = await authApi.login(login, password); // login!
+      const response = await authApi.login(login, password);
       localStorage.setItem("token", response.token);
-      dispatch({ type: "SET_USER", payload: response.user }); // SafeUser!
+      dispatch({ type: "SET_USER", payload: response.user });
     } catch (error: unknown) {
       let message = "Ошибка входа";
       if (error && typeof error === "object" && "response" in error) {
@@ -120,8 +113,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     state,
     user: state.user,
     isAuthenticated: state.isAuthenticated,
-    login, // Теперь принимает login: string
-    register, // Теперь принимает login: string
+    login,
+    register,
     logout,
     clearError,
   };

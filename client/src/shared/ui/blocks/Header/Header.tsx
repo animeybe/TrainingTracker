@@ -15,7 +15,7 @@ export function Header() {
   return (
     <header className="header">
       {/* Логотип */}
-      <div onClick={() => navigate("/")} className="header__logo">
+      <div onClick={() => navigate("/")} className="header-logo">
         <div className="header-logo__item header-logo__item_training">
           TRAINING
         </div>
@@ -29,16 +29,24 @@ export function Header() {
         <ul className="header-nav__list">
           <li className="header-nav__item">Тренировка</li>
           <li className="header-nav__item">Здоровье</li>
-          <li className="header-nav__item">База упражнений</li>
+          <li
+            className="header-nav__item"
+            onClick={() => navigate("/exercise-base")}>
+            База упражнений
+          </li>
         </ul>
       </div>
 
-      {/* АВТОРИЗАЦИЯ / НИК ПОЛЬЗОВАТЕЛЯ */}  
+      {/* АВТОРИЗАЦИЯ / НИК ПОЛЬЗОВАТЕЛЯ */}
       <div className="header-auth">
         {isAuthenticated && user ? (
           /* Пользователь авторизован → показываем ник + выход */
           <div className="header-user">
-            <span className="header-user__name">{user.login}</span>
+            <span
+              className="header-user__name"
+              onClick={() => navigate("/dashboard")}>
+              {user.role ==='ADMIN' ? `${user.login}[${user.role}]` : `${user.login}`}
+            </span>
             <button onClick={handleLogout} className="header-user__logout">
               Выйти
             </button>
@@ -52,7 +60,7 @@ export function Header() {
               Вход
             </li>
             <li
-              onClick={() => navigate("/registration")}
+              onClick={() => navigate("/register")}
               className="header-auth__item header-auth__item_register">
               Регистрация
             </li>

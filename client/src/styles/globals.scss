@@ -1,8 +1,13 @@
 @use "reset" as *;
 @use "variables" as *;
 
-@import url("https://fonts.googleapis.com/css2?family=Righteous&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Righteous&display=swap"); // font-family: "Righteous", sans-serif;
+@import url("https://fonts.googleapis.com/css2?family=Rubik+Mono+One&display=swap"); // font-family: "Rubik Mono One", monospace;
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Sansation:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap');
+// font-family: "Sansation", sans-serif; (+style +weight)
 
 body {
   background-color: var(--bg-primary);
+  color: var(--text-primary);
+  overflow-x: hidden;
 }

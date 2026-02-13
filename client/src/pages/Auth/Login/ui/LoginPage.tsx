@@ -1,6 +1,5 @@
-"use client";
 import { useState } from "react";
-import { useAuthContext } from "@/shared/store"; // ✅ Правильно (shared/store)
+import { useAuthContext } from "@/shared/store";
 import "./LoginPage.scss";
 
 export function LoginPage() {
@@ -8,7 +7,6 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // ✅ ПРАВИЛЬНО: useAuthContext() + state
   const { state, login, clearError } = useAuthContext();
   const { isLoading, error: authError } = state;
 
@@ -19,8 +17,6 @@ export function LoginPage() {
 
     try {
       await login(username, password);
-      // Успех - редирект или сообщение
-      console.log("✅ Успешный вход!");
     } catch (err: unknown) {
       let message = "Ошибка входа";
       if (err && typeof err === "object" && "message" in err) {

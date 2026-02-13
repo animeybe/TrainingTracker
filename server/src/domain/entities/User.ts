@@ -3,8 +3,8 @@ import type { SafeUser } from "../../types";
 export class User {
   constructor(
     public readonly id: string,
-    public readonly login: string, // login вместо name
-    public readonly email: string | null, // string | null
+    public readonly login: string,
+    public readonly email: string | null,
     public readonly password: string,
     public readonly role: string,
     public readonly isActive: boolean,

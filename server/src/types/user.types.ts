@@ -23,5 +23,5 @@ export interface CreateUserDto {
   login: string;
   email?: string | null;
   password: string;
-  role?: string;
+  role?: "USER" | "ADMIN";
 }

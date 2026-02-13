@@ -59,7 +59,6 @@ export function RegisterPage() {
       alert("Регистрация успешна! Теперь войдите.");
       setFormData({ login: "", password: "", repeatPassword: "", email: "" });
     } catch (err: unknown) {
-      // Ошибка уже обработана в AuthProvider
       console.error("Регистрация не удалась:", err);
     }
   };

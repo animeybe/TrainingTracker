@@ -1,4 +1,3 @@
-import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { PrismaUserRepository, UserRepository } from "../../data/repositories/UserRepository";
 import type { SafeUser, CreateUserDto, User } from "../../types";
@@ -13,7 +12,6 @@ export class AuthService {
     password: string,
     email?: string,
   ): Promise<SafeUser> {
-    // ✅ Проверяем по login
     const existing = await this.userRepo.findByLogin(login);
     if (existing) {
       throw new Error("User with this login already exists");

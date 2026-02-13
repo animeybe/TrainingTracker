@@ -1,31 +1,45 @@
 .header {
   height: 80px;
-  border: 1px solid #000;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
   padding: 0 1.5em;
-  font-family: "Righteous", sans-serif;
-
-  &__logo {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    cursor: pointer;
-  }
+  letter-spacing: 0.1px;
+  color: var(--text-primary);
+  letter-spacing: 2px;
+  font-family: "Sansation", sans-serif;
+  font-weight: 700;
 }
 
 .header-logo {
+  position: absolute;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  font-family: "Righteous", sans-serif;
+  cursor: pointer;
+
   &__item {
     font-size: 1.5em;
-    letter-spacing: 0.1px;
+    letter-spacing: 0.05px;
 
-    &_training {
-      color: #22fc79;
+    [data-theme="dark"] & {
+      &_training {
+        color: var(--text-secondary);
+      }
+      &_tracker {
+        color: var(--text-primary);
+      }
     }
-    &_tracker {
-      color: #029d40;
+
+    [data-theme="light"] & {
+      &_training {
+        color: var(--text-primary);
+      }
+      &_tracker {
+        color: var(--text-secondary);
+      }
     }
   }
 }
@@ -46,6 +60,9 @@
 }
 
 .header-auth {
+  position: absolute;
+  right: 1.5em;
+  color: var(--text-secondary);
   &__list {
     display: flex;
     flex-direction: row;
@@ -68,13 +85,12 @@
   display: flex;
   align-items: center;
   gap: 1em;
-  font-family: Arial, sans-serif;
 }
 
 .header-user__name {
-  font-weight: 500;
-  color: #029d40;
+  font-weight: 700;
   font-size: 1.1em;
+  letter-spacing: 2px;
 }
 
 .header-user__logout {

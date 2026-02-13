@@ -3,9 +3,8 @@ import { AuthService } from "../../domain/services/AuthService";
 import * as jwt from "jsonwebtoken";
 import { PrismaUserRepository } from "../../data/repositories/UserRepository";
 import { logger } from "../../utils";
-import type { SafeUser } from "../../types";
+import type { AuthRequest } from "../../types";
 
-// ✅ Правильная инициализация с DI
 const userRepo = new PrismaUserRepository();
 export const authService = new AuthService(userRepo);
 
@@ -25,12 +24,11 @@ export class AuthController {
 
   static async login(req: Request, res: Response): Promise<void> {
     try {
-      const { login, password } = req.body; // ✅ login ВМЕСТО email!
+      const { login, password } = req.body;
       logger.info(`Login attempt for login: ${login}`);
 
       const user = await authService.login(login, password);
 
-      // ✅ JWT токен
       const token = jwt.sign(
         { userId: user.id, login: user.login },
         process.env.JWT_SECRET!,
@@ -44,6 +42,23 @@ export class AuthController {
     } catch (error: any) {
       logger.error(`Login error: ${error.message}`);
       res.status(401).json({ message: error.message });
+    }
+  }
+  static getProfile(req: AuthRequest, res: Response): void {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Not authenticated" });
+        return;
+      }
+
+      logger.info(`Profile accessed by: ${req.user.login}`);
+      res.json({
+        user: req.user,
+        message: "Profile retrieved successfully",
+      });
+    } catch (error: any) {
+      logger.error(`Profile error: ${error.message}`);
+      res.status(500).json({ message: "Server error" });
     }
   }
 }

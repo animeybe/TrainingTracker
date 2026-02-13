@@ -1,21 +1,21 @@
 :root {
-  --bg-primary: #f0efeb; // 60%
-  --bg-secondary: #e0e4d9; // 30%
-  --bg-accent: #e0e4d9; // 10%
+  --bg-primary: #f3f5f7; // 60%
+  --bg-secondary: #747474; // 30%
+  --bg-accent: #1a1a1a; // 10%
 
-  --text-primary: #e0e4d9; // 60%
-  --text-secondary: #e0e4d9; // 30%
-  --text-accent: #e0e4d9; // 10%
+  --text-primary: #1a1a1a; // 60%
+  --text-secondary: #e00345; // 30%
+  --text-accent: #fafafa; // 10%
 }
 
 [data-theme="dark"] {
-  --bg-primary: #212427; // 60%
+  --bg-primary: #272727; // 60%
   --bg-secondary: #e0e4d9; // 30%
-  --bg-accent: #e0e4d9; // 10%
+  --bg-accent: #FF3131; // 10%
 
-  --text-primary: #e0e4d9; // 60%
-  --text-secondary: #e0e4d9; // 30%
-  --text-accent: #e0e4d9; // 10%
+  --text-primary: #e0e4d9; // 60%c74a3b
+  --text-secondary: #c74a3b; // 30%
+  --text-accent: #f3f5f7; // 10%
 }
 
 // :root,

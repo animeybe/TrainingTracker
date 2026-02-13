@@ -7,7 +7,6 @@ interface ValidationSchema {
   [key: string]: ValidatorFn;
 }
 
-// НОВЫЕ схемы: login вместо username/email
 export const registerSchema: ValidationSchema = {
   login: (v: string) => !!v && /^[a-zA-Z0-9_]{3,20}$/.test(v), // 3-20 символов, буквы/цифры/подчеркивание
   email: (v: string) => !v || /^\S+@\S+\.\S+$/.test(v), // Опциональный email

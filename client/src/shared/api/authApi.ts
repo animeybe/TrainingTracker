@@ -1,14 +1,4 @@
-import type { SafeUser } from "@/types";
-
-export interface AuthResponse {
-  message: string;
-  user: SafeUser;
-  token: string;
-}
-
-export interface ProfileResponse {
-  user: SafeUser;
-}
+import type { AuthResponse, ProfileResponse } from "@/types";
 
 // Полный authApi с getProfile!
 export const authApi = {
@@ -55,9 +45,9 @@ export const authApi = {
     if (!token) throw new Error("No token");
 
     const response = await fetch("http://localhost:3001/api/auth/profile", {
+      method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
       },
     });
 
