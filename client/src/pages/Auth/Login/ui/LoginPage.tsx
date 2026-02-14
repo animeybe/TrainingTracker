@@ -1,11 +1,16 @@
 import { useState } from "react";
 import { useAuthContext } from "@/shared/store";
 import "./LoginPage.scss";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get("next") || "/dashboard";
+  const navigate = useNavigate();
 
   const { state, login, clearError } = useAuthContext();
   const { isLoading, error: authError } = state;
@@ -17,6 +22,7 @@ export function LoginPage() {
 
     try {
       await login(username, password);
+      navigate(decodeURIComponent(returnTo), { replace: true });
     } catch (err: unknown) {
       let message = "Ошибка входа";
       if (err && typeof err === "object" && "message" in err) {
@@ -40,7 +46,7 @@ export function LoginPage() {
               setUsername(e.target.value);
               setError("");
             }}
-            placeholder="Введите логин"
+            placeholder="Введите имя"
             className={error ? "error" : ""}
           />
         </div>

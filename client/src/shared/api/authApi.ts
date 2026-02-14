@@ -1,8 +1,7 @@
 import type { AuthResponse, ProfileResponse } from "@/types";
+import { transformAuthResponse, transformProfileResponse } from "@/lib/api";
 
-// Полный authApi с getProfile!
 export const authApi = {
-  // Регистрация (3 аргумента)
   register: async (
     login: string,
     password: string,
@@ -20,10 +19,10 @@ export const authApi = {
       throw error;
     }
 
-    return response.json();
+    const data = await response.json();
+    return transformAuthResponse(data);
   },
 
-  // Логин (2 аргумента)
   login: async (login: string, password: string): Promise<AuthResponse> => {
     const response = await fetch("http://localhost:3001/api/auth/login", {
       method: "POST",
@@ -36,19 +35,17 @@ export const authApi = {
       throw error;
     }
 
-    return response.json();
+    const data = await response.json();
+    return transformAuthResponse(data);
   },
 
-  // getProfile - восстановление профиля по токену!
   getProfile: async (): Promise<ProfileResponse> => {
     const token = localStorage.getItem("token");
     if (!token) throw new Error("No token");
 
     const response = await fetch("http://localhost:3001/api/auth/profile", {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     });
 
     if (!response.ok) {
@@ -56,10 +53,10 @@ export const authApi = {
       throw new Error("Invalid token");
     }
 
-    return response.json();
+    const data = await response.json();
+    return transformProfileResponse(data);
   },
 
-  // Логаут
   logout: async () => {
     localStorage.removeItem("token");
   },

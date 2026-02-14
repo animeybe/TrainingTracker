@@ -8,8 +8,9 @@ import {
   AdminSettingsPage,
 } from "@/pages";
 import { AppLayout } from "..";
-import { GuestRoute } from "@/shared/ui/guards/GuestRoute";
-import { RoleGuard } from "@/shared/ui/guards/RoleGuard";
+import { GuestRoute } from "@/shared/guards/GuestRoute";
+import { RoleGuard } from "@/shared/guards/RoleGuard";
+import { InfoPage } from "@/pages/InfoPage";
 
 export const AppRoutes = () => {
   return (
@@ -39,6 +40,9 @@ export const AppRoutes = () => {
         <Route element={<RoleGuard requiredPermission="admin/settings" />}>
           <Route path="/admin/settings" element={<AdminSettingsPage />} />
         </Route>
+
+        {/* Что-то другое */}
+        <Route path="*" element={<InfoPage type="404" />} />
       </Route>
     </Routes>
   );
