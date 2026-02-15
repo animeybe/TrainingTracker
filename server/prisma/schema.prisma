@@ -7,20 +7,159 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ===== ОСНОВНЫЕ ТИПЫ =====
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Lifestyle {
+  IMMOBILE
+  LIGHT
+  AVERAGE
+  HARD
+}
+
+enum Goal {
+  LOSE_WEIGHT       // Сбросить вес
+  MAINTAIN_WEIGHT   // Поддерживать вес
+  GAIN_WEIGHT       // Набрать вес
+  GAIN_MUSCLE_MASS  // Набрать мышечную массу
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD 
+}
+
+enum ExerciseType {
+  PUSH    // Жимы
+  PULL    // Тяги
+  LEGS    // Ноги
+  OTHERS  // Планка, растяжка
+}
+
+// ===== АНАТОМИЯ (полный список) =====
+enum MuscleGroup {
+  // Шея
+  NECK
+  
+  // Трапеции
+  TRAPEZIUS_UPPER
+  TRAPEZIUS_LOWER
+  
+  // Плечи
+  DELTOIDS_ANTERIOR
+  DELTOIDS_MEDIAL
+  DELTOIDS_POSTERIOR
+  
+  // Грудь
+  CHEST_UPPER
+  CHEST_MIDDLE
+  CHEST_LOWER
+  
+  // Спина
+  LATS
+  RHOMBOIDS_UPPER
+  RHOMBOIDS_LOWER
+  TERES_MAJOR
+  TERES_MINOR
+  ERECTOR_SPINAE_UPPER
+  ERECTOR_SPINAE_LOWER
+  
+  // Руки
+  BICEPS_LONG_HEAD
+  BICEPS_SHORT_HEAD
+  TRICEPS_LONG_HEAD
+  TRICEPS_MEDIAL_HEAD
+  TRICEPS_LATERAL_HEAD
+  FOREARMS_FLEXORS
+  FOREARMS_EXTENSORS
+  
+  // Пресс
+  ABS_UPPER
+  ABS_LOWER
+  OBLIQUES
+  
+  // Ноги
+  GLUTES_MAXIMUS
+  GLUTES_MEDIAS
+  ABDUCTORS
+  ADDUCTORS
+  QUADS_VASTUS_LATERALIS
+  QUADS_VASTUS_MEDIALIS
+  QUADS_RECTUS_FEMORIS
+  HAMSTRINGS
+  CALVES_GASTROCNEMIUS
+  CALVES_SOLEUS
+}
+
+// ===== МОДЕЛИ =====
 model User {
   id        String   @id @default(cuid())
   login     String   @unique
-  email     String?
+  email     String?  @unique
   password  String
-  role      Role   @default(USER)
+  role      Role     @default(USER)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Избранные упражнения (через промежуточную таблицу)
+  favoriteExercises FavoriteExercise[]
+   profile   UserProfile? @relation("UserProfileToUser")
+
   @@map("users")
 }
 
-enum Role {
-  USER
-  ADMIN
+model Exercise {
+  id               String      @id @default(cuid())
+  name             String
+  description      String?
+  muscleGroup      MuscleGroup
+  secondaryMuscles MuscleGroup[]  
+  type             ExerciseType
+  difficulty       Difficulty  @default(EASY)
+  imageUrl         String?
+  videoUrl         String?
+  
+  favorites        FavoriteExercise[]
+
+  @@map("exercises")
+  @@index([muscleGroup])
+  @@index([type])
+  @@index([name(500)])
+  @@index([difficulty])
+}
+
+model FavoriteExercise {
+  id         String   @id @default(cuid())
+  userId     String
+  exerciseId String
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, exerciseId])
+  @@map("favorite_exercises")
+  @@index([userId])
+}
+
+model UserProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  weight       Float?
+  height       Float?
+  age          Int?
+  lifestyle    Lifestyle?
+  goal         Goal?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User      @relation("UserProfileToUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+  @@index([userId])
 }

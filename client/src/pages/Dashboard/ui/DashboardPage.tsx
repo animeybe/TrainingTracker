@@ -14,35 +14,48 @@ export function DashboardPage() {
   return (
     <>
       <div className="dashboard-content">
-        <div className="dashboard-content-block dashboard-content-block_left">
-          <div className="dashboard-content-block-left__greeting">
+        <section className="dashboard-content-block dashboard-content-block_left">
+          <div className="dashboard-content-block-left__greeting dashboard-content-block__title">
             Привет, {user.login}
           </div>
           <div
             className="dashboard-content-block-left__role"
             style={
               {
-                color: user.role === "ADMIN" ? "#C74A3B" : "#6B8E23",
+                color:
+                  user.role === "ADMIN"
+                    ? "var(--boolean-false)"
+                    : "var(--boolean-true)",
               } as React.CSSProperties
             }>{`[${user.role}]`}</div>
           <div className="dashboard-content-block-left-created">
-            <span className="dashboard-content-block-left-created__title">
+            <span className="dashboard-content-block-left-created__subtitle">
               Зарегестрирован:
             </span>
             <span className="dashboard-content-block-left-created__date">
               {formatRussianDate(user.createdAt)}
             </span>
           </div>
-        </div>
-        <div className="dashboard-content-block dashboard-content-block_mid"></div>
-        <div className="dashboard-content-block dashboard-content-block_right">
-          <div className="dashboard-content-block-right__title">Настройки</div>
+        </section>
+        <section className="dashboard-content-block dashboard-content-block_mid">
+          <div className="dashboard-content-block-mid__title dashboard-content-block__title">
+            Статистика:
+          </div>
+        </section>
+        <section className="dashboard-content-block dashboard-content-block_right">
+          <div className="dashboard-content-block-right__title dashboard-content-block__title">
+            Настройки:
+          </div>
           <div className="dashboard-content-block-right-settings">
-            <div className="dashboard-content-block-right-settings__theme-title">
+            <div className="dashboard-content-block-right-settings__theme-subtitle dashboard-content-block-right-settings__subtitles">
               Сменить тему:
             </div>
-            <div className="dashboard-content-block-right-settings-theme-block">
-              <div
+            <fieldset className="dashboard-content-block-right-settings-theme-block">
+              <button
+                type="button"
+                role="radiogroup"
+                aria-label="Светлая тема"
+                aria-checked={theme === "light"}
                 onClick={() => theme === "dark" && toggleTheme()}
                 className="dashboard-content-block-right-settings-theme-block__item dashboard-content-block-right-settings-theme-block__item_light">
                 <img
@@ -50,11 +63,15 @@ export function DashboardPage() {
                   alt="Сменить тему на свелую"
                   className="dashboard-content-block-right-settings-theme-block__icon"
                 />
-                <div className="dashboard-content-block-right-settings-theme-block__name">
-                  Сетлая
-                </div>
-              </div>
-              <div
+                <legend className="dashboard-content-block-right-settings-theme-block__name">
+                  Светлая
+                </legend>
+              </button>
+              <button
+                type="button"
+                role="radiogroup"
+                aria-label="Тёмная тема"
+                aria-checked={theme === "dark"}
                 onClick={() => theme === "light" && toggleTheme()}
                 className="dashboard-content-block-right-settings-theme-block__item dashboard-content-block-right-settings-theme-block__item_dark">
                 <img
@@ -62,13 +79,22 @@ export function DashboardPage() {
                   alt="Сменить тему на Тёмную"
                   className="dashboard-content-block-right-settings-theme-block__icon"
                 />
-                <div className="dashboard-content-block-right-settings-theme-block__name">
+                <legend className="dashboard-content-block-right-settings-theme-block__name">
                   Тёмная
-                </div>
-              </div>
+                </legend>
+              </button>
+            </fieldset>
+            <div className="dashboard-content-block-right-settings__notifications">
+              <span className="dashboard-content-block-right-settings__notifications-subtitle dashboard-content-block-right-settings__subtitles">
+                Уведомления:
+              </span>
+              <label className="dashboard-content-block-right-settings__notifications-switch">
+                <input type="checkbox" />
+                <span className="notifications-switch__slider"></span>
+              </label>
             </div>
           </div>
-        </div>
+        </section>
       </div>
     </>
   );

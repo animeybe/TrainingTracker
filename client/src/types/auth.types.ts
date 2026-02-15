@@ -1,21 +1,33 @@
-export interface User {
-  id: string;
-  login: string;
-  email: string | null;
-  role: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt?: Date;
-}
-
 export interface SafeUser {
   id: string;
   login: string;
-  email: string | null;
   role: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt?: Date;
+  weight?: number;
+  height?: number;
+  age?: number;
+  lifestyle?: string | null;
+  goal?: string | null;
+  bmi?: number;
+  bmiCategory?: string;
+}
+
+export interface AuthResponse {
+  user: SafeUser;
+  token: string;
+}
+
+export interface ProfileResponse {
+  id: string;
+  userId: string;
+  login: string;
+  role: string;
+  weight: number;
+  height: number;
+  age: number;
+  lifestyle: string | null;
+  goal: string | null;
+  bmi: number;
+  bmiCategory: string;
 }
 
 export interface AuthState {
@@ -25,10 +37,11 @@ export interface AuthState {
   error: string | null;
 }
 
-export interface AuthAction {
-  type: "SET_USER" | "LOGOUT" | "SET_LOADING" | "SET_ERROR";
-  payload?: SafeUser | boolean | string | null;
-}
+export type AuthAction =
+  | { type: "SET_USER"; payload: SafeUser }
+  | { type: "LOGOUT" }
+  | { type: "SET_LOADING"; payload: boolean }
+  | { type: "SET_ERROR"; payload: string | null };
 
 export interface AuthContextType {
   state: AuthState;
@@ -38,24 +51,4 @@ export interface AuthContextType {
   register: (login: string, password: string, email?: string) => Promise<void>;
   logout: () => void;
   clearError: () => void;
-}
-
-export interface ApiError {
-  response?: {
-    data: {
-      message?: string;
-      error?: string;
-      details?: string[];
-    };
-  };
-}
-
-export interface AuthResponse {
-  message: string;
-  user: SafeUser;
-  token: string;
-}
-
-export interface ProfileResponse {
-  user: SafeUser;
 }

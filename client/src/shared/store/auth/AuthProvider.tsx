@@ -3,11 +3,9 @@ import type {
   AuthState,
   AuthAction,
   AuthContextType,
-  SafeUser,
-  ApiError,
-} from "@/types";
+} from "@/types/auth.types";
 import { AuthContext } from "./auth-context";
-import { authApi } from "@/shared/api";
+import { authApi } from "@/shared/api/authApi";
 
 const initialState: AuthState = {
   user: null,
@@ -21,7 +19,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     case "SET_USER":
       return {
         ...state,
-        user: action.payload as SafeUser,
+        user: action.payload,
         isAuthenticated: !!action.payload,
         isLoading: false,
         error: null,
@@ -31,7 +29,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     case "SET_LOADING":
       return { ...state, isLoading: !!action.payload };
     case "SET_ERROR":
-      return { ...state, error: action.payload as string, isLoading: false };
+      return { ...state, error: action.payload, isLoading: false };
     default:
       return state;
   }
@@ -43,15 +41,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       dispatch({ type: "SET_LOADING", payload: true });
-
       try {
         const token = localStorage.getItem("token");
         if (token) {
-          const profileResponse = await authApi.getProfile();
-          dispatch({ type: "SET_USER", payload: profileResponse.user });
+          const user = await authApi.getProfile();
+          dispatch({ type: "SET_USER", payload: user });
         }
       } catch (error) {
         console.error("Auth init failed:", error);
+        localStorage.removeItem("token");
       } finally {
         dispatch({ type: "SET_LOADING", payload: false });
       }
@@ -64,15 +62,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: "SET_LOADING", payload: true });
       try {
         await authApi.register(login, password, email);
-        dispatch({ type: "SET_ERROR", payload: null });
+        // Автологин после регистрации
+        const loginResponse = await authApi.login(login, password);
+        dispatch({ type: "SET_USER", payload: loginResponse.user });
       } catch (error: unknown) {
-        let message = "Ошибка регистрации";
-        if (error && typeof error === "object" && "response" in error) {
-          const apiError = error as ApiError;
-          message = apiError.response?.data?.message || message;
-        }
+        const message =
+          error instanceof Error ? error.message : "Ошибка регистрации";
         dispatch({ type: "SET_ERROR", payload: message });
-        throw new Error(message);
+        throw error;
       } finally {
         dispatch({ type: "SET_LOADING", payload: false });
       }
@@ -84,23 +81,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "SET_LOADING", payload: true });
     try {
       const response = await authApi.login(login, password);
-      localStorage.setItem("token", response.token);
       dispatch({ type: "SET_USER", payload: response.user });
     } catch (error: unknown) {
-      let message = "Ошибка входа";
-      if (error && typeof error === "object" && "response" in error) {
-        const apiError = error as ApiError;
-        message = apiError.response?.data?.message || message;
-      }
+      const message = error instanceof Error ? error.message : "Ошибка входа";
       dispatch({ type: "SET_ERROR", payload: message });
-      throw new Error(message);
+      throw error;
     } finally {
       dispatch({ type: "SET_LOADING", payload: false });
     }
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem("token");
+    authApi.logout();
     dispatch({ type: "LOGOUT" });
   }, []);
 

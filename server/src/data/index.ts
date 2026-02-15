@@ -1,7 +1,3 @@
-import { PrismaClient } from "@prisma/client";
-
-export const prisma = new PrismaClient({
-  log: ["query", "info", "warn", "error"],
-});
-
-export { UserRepository } from "./repositories/UserRepository";
+export * from "./repositories";
+export * from "./mappers";
+export * from "./types";

@@ -105,7 +105,6 @@ export function RegisterPage() {
         formData.password,
         formData.email?.trim() || undefined,
       );
-      alert("Регистрация успешна! Теперь войдите.");
       setFormData({ login: "", password: "", repeatPassword: "", email: "" });
     } catch (err: unknown) {
       console.error("Регистрация не удалась:", err);

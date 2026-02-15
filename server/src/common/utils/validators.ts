@@ -1,22 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { logger } from "./logger";
 
-/**
- * ПРАВИЛА ВАЛИДАЦИИ ДЛЯ СПОРТИВНОГО ПРИЛОЖЕНИЯ (синхронизировано с Frontend):
- * - Логин: 3-20 символов, русские(а-яё), латинские(a-zA-Z), цифры(0-9), дефис(-), подчеркивание(_)
- * - Логин: обязательное поле, trim() от пробелов
- * - Пароль: минимум 8 символов (рекомендуется 12+)
- * - Пароль: минимум 1 заглавная буква (A-Z)
- * - Пароль: минимум 1 строчная буква (a-z или а-я)
- * - Пароль: минимум 1 цифра (0-9)
- * - Пароль: минимум 1 спецсимвол (!@#$%^&*()_+-=[]{}|;:,.<>?)
- * - Email: RFC 5322 compliant, максимум 254 символа, опциональный
- * - Повтор пароля: НЕ проверяется на сервере (проверка только на фронте)
- * - Все поля: защита от SQL-инъекций, XSS через regex
- * - Логирование: все ошибки валидации в logger.warn
- */
-
-type ValidatorFn = (value: any) => string | null; // Возвращает null если OK, иначе ошибку
+type ValidatorFn = (value: any) => string | null;
 
 interface ValidationSchema {
   [key: string]: ValidatorFn;
@@ -34,7 +19,7 @@ export const registerSchema: ValidationSchema = {
   },
 
   email: (v: string): string | null => {
-    if (!v) return null; // опционально
+    if (!v) return null;
     const trimmed = (v || "").trim();
     if (trimmed.length > 254) return "Email слишком длинный";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed))
@@ -54,10 +39,10 @@ export const registerSchema: ValidationSchema = {
 };
 
 export const loginSchema: ValidationSchema = {
-  login: registerSchema.login, // тот же валидатор
+  login: registerSchema.login,
   password: (v: string): string | null => {
     if (!v) return "Пароль обязателен";
-    return null; // на логине пароль попроще
+    return null;
   },
 };
 
@@ -66,19 +51,15 @@ export function validate(schema: ValidationSchema) {
     const errors: string[] = [];
     const body = req.body as any;
 
-    // Проверяем все поля по схеме
     for (const [field, validator] of Object.entries(schema)) {
       const value = body[field];
       const error = validator(value);
-
-      if (error) {
-        errors.push(`${field}: ${error}`);
-      }
+      if (error) errors.push(`${field}: ${error}`);
     }
 
     if (errors.length > 0) {
       const errorMsg = `Validation failed: ${errors.join("; ")}`;
-      logger.warn(errorMsg);
+      logger.warn(errorMsg, { path: req.path, ip: req.ip });
       return res.status(400).json({
         error: "ValidationError",
         details: errors,
@@ -86,7 +67,6 @@ export function validate(schema: ValidationSchema) {
       });
     }
 
-    // Добавляем в req очищенные данные
     (req as any).cleanBody = {
       login: (body.login || "").trim(),
       email: body.email ? (body.email || "").trim() : undefined,
@@ -95,6 +75,21 @@ export function validate(schema: ValidationSchema) {
 
     next();
   };
+}
+
+export function isValidDate(date: unknown): date is Date {
+  return date instanceof Date && !isNaN(date.getTime());
+}
+
+export function safeParseDate(dateStr: string | Date | null): Date | null {
+  if (!dateStr) return null;
+  if (dateStr instanceof Date) return dateStr;
+  const date = new Date(dateStr);
+  return isValidDate(date) ? date : null;
+}
+
+export function isValidId(id: unknown): id is string {
+  return typeof id === "string" && id.length > 0;
 }
 
 export const validateRegister = validate(registerSchema);

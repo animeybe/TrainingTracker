@@ -13,11 +13,11 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
-    "typeRoots": ["./node_modules/@types", "./src/types"]
+    "typeRoots": ["./node_modules/@types", "src/common/types"]
   },
   "ts-node": {
     "esm": false
   },
-  "include": ["src/**/*", "src/types/**/*"],
+  "include": ["src/**/*", "src/common/types/**/*"],
   "exclude": ["node_modules", "dist"]
 }
