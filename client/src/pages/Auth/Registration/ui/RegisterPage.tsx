@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useAuthContext } from "@/shared/store";
 import "./RegisterPage.scss";
+import EyeIcon from "@/assets/icon/eye.svg";
+import { useNavigate } from "react-router-dom";
 
 /**
  * ПРАВИЛА ВАЛИДАЦИИ:
@@ -35,6 +37,8 @@ export function RegisterPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
+
+  const navigate = useNavigate();
 
   const togglePassword = (field: "password" | "repeatPassword") => {
     if (field === "password") setShowPassword(!showPassword);
@@ -93,7 +97,7 @@ export function RegisterPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     clearError();
 
@@ -135,7 +139,7 @@ export function RegisterPage() {
       <form onSubmit={handleSubmit} className="reg-wrapper">
         <div className="reg-wrapper__title">Регистрация</div>
 
-        <div className="reg-wrapper__login reg-wrapper__input required-input">
+        <div className="reg-wrapper__login reg-wrapper__input reg-required-input">
           <input
             type="text"
             name="login"
@@ -163,7 +167,7 @@ export function RegisterPage() {
             className="reg-wrapper__password-toggle reg-wrapper__password-toggle_pass"
             onClick={() => togglePassword("password")}
             tabIndex={-1}>
-            <img src="/client/src/assets/eye.svg" alt="Показать пароль" />
+            <img src={EyeIcon} alt="Показать пароль" />
           </button>
           {errors.password && (
             <span className="error-text">{errors.password}</span>
@@ -184,7 +188,7 @@ export function RegisterPage() {
             className="reg-wrapper__password-toggle reg-wrapper__password-toggle_repeat-pass"
             onClick={() => togglePassword("repeatPassword")}
             tabIndex={-1}>
-            <img src="/client/src/assets/eye.svg" alt="Показать пароль" />
+            <img src={EyeIcon} alt="Показать пароль" />
           </button>
           {errors.repeatPassword && (
             <span className="error-text">{errors.repeatPassword}</span>
@@ -207,7 +211,9 @@ export function RegisterPage() {
 
         <div className="reg-wrapper-buttons">
           <div className="reg-wrapper-buttons_login">
-            <button type="button">Уже есть аккаунт?</button>
+            <button onClick={() => navigate("/login")} type="button">
+              Уже есть аккаунт?
+            </button>
           </div>
           <div className="reg-wrapper-buttons__submit">
             <button type="submit" disabled={isLoading}>

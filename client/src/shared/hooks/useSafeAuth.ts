@@ -11,7 +11,6 @@ export const useSafeAuthContext = (): SafeAuthContextType => {
 
   if (!context.user) {
     throw new Error(
-      // Пользователь должен просто быть + быть аутентифицированным
       "useSafeAuth: user не загружен. Только для защищённых роутов!",
     );
   }

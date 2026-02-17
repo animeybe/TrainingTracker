@@ -1,5 +1,7 @@
 import type { SafeUser } from "@/types/auth.types";
 import type { ExerciseListResponse } from "@/types/exercise.types";
+import type { FavoriteListResponse } from "@/types/favorite.type";
+import type { ProfileData } from "@/types/profile.types";
 
 const API_BASE = "http://localhost:3001/api";
 
@@ -20,15 +22,17 @@ const apiRequest = async <T>(
   }
 
   const config: RequestInit = { ...options, headers };
-
   const response = await fetch(`${API_BASE}${url}`, config);
 
   if (!response.ok) {
-    if (response.status === 401) {
+    if (
+      response.status === 401 &&
+      !url.includes("/auth/login") &&
+      !url.includes("/auth/register")
+    ) {
       localStorage.removeItem("token");
       throw new Error("Токен недействителен");
     }
-
     try {
       const errorData = await response.json();
       throw new Error(
@@ -46,20 +50,11 @@ const apiRequest = async <T>(
 type AuthApiResponse = {
   userId: string;
   login: string;
-  token: string;
-};
-
-type ProfileApiResponse = {
-  userId: string;
-  login: string;
   role: string;
-  weight?: number;
-  height?: number;
-  age?: number;
-  lifestyle?: string | null;
-  goal?: string | null;
-  bmi?: number;
-  bmiCategory?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  token: string;
 };
 
 export const authApi = {
@@ -81,9 +76,12 @@ export const authApi = {
 
     return {
       user: {
-        id: data.userId, // ✅ userId → id
+        id: data.userId,
         login: data.login,
-        role: "USER",
+        role: data.role,
+        isActive: data.isActive,
+        createdAt: new Date(data.createdAt),
+        updatedAt: new Date(data.updatedAt),
       },
       token: data.token,
     };
@@ -104,33 +102,38 @@ export const authApi = {
       user: {
         id: data.userId,
         login: data.login,
-        role: "USER",
+        role: data.role,
+        isActive: data.isActive,
+        createdAt: new Date(data.createdAt),
+        updatedAt: new Date(data.updatedAt),
       },
       token: data.token,
     };
   },
 
-  getProfile: async (): Promise<SafeUser> => {
-    const profile = await apiRequest<ProfileApiResponse>("/profile");
+  getMe: async (): Promise<SafeUser> => {
+    const data = await apiRequest<{
+      userId: string;
+      login: string;
+      role: string;
+      isActive: boolean;
+      createdAt: string;
+      updatedAt: string;
+    }>("/auth/me");
 
     return {
-      id: profile.userId,
-      login: profile.login,
-      role: profile.role || "USER",
-      weight: profile.weight,
-      height: profile.height,
-      age: profile.age,
-      lifestyle: profile.lifestyle,
-      goal: profile.goal,
-      bmi: profile.bmi,
-      bmiCategory: profile.bmiCategory,
+      id: data.userId,
+      login: data.login,
+      role: data.role,
+      isActive: data.isActive,
+      createdAt: new Date(data.createdAt),
+      updatedAt: new Date(data.updatedAt),
     };
   },
 
   logout: () => localStorage.removeItem("token"),
 };
 
-// Остальные API (без изменений)
 export const exerciseApi = {
   getAll: (): Promise<ExerciseListResponse> =>
     apiRequest<ExerciseListResponse>("/exercises"),
@@ -143,22 +146,34 @@ export const exerciseApi = {
 };
 
 export const favoriteApi = {
-  getFavorites: (): Promise<ExerciseListResponse> =>
-    apiRequest<ExerciseListResponse>("/favorites"),
-  toggle: (exerciseId: string): Promise<{ success: boolean }> =>
-    apiRequest<{ success: boolean }>(`/favorites/${exerciseId}/toggle`, {
-      method: "POST",
-    }),
+  getFavorites: (): Promise<FavoriteListResponse> =>
+    apiRequest<FavoriteListResponse>("/favorites"),
+  toggle: (
+    exerciseId: string,
+  ): Promise<{ success: boolean; message?: string }> =>
+    apiRequest<{ success: boolean; message?: string }>(
+      `/favorites/${exerciseId}/toggle`,
+      {
+        method: "POST",
+      },
+    ),
 };
 
 export const profileApi = {
+  getProfile: async (): Promise<ProfileData> => {
+    return apiRequest("/profile");
+  },
+
   update: (data: {
     weight?: number;
     height?: number;
     age?: number;
-  }): Promise<SafeUser> =>
-    apiRequest<SafeUser>("/profile/update", {
+    lifestyle?: string;
+    goal?: string;
+  }): Promise<void> => {
+    return apiRequest("/profile/update", {
       method: "PATCH",
       body: JSON.stringify(data),
-    }),
+    });
+  },
 };

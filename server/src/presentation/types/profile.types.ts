@@ -11,13 +11,13 @@ export interface ProfileUpdateRequestDto {
 export interface ProfileResponseDto {
   id: string;
   userId: string;
-  login: string;
-  role: string;
-  weight: number;
-  height: number;
-  age: number;
+  weight: number | null;
+  height: number | null;
+  age: number | null;
   lifestyle: Lifestyle | null;
   goal: Goal | null;
-  bmi: number;
+  bmi: number;  
   bmiCategory: string;
+  createdAt: Date;
+  updatedAt: Date;
 }

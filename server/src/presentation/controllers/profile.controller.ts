@@ -29,18 +29,21 @@ export class ProfileController {
         userService.getById(userId),
       ]);
 
+      const bmi = profile.calculateBMI();
+      const bmiCategory = profile.getBMICategory();
+
       const response: ProfileResponseDto = {
         id: profile.userId.value,
         userId: profile.userId.value,
-        login: user.login,
-        role: user.role,
         weight: profile.weight,
         height: profile.height,
         age: profile.age,
         lifestyle: profile.lifestyle,
         goal: profile.goal,
-        bmi: profile.calculateBMI(),
-        bmiCategory: profile.getBMICategory(),
+        bmi,
+        bmiCategory,
+        createdAt: profile.createdAt,
+        updatedAt: profile.updatedAt,
       };
 
       logger.info("✅ ProfileController success", {
@@ -66,21 +69,21 @@ export class ProfileController {
       const profileRepo = container.get("profileRepo");
       const profile = await profileRepo.update(userId, req.body);
 
-      // Загружаем обновленные user данные
-      const user = await userService.getById(userId);
+      const bmi = profile.calculateBMI();
+      const bmiCategory = profile.getBMICategory();
 
       const response: ProfileResponseDto = {
         id: profile.userId.value,
         userId: profile.userId.value,
-        login: user.login,
-        role: user.role,
         weight: profile.weight,
         height: profile.height,
         age: profile.age,
         lifestyle: profile.lifestyle,
         goal: profile.goal,
-        bmi: profile.calculateBMI(),
-        bmiCategory: profile.getBMICategory(),
+        bmi,
+        bmiCategory,
+        createdAt: profile.createdAt,
+        updatedAt: profile.updatedAt,
       };
 
       logger.info("✅ ProfileController update success");

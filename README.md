@@ -28,5 +28,5 @@ TrainingTracker - современное Progressive Web App для отслеж
 
 ## Стек технологий:
 
-Frontend: React, TypeScript, Vite, SCSS, ...
+Frontend: React, TypeScript, Vite, SCSS, Prisma (ORM)
 ...

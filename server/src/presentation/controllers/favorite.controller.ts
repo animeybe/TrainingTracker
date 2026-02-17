@@ -54,7 +54,12 @@ export class FavoriteController {
     res: Response<ExerciseListResponseDto | { error: string }>,
   ) {
     try {
+      logger.info(`req.user: ${(req as any).user}`); // ← ДОБАВИТЬ
+      logger.info(`req.user.id: ${(req as any).user?.id}`); // ← ДОБАВИТЬ
+
       const userId = UserId.create((req as any).user.id);
+      logger.info(`Created UserId: ${userId.value}`); // ← ДОБАВИТЬ
+
       const exercises = await favoriteService.getFavoritesWithExercises(userId);
 
       res.json({
@@ -63,6 +68,7 @@ export class FavoriteController {
       });
     } catch (error: any) {
       logger.error(`Get favorites failed: ${error.message}`);
+      logger.error(`Stack: ${error.stack}`); // ← ДОБАВИТЬ
       res.status(500).json({ error: "Failed to fetch favorites" });
     }
   }

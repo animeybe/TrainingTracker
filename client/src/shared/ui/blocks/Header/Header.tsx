@@ -28,8 +28,14 @@ export function Header() {
       {/* Навигация */}
       <div className="header-nav">
         <ul className="header-nav__list">
-          <li className="header-nav__item">Тренировка</li>
-          <li className="header-nav__item">Здоровье</li>
+          <li
+            className="header-nav__item"
+            onClick={() => navigate("/training")}>
+            Тренировка
+          </li>
+          <li className="header-nav__item" onClick={() => navigate("/health")}>
+            Здоровье
+          </li>
           <li
             className="header-nav__item"
             onClick={() => navigate("/exercise-base")}>

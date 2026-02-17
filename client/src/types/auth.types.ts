@@ -2,25 +2,23 @@ export interface SafeUser {
   id: string;
   login: string;
   role: string;
-  weight?: number;
-  height?: number;
-  age?: number;
-  lifestyle?: string | null;
-  goal?: string | null;
-  bmi?: number;
-  bmiCategory?: string;
+  isActive?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface AuthResponse {
   user: SafeUser;
+  role: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
   token: string;
 }
 
 export interface ProfileResponse {
   id: string;
   userId: string;
-  login: string;
-  role: string;
   weight: number;
   height: number;
   age: number;
@@ -51,4 +49,5 @@ export interface AuthContextType {
   register: (login: string, password: string, email?: string) => Promise<void>;
   logout: () => void;
   clearError: () => void;
+  refreshUser: () => Promise<void>;
 }

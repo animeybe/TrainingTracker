@@ -4,3 +4,6 @@ export { DashboardPage } from "./Dashboard";
 export { LoginPage } from "./Auth/Login";
 export { RegisterPage } from "./Auth/Registration";
 export { AdminSettingsPage } from "./AdminSettings";
+export { TrainingPage } from "./Training";
+export { HealthPage } from "./Health";
+export { InfoPage } from "./InfoPage";

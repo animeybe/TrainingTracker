@@ -4,6 +4,8 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { logger } from "../../common/utils";
 import { Role } from "@prisma/client";
+import { AuthRequest, MeResponseDto } from "../types/auth.types";
+import { UserId } from "../../common/types/ids";
 
 const userService = container.get("userService");
 
@@ -29,7 +31,6 @@ export const register = async (
       email: email?.trim() || null,
       password: hashedPassword,
       role: Role.USER,
-      isActive: true,
     });
 
     const token = jwt.sign({ userId: user.id.value }, process.env.JWT_SECRET!);
@@ -85,9 +86,41 @@ export const login = async (
     const token = jwt.sign({ userId: user.id.value }, process.env.JWT_SECRET!);
 
     logger.info("🎉 LOGIN SUCCESS");
-    res.json({ userId: user.id.value, login: user.login, token });
+    res.json({
+      userId: user.id.value,
+      login: user.login,
+      role: user.role,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      token,
+    });
   } catch (error: any) {
     logger.error("💥 LOGIN ERROR", error);
     res.status(400).json({ error: "Login failed" });
+  }
+};
+
+export const getMe = async (
+  req: Request,
+  res: Response<MeResponseDto | { error: string }>,
+): Promise<void> => {
+  try {
+    const userIdString = (req as any).user.id;
+    const userIdObj = UserId.create(userIdString);
+    const userService = container.get("userService");
+    const user = await userService.getById(userIdObj);
+
+    res.json({
+      userId: userIdString,
+      login: user.login,
+      role: user.role,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    });
+  } catch (error: any) {
+    logger.error(`getMe failed: ${(error as Error).message}`);
+    res.status(500).json({ error: "Failed to get user info" });
   }
 };

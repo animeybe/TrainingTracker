@@ -6,11 +6,13 @@ import {
   DashboardPage,
   ExerciseBasePage,
   AdminSettingsPage,
+  InfoPage,
+  HealthPage,
+  TrainingPage,
 } from "@/pages";
 import { AppLayout } from "..";
 import { GuestRoute } from "@/shared/guards/GuestRoute";
 import { RoleGuard } from "@/shared/guards/RoleGuard";
-import { InfoPage } from "@/pages/InfoPage";
 
 export const AppRoutes = () => {
   return (
@@ -31,6 +33,12 @@ export const AppRoutes = () => {
         </Route>
         <Route element={<RoleGuard requiredPermission="exercise-base" />}>
           <Route path="/exercise-base" element={<ExerciseBasePage />} />
+        </Route>
+        <Route element={<RoleGuard requiredPermission="training" />}>
+          <Route path="/training" element={<TrainingPage />} />
+        </Route>
+        <Route element={<RoleGuard requiredPermission="health" />}>
+          <Route path="/health" element={<HealthPage />} />
         </Route>
 
         {/* ТОЛЬКО ADMIN */}

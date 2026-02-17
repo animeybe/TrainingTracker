@@ -4,19 +4,12 @@ import { UserService } from "../../domain";
 import { container } from "../../di/container";
 import { UserId } from "../../common/types/ids";
 import { logger } from "../../common/utils";
-
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    login: string;
-    role: string;
-  };
-}
+import { AuthRequest } from "../types";
 
 const PUBLIC_PATHS = ["/api/auth/register", "/api/auth/login"];
 
 export async function authenticateToken(
-  req: AuthRequest,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) {
@@ -34,10 +27,14 @@ export async function authenticateToken(
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
       userId: string;
     };
+
+    logger.info(`JWT payload: userId=${decoded.userId}`); // ← ДОБАВИТЬ
+    logger.info(`Full JWT payload: ${JSON.stringify(decoded)}`); // ← ДОБАВИТЬ
+
     const userService = container.get("userService") as UserService;
     const user = await userService.getById(UserId.create(decoded.userId));
 
-    req.user = {
+    (req as unknown as AuthRequest).user = {
       id: user.id.value,
       login: user.login,
       role: user.role,

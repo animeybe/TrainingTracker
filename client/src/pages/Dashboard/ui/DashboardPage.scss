@@ -14,8 +14,8 @@
   max-width: 33%;
   background-color: var(--bg-secondary);
   height: 100%;
-  border-radius: 1em;
-  padding: 40px 20px;
+  border-radius: 20px;
+  padding: 40px 30px;
   overflow: hidden;
   box-shadow: #00000077 5px 5px 5px;
 
@@ -28,23 +28,21 @@
   &_right {
   }
   &__title {
-    font-size: 2em;
-    margin-bottom: 1em;
+    font-size: 30px;
+    margin-bottom: 30px;
   }
 }
 
 .dashboard-content-block-left {
   &__greeting {
-    margin-bottom: 0.5em;
+    margin-bottom: 10px;
     position: relative;
   }
   &__role {
-    font-size: 2em;
+    font-size: 20px;
     letter-spacing: 0.1em;
-    bottom: -1.3em;
-    left: 0;
     color: #6b8e23;
-    margin-bottom: 1em;
+    margin-bottom: 30px;
     pointer-events: none;
 
     -webkit-user-select: none;
@@ -55,11 +53,52 @@
     -webkit-tap-highlight-color: transparent;
   }
   &-created {
-    font-size: 1.3em;
+    font-size: 18px;
+    margin-bottom: 20px;
     &__title {
     }
 
     &__date {
+    }
+  }
+  &-add-data {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 30px;
+    font-size: 18px;
+    &__weight {
+    }
+    &__height {
+    }
+    &__age {
+    }
+    &__bmi {
+    }
+  }
+  &__update-data {
+    background: var(--surface);
+    color: var(--onSurface);
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 120px;
+
+    &:hover:not(:disabled) {
+      background: #2563eb;
+      transform: translateY(-1px);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      transform: none;
     }
   }
 }
@@ -114,7 +153,7 @@
     }
 
     &__name {
-        color: var(--text-primary);
+      color: var(--text-primary);
     }
   }
   &__notifications {

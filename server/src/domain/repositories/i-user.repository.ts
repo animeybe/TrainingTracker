@@ -11,5 +11,7 @@ export interface IUserRepository {
     password: string;
     role: Role;
     isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
   }): Promise<User>;
 }

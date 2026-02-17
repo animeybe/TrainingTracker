@@ -35,7 +35,7 @@ class Container {
 
       this.services.set(
         "favoriteService",
-        new FavoriteService(this.get("favoriteRepo"), this.get("userRepo")),
+        new FavoriteService(this.get("favoriteRepo"), this.get("exerciseRepo")),
       );
     }
     return this.services.get(key)!;

@@ -12,6 +12,8 @@ export class UserService {
     password: string;
     role: Role;
     isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
   }): Promise<User> {
     const userData = await this.userRepo.create(data);
     return userData;

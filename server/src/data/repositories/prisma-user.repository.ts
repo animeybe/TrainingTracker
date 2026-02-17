@@ -33,9 +33,10 @@ export class PrismaUserRepository implements IUserRepository {
     password: string;
     role: Role;
     isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
   }): Promise<User> {
     const dto = (await this.prisma.user.create({ data })) as UserDto;
     return this.mapper.toDomain(dto);
   }
 }
-    
