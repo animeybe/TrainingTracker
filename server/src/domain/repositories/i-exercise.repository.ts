@@ -1,6 +1,10 @@
 import { ExerciseId } from "../../common/types/ids";
-import { Exercise } from "../entities";
-import { MuscleGroup, ExerciseType, Difficulty } from "@prisma/client";
+import { Exercise } from "../entities/exercise.entity";
+import {
+  MuscleGroup,
+  ExerciseType,
+  Difficulty,
+} from "../../common/types/enums.types";
 
 export interface IExerciseRepository {
   findById(id: ExerciseId): Promise<Exercise>;

@@ -1,27 +1,31 @@
-import { UserDto, isUserDto } from "../types/user.dto";
+import { UserPrismaDto, isUserPrismaDto } from "../dto/user.prisma-dto";
+import { User } from "../../domain/entities/user.entity";
 import { UserId } from "../../common/types/ids";
-import { User } from "../../domain/entities/user";
+import { BaseMapper } from "../common/base.mapper";
 
-export class UserMapper {
-  toDomain(dto: UserDto): User {
-    this.validateDto(dto);
-    return new User(
-      UserId.create(dto.id),
-      dto.login,
-      dto.email,
-      dto.password,
-      dto.role,
-      dto.isActive,
-      dto.createdAt,
-      dto.updatedAt,
-    );
+export class UserMapper extends BaseMapper<UserPrismaDto, User> {
+  protected doMap(prismaDto: UserPrismaDto): User {
+    // ✅ reconstitute из БД
+    return User.reconstitute({
+      id: UserId.create(prismaDto.id),
+      login: prismaDto.login,
+      email: prismaDto.email,
+      password: prismaDto.password,
+      role: prismaDto.role,
+      isActive: prismaDto.isActive,
+      createdAt: prismaDto.createdAt,
+      updatedAt: prismaDto.updatedAt,
+    });
   }
 
-  toDomainMany(dtos: UserDto[]): User[] {
-    return dtos.filter(isUserDto).map((dto) => this.toDomain(dto));
+  protected validatePrismaDto(prismaData: unknown): UserPrismaDto {
+    if (!isUserPrismaDto(prismaData)) {
+      throw new Error(`Invalid UserPrismaDto: ${JSON.stringify(prismaData)}`);
+    }
+    return prismaData;
   }
 
-  private validateDto(dto: UserDto): asserts dto is UserDto {
-    if (!isUserDto(dto)) throw new Error("Invalid UserDto");
+  protected isValidPrismaDto(data: unknown): data is UserPrismaDto {
+    return isUserPrismaDto(data);
   }
 }

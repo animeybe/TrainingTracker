@@ -15,5 +15,8 @@ export const useSafeAuthContext = (): SafeAuthContextType => {
     );
   }
 
-  return context as SafeAuthContextType;
+  return {
+    ...context,
+    isAuthenticated: true,
+  } as SafeAuthContextType;
 };

@@ -1,23 +1,43 @@
-import { PrismaClient, Lifestyle, Goal } from "@prisma/client";
-import { UserProfileDto, isUserProfileDto } from "../types/profile.dto";
+import { prisma } from "../../infrastructure/prisma/client";
+import {
+  UserProfilePrismaDto,
+  isUserProfilePrismaDto,
+} from "../dto/profile.prisma-dto";
 import { ProfileMapper } from "../mappers/profile.mapper";
 import { UserId } from "../../common/types/ids";
 import { IProfileRepository } from "../../domain/repositories/i-profile.repository";
-import { UserProfile } from "../../domain/entities/user-profile";
+import { Lifestyle, Goal } from "../../common/types/enums.types";
+import { logger } from "../../common/utils";
+import { UserProfile } from "../../domain/entities";
 
 export class PrismaProfileRepository implements IProfileRepository {
   private readonly mapper = new ProfileMapper();
-  constructor(private prisma: PrismaClient) {}
 
-  async findByUserId(userId: UserId): Promise<UserProfile> {
-    const dto = (await this.prisma.userProfile.findUnique({
+  async findByUserId(userId: UserId): Promise<UserProfile | null> {
+    const prismaData = await prisma.userProfile.findUnique({
       where: { userId: userId.value },
-    })) as UserProfileDto | null;
+    });
 
-    if (!dto || !isUserProfileDto(dto)) {
-      throw new Error(`Profile for user ${userId.value} not found`);
+    if (!prismaData || !isUserProfilePrismaDto(prismaData)) {
+      return null;
     }
-    return this.mapper.toDomain(dto); // ✅ Domain Entity класс!
+
+    return this.mapper.toDomain(prismaData);
+  }
+
+  async createForDomain(profile: UserProfile): Promise<UserProfile> {
+    const prismaData = (await prisma.userProfile.create({
+      data: {
+        userId: profile.userId.value,
+        weight: profile.weight === -1 ? null : profile.weight,
+        height: profile.height === -1 ? null : profile.height,
+        age: profile.age === -1 ? null : profile.age,
+        lifestyle: profile.lifestyle,
+        goal: profile.goal,
+      },
+    })) as UserProfilePrismaDto;
+
+    return this.mapper.toDomain(prismaData);
   }
 
   async create(data: {
@@ -28,10 +48,11 @@ export class PrismaProfileRepository implements IProfileRepository {
     lifestyle?: Lifestyle | null;
     goal?: Goal | null;
   }): Promise<UserProfile> {
-    const dto = (await this.prisma.userProfile.create({
+    const prismaData = (await prisma.userProfile.create({
       data,
-    })) as UserProfileDto;
-    return this.mapper.toDomain(dto);
+    })) as UserProfilePrismaDto;
+
+    return this.mapper.toDomain(prismaData);
   }
 
   async update(
@@ -44,15 +65,30 @@ export class PrismaProfileRepository implements IProfileRepository {
       goal: Goal | null;
     }>,
   ): Promise<UserProfile> {
-    const dto = (await this.prisma.userProfile.upsert({
+    const updateData = {
+      ...data,
+      updatedAt: new Date(),
+    };
+
+    const prismaData = (await prisma.userProfile.upsert({
       where: { userId: userId.value },
-      create: { userId: userId.value, weight: null, height: null, age: null },
-      update: data,
-    })) as UserProfileDto;
-    return this.mapper.toDomain(dto);
+      create: {
+        userId: userId.value,
+        weight: null,
+        height: null,
+        age: null,
+        lifestyle: null,
+        goal: null,
+      },
+      update: updateData,
+    })) as UserProfilePrismaDto;
+
+    return this.mapper.toDomain(prismaData);
   }
 
   async delete(userId: UserId): Promise<void> {
-    await this.prisma.userProfile.delete({ where: { userId: userId.value } });
+    await prisma.userProfile.delete({
+      where: { userId: userId.value },
+    });
   }
 }

@@ -1,6 +1,7 @@
 export interface SafeUser {
   id: string;
   login: string;
+  email: string | null;
   role: string;
   isActive?: boolean;
   createdAt?: Date;
@@ -9,6 +10,7 @@ export interface SafeUser {
 
 export interface AuthResponse {
   user: SafeUser;
+  email: string | null;
   role: string;
   isActive: boolean;
   createdAt: Date;

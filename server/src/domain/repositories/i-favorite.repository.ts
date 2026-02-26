@@ -1,5 +1,5 @@
 import { UserId, ExerciseId } from "../../common/types/ids";
-import { FavoriteExercise } from "../entities";
+import { FavoriteExercise } from "../entities/favorite.entity";
 
 export interface IFavoriteRepository {
   findByUserAndExercise(

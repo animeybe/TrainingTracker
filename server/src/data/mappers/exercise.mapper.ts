@@ -1,28 +1,42 @@
-import { ExerciseDto, isExerciseDto } from "../types/exercise.dto";
+import {
+  ExercisePrismaDto,
+  isExercisePrismaDto,
+} from "../dto/exercise.prisma-dto";
+import { Exercise } from "../../domain/entities/exercise.entity"; // ✅ Правильный импорт
 import { ExerciseId } from "../../common/types/ids";
-import { Exercise } from "../../domain/entities/exercise";
+import { BaseMapper } from "../common/base.mapper";
+import {
+  MuscleGroup,
+  ExerciseType,
+  Difficulty,
+} from "../../common/types/enums.types";
 
-export class ExerciseMapper {
-  toDomain(dto: ExerciseDto): Exercise {
-    this.validateDto(dto);
-    return new Exercise({
-      id: ExerciseId.create(dto.id),
-      name: dto.name,
-      description: dto.description || "No description",
-      muscleGroup: dto.muscleGroup,
-      secondaryMuscles: dto.secondaryMuscles,
-      type: dto.type,
-      difficulty: dto.difficulty,
-      imageUrl: dto.imageUrl,
-      videoUrl: dto.videoUrl,
+export class ExerciseMapper extends BaseMapper<ExercisePrismaDto, Exercise> {
+  protected doMap(prismaDto: ExercisePrismaDto): Exercise {
+    // ✅ Используем reconstitute для данных из БД
+    return Exercise.reconstitute({
+      id: ExerciseId.create(prismaDto.id),
+      name: prismaDto.name,
+      description: prismaDto.description ?? "",
+      muscleGroup: prismaDto.muscleGroup,
+      secondaryMuscles: prismaDto.secondaryMuscles,
+      type: prismaDto.type,
+      difficulty: prismaDto.difficulty,
+      imageUrl: prismaDto.imageUrl,
+      videoUrl: prismaDto.videoUrl,
     });
   }
 
-  toDomainMany(dtos: ExerciseDto[]): Exercise[] {
-    return dtos.filter(isExerciseDto).map((dto) => this.toDomain(dto));
+  protected validatePrismaDto(prismaData: unknown): ExercisePrismaDto {
+    if (!isExercisePrismaDto(prismaData)) {
+      throw new Error(
+        `Invalid ExercisePrismaDto: ${JSON.stringify(prismaData)}`,
+      );
+    }
+    return prismaData;
   }
 
-  private validateDto(dto: ExerciseDto): asserts dto is ExerciseDto {
-    if (!isExerciseDto(dto)) throw new Error("Invalid ExerciseDto");
+  protected isValidPrismaDto(data: unknown): data is ExercisePrismaDto {
+    return isExercisePrismaDto(data);
   }
 }

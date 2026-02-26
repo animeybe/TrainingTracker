@@ -1,27 +1,33 @@
 import {
-  FavoriteExerciseDto,
-  isFavoriteExerciseDto,
-} from "../types/favorite.dto";
+  FavoriteExercisePrismaDto,
+  isFavoriteExercisePrismaDto,
+} from "../dto/favorite.prisma-dto";
+import { FavoriteExercise } from "../../domain/entities/favorite.entity";
 import { UserId, ExerciseId } from "../../common/types/ids";
-import { FavoriteExercise } from "../../domain/entities/favorite";
+import { BaseMapper } from "../common/base.mapper";
 
-export class FavoriteMapper {
-  toDomain(dto: FavoriteExerciseDto): FavoriteExercise {
-    this.validateDto(dto);
+export class FavoriteMapper extends BaseMapper<
+  FavoriteExercisePrismaDto,
+  FavoriteExercise
+> {
+  protected doMap(prismaDto: FavoriteExercisePrismaDto): FavoriteExercise {
     return new FavoriteExercise(
-      UserId.create(dto.userId),
-      ExerciseId.create(dto.exerciseId),
-      dto.createdAt,
+      UserId.create(prismaDto.userId),
+      ExerciseId.create(prismaDto.exerciseId),
+      prismaDto.createdAt,
     );
   }
 
-  toDomainMany(dtos: FavoriteExerciseDto[]): FavoriteExercise[] {
-    return dtos.filter(isFavoriteExerciseDto).map((dto) => this.toDomain(dto));
+  protected validatePrismaDto(prismaData: unknown): FavoriteExercisePrismaDto {
+    if (!isFavoriteExercisePrismaDto(prismaData)) {
+      throw new Error(
+        `Invalid FavoriteExercisePrismaDto: ${JSON.stringify(prismaData)}`,
+      );
+    }
+    return prismaData;
   }
 
-  private validateDto(
-    dto: FavoriteExerciseDto,
-  ): asserts dto is FavoriteExerciseDto {
-    if (!isFavoriteExerciseDto(dto)) throw new Error("Invalid FavoriteDto");
+  protected isValidPrismaDto(data: unknown): data is FavoriteExercisePrismaDto {
+    return isFavoriteExercisePrismaDto(data);
   }
 }

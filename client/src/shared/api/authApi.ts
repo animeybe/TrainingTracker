@@ -1,6 +1,9 @@
 import type { SafeUser } from "@/types/auth.types";
-import type { ExerciseListResponse } from "@/types/exercise.types";
-import type { FavoriteListResponse } from "@/types/favorite.type";
+import type { ExerciseListResponse } from "./types";
+import type {
+  FavoriteListResponse,
+  ToggleFavoriteResponse,
+} from "@/types/favorite.type";
 import type { ProfileData } from "@/types/profile.types";
 
 const API_BASE = "http://localhost:3001/api";
@@ -43,13 +46,15 @@ const apiRequest = async <T>(
     }
   }
 
-  const data = await response.json();
+  const rawData = await response.json();
+  const data = rawData.data || rawData;
   return data as T;
 };
 
 type AuthApiResponse = {
   userId: string;
   login: string;
+  email: string | null;
   role: string;
   isActive: boolean;
   createdAt: string;
@@ -78,6 +83,7 @@ export const authApi = {
       user: {
         id: data.userId,
         login: data.login,
+        email: data.email,
         role: data.role,
         isActive: data.isActive,
         createdAt: new Date(data.createdAt),
@@ -102,6 +108,7 @@ export const authApi = {
       user: {
         id: data.userId,
         login: data.login,
+        email: data.email,
         role: data.role,
         isActive: data.isActive,
         createdAt: new Date(data.createdAt),
@@ -115,6 +122,7 @@ export const authApi = {
     const data = await apiRequest<{
       userId: string;
       login: string;
+      email: string | null;
       role: string;
       isActive: boolean;
       createdAt: string;
@@ -124,6 +132,7 @@ export const authApi = {
     return {
       id: data.userId,
       login: data.login,
+      email: data.email,
       role: data.role,
       isActive: data.isActive,
       createdAt: new Date(data.createdAt),
@@ -132,6 +141,18 @@ export const authApi = {
   },
 
   logout: () => localStorage.removeItem("token"),
+
+  updateAccount: async (data: {
+    login?: string;
+    email?: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }): Promise<void> => {
+    return apiRequest("/auth/account", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 export const exerciseApi = {
@@ -146,17 +167,13 @@ export const exerciseApi = {
 };
 
 export const favoriteApi = {
-  getFavorites: (): Promise<FavoriteListResponse> =>
-    apiRequest<FavoriteListResponse>("/favorites"),
-  toggle: (
-    exerciseId: string,
-  ): Promise<{ success: boolean; message?: string }> =>
-    apiRequest<{ success: boolean; message?: string }>(
-      `/favorites/${exerciseId}/toggle`,
-      {
-        method: "POST",
-      },
-    ),
+  getFavorites: (): Promise<FavoriteListResponse["data"]> =>
+    apiRequest<FavoriteListResponse>("/favorites").then((res) => res.data),
+
+  toggle: (exerciseId: string): Promise<ToggleFavoriteResponse> =>
+    apiRequest<ToggleFavoriteResponse>(`/favorites/${exerciseId}/toggle`, {
+      method: "POST",
+    }),
 };
 
 export const profileApi = {

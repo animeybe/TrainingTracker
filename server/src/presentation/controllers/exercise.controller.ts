@@ -1,10 +1,14 @@
 import { Request, Response } from "express";
-import { container } from "../../di/container";
-import { ExerciseResponseDto } from "../types/exercise.types";
-import { MuscleGroup } from "@prisma/client";
+import { container } from "../../infrastructure/di/container";
+import { ExerciseService } from "../../domain/services/exercise.service";
+import {
+  ExerciseListResponseDto,
+  ExerciseResponseDto,
+} from "../types/exercise.types";
+import { MuscleGroup } from "../../common/types/enums.types";
 import { logger } from "../../common/utils";
 
-const exerciseRepo = container.get("exerciseRepo");
+const exerciseService = container.get("exerciseService") as ExerciseService;
 
 function exerciseToResponse(exercise: any): ExerciseResponseDto {
   return {
@@ -28,7 +32,7 @@ export class ExerciseController {
     >,
   ) {
     try {
-      const exercises = await exerciseRepo.getAll();
+      const exercises = await exerciseService.getAll();
       res.json({
         data: exercises.map(exerciseToResponse),
         total: exercises.length,
@@ -46,7 +50,9 @@ export class ExerciseController {
     >,
   ) {
     try {
-      const exercises = await exerciseRepo.findByMuscleGroup(req.params.muscle);
+      const exercises = await exerciseService.getByMuscleGroup(
+        req.params.muscle,
+      );
       res.json({
         data: exercises.map(exerciseToResponse),
         total: exercises.length,
@@ -64,8 +70,8 @@ export class ExerciseController {
     >,
   ) {
     try {
-      const query = (req.query.query || "").toString();
-      const exercises = await exerciseRepo.searchByName(query);
+      const query = (req.query.query || "").toString().trim();
+      const exercises = await exerciseService.searchByName(query);
       res.json({
         data: exercises.map(exerciseToResponse),
         total: exercises.length,

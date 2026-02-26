@@ -35,44 +35,95 @@
 
 .dashboard-content-block-left {
   &__greeting {
-    margin-bottom: 10px;
-    position: relative;
+    font-size: clamp(1.8rem, 5vw, 2.5rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1rem;
+    line-height: 1.2;
   }
   &__role {
-    font-size: 20px;
-    letter-spacing: 0.1em;
-    color: #6b8e23;
-    margin-bottom: 30px;
-    pointer-events: none;
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 0.75rem 1.5rem;
+    border-radius: 50px;
+    display: inline-block;
+    margin-bottom: 2rem;
+    backdrop-filter: blur(15px);
 
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    -webkit-touch-callout: none;
-    -webkit-tap-highlight-color: transparent;
+    &[style*="var(--boolean-false)"] {
+      background: linear-gradient(
+        135deg,
+        rgba(255, 107, 107, 0.2),
+        rgba(255, 90, 36, 0.2)
+      );
+      border: 2px solid rgba(255, 107, 107, 0.4);
+      color: #ff6b6b;
+    }
+
+    &[style*="var(--boolean-true)"] {
+      background: linear-gradient(
+        135deg,
+        rgba(34, 197, 94, 0.2),
+        rgba(74, 222, 128, 0.2)
+      );
+      border: 2px solid rgba(34, 197, 94, 0.4);
+      color: #22c55e;
+    }
   }
   &-created {
-    font-size: 18px;
-    margin-bottom: 20px;
-    &__title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 2.5rem;
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    border-left: 4px solid rgba(255, 255, 255, 0.2);
+
+    &__subtitle {
+      font-size: 0.95rem;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 500;
     }
 
     &__date {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #fff;
     }
   }
   &-add-data {
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 30px;
-    font-size: 18px;
-    &__weight {
-    }
-    &__height {
-    }
-    &__age {
-    }
-    &__bmi {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+
+    span {
+      display: flex;
+      flex-direction: column;
+      padding: 1rem 1.25rem;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 0.3s ease;
+
+      strong {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #fff;
+        margin-top: 0.25rem;
+      }
+
+      &:hover {
+        transform: translateY(-2px);
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
     }
   }
   &__update-data {

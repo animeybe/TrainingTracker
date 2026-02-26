@@ -1,0 +1,453 @@
+/* @/shared/ui/blocks/ProfileEditModal.scss */
+.profile-edit-modal {
+  &__overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: profile-edit-modal__overlay-show 0.3s ease-out;
+  }
+
+  &__content {
+    background: var(--bg-secondary);
+    border-radius: 24px;
+    width: 100%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: #000000aa 0 20px 60px;
+    animation: profile-edit-modal__content-show 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 30px 40px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  &__title {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0;
+  }
+
+  &__close {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    font-size: 24px;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(15px);
+    transition: all 0.2s ease;
+
+    &:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.05);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  &__tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  &__tab-btn {
+    flex: 1;
+    padding: 18px 24px;
+    border: none;
+    background: none;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+
+    &:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 1px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    &_profile {
+      border-radius: 24px 0 0 0;
+    }
+
+    &_account {
+      border-radius: 0 24px 0 0;
+    }
+
+    &--active {
+      color: #fff;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3));
+      box-shadow: inset 0 -3px 0 var(--text-primary);
+    }
+
+    &:hover:not(:disabled):not(&--active) {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  &__body {
+    padding: 40px;
+    height: calc(100vh - 240px);
+    overflow-y: auto;
+  }
+}
+
+.profile-data-form,
+.login-email-form,
+.password-change-form {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-data-form__title,
+.login-email-form__title,
+.password-change-form__title,
+.account-settings__title,
+.captcha-section__title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.profile-data-form__error,
+.login-email-form__error,
+.password-change-form__error {
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(255, 90, 36, 0.2));
+  border: 1px solid rgba(255, 107, 107, 0.4);
+  color: #ff6b6b;
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+.profile-data-form__success,
+.login-email-form__success {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(74, 222, 128, 0.2));
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #22c55e;
+  padding: 12px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-weight: 500;
+  animation: success-pulse 2s ease-in-out;
+}
+
+.profile-data-form__grid,
+.login-email-form__grid,
+.password-change-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.profile-data-form__group,
+.login-email-form__group,
+.password-change-form__group,
+.captcha-section__group {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+
+  &--full-width {
+    grid-column: 1 / -1;
+  }
+
+  &--error {
+    animation: shake 0.5s ease-in-out;
+  }
+}
+
+.profile-data-form__group label,
+.login-email-form__group label,
+.password-change-form__group label,
+.captcha-section__group label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.profile-data-form input,
+.profile-data-form select,
+.login-email-form input,
+.login-email-form select,
+.password-change-form__input,
+.captcha-section input {
+  padding: 16px 20px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(15px);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  height: 56px;
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 16px center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+  padding-right: 56px;
+}
+
+.profile-data-form__error-message,
+.login-email-form__error-message,
+.password-change-form__error-message,
+.captcha-section__error-message {
+  color: #ff6b6b;
+  font-size: 0.85rem;
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.captcha-section {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  padding: 28px;
+  border-left: 4px solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 32px;
+
+  &__question {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  &__input--success {
+    border-color: var(--boolean-true) !important;
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2) !important;
+  }
+
+  &__success-message {
+    color: #22c55e;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-top: 6px;
+  }
+}
+
+.password-change-form {
+  &__input-wrapper {
+    position: relative;
+  }
+
+  &__input {
+    padding-right: 64px;
+  }
+
+  &__toggle {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-50%) scale(1.1);
+    }
+
+    img {
+      width: 20px;
+      height: 20px;
+      filter: brightness(0) invert(1);
+    }
+  }
+}
+
+.profile-data-form__footer,
+.account-settings__footer {
+  display: flex;
+  gap: 16px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: auto;
+}
+
+.profile-data-form__btn,
+.account-settings__btn {
+  flex: 1;
+  padding: 16px 28px;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  height: 56px;
+  position: relative;
+  overflow: hidden;
+
+  &--secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    backdrop-filter: blur(15px);
+
+    &:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  &--primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+
+    &:hover:not(:disabled) {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 35px rgba(102, 126, 234, 0.6);
+    }
+
+    &--loading {
+      pointer-events: none;
+    }
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+}
+
+.profile-data-form__spinner,
+.account-settings__spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 12px;
+  vertical-align: middle;
+}
+
+/* Animations */
+@keyframes profile-edit-modal__overlay-show {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes profile-edit-modal__content-show {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-20px);
+  }
+}
+
+@keyframes success-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Scrollbar */
+.profile-edit-modal__body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.profile-edit-modal__body::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.profile-edit-modal__body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.profile-edit-modal__body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

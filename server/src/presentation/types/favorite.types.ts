@@ -1,19 +1,9 @@
-export interface ToggleFavoriteRequestDto {
-  exerciseId: string;
-}
+import { ApiResponse } from "./common.types";
 
 export interface ToggleFavoriteResponseDto {
   success: boolean;
-  message?: string;
+  message: string;
+  action: "added" | "removed";
 }
 
-export interface FavoriteListResponseDto {
-  data: {
-    id: string;
-    name: string;
-    muscleGroup: string;
-    type: string;
-    daysInFavorites: number;
-  }[];
-  total: number;
-}
+export type ToggleFavoriteResponse = ApiResponse<ToggleFavoriteResponseDto>;

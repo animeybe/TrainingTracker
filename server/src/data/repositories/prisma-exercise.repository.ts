@@ -1,58 +1,79 @@
+import { prisma } from "../../infrastructure/prisma/client";
 import {
-  PrismaClient,
-  MuscleGroup,
-  ExerciseType,
-  Difficulty,
-} from "@prisma/client";
-import { ExerciseDto, isExerciseDto } from "../types/exercise.dto";
+  ExercisePrismaDto,
+  isExercisePrismaDto,
+} from "../dto/exercise.prisma-dto";
 import { ExerciseMapper } from "../mappers/exercise.mapper";
 import { ExerciseId } from "../../common/types/ids";
 import { IExerciseRepository } from "../../domain/repositories/i-exercise.repository";
-import { Exercise } from "../../domain/entities/exercise";
+import {
+  MuscleGroup,
+  ExerciseType,
+  Difficulty,
+} from "../../common/types/enums.types";
+import { logger } from "../../common/utils";
+import { Exercise } from "../../domain";
 
 export class PrismaExerciseRepository implements IExerciseRepository {
   private readonly mapper = new ExerciseMapper();
-  constructor(private prisma: PrismaClient) {}
 
   async findById(id: ExerciseId): Promise<Exercise> {
-    const dto = (await this.prisma.exercise.findUnique({
+    const prismaData = await prisma.exercise.findUnique({
       where: { id: id.value },
-    })) as ExerciseDto | null;
-    if (!dto || !isExerciseDto(dto))
+    });
+
+    if (!prismaData || !isExercisePrismaDto(prismaData)) {
+      logger.warn(`Exercise not found: ${id.value}`);
       throw new Error(`Exercise ${id.value} not found`);
-    return this.mapper.toDomain(dto);
+    }
+
+    return this.mapper.toDomain(prismaData);
   }
 
   async findByMuscleGroup(muscle: MuscleGroup): Promise<Exercise[]> {
-    const dtos = (await this.prisma.exercise.findMany({
+    const prismaData = (await prisma.exercise.findMany({
       where: { muscleGroup: muscle },
-    })) as ExerciseDto[];
-    return this.mapper.toDomainMany(dtos);
+    })) as ExercisePrismaDto[];
+
+    return this.mapper.toDomainMany(prismaData);
   }
 
   async findByType(type: ExerciseType): Promise<Exercise[]> {
-    const dtos = (await this.prisma.exercise.findMany({
+    const prismaData = (await prisma.exercise.findMany({
       where: { type },
-    })) as ExerciseDto[];
-    return this.mapper.toDomainMany(dtos);
+    })) as ExercisePrismaDto[];
+
+    return this.mapper.toDomainMany(prismaData);
   }
 
   async findByDifficulty(difficulty: Difficulty): Promise<Exercise[]> {
-    const dtos = (await this.prisma.exercise.findMany({
+    const prismaData = (await prisma.exercise.findMany({
       where: { difficulty },
-    })) as ExerciseDto[];
-    return this.mapper.toDomainMany(dtos);
+    })) as ExercisePrismaDto[];
+
+    return this.mapper.toDomainMany(prismaData);
   }
 
   async searchByName(name: string): Promise<Exercise[]> {
-    const dtos = (await this.prisma.exercise.findMany({
-      where: { name: { contains: name, mode: "insensitive" } },
-    })) as ExerciseDto[];
-    return this.mapper.toDomainMany(dtos);
+    if (!name || name.trim().length === 0) {
+      return [];
+    }
+
+    const prismaData = (await prisma.exercise.findMany({
+      where: {
+        name: {
+          contains: name.trim(),
+          mode: "insensitive",
+        },
+      },
+    })) as ExercisePrismaDto[];
+
+    return this.mapper.toDomainMany(prismaData);
   }
 
   async getAll(): Promise<Exercise[]> {
-    const dtos = (await this.prisma.exercise.findMany()) as ExerciseDto[];
-    return this.mapper.toDomainMany(dtos);
+    const prismaData =
+      (await prisma.exercise.findMany()) as ExercisePrismaDto[];
+    return this.mapper.toDomainMany(prismaData);
   }
 }

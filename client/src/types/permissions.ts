@@ -3,8 +3,8 @@ export const ROUTE_PERMISSIONS = {
   "exercise-base": ["USER", "ADMIN"],
   admin: ["ADMIN"],
   "admin/settings": ["ADMIN"],
-  health: ["USER"],
-  training: ["USER"],
+  health: ["USER", "ADMIN"],
+  training: ["USER", "ADMIN"],
 };
 
 export type RoutePermission = keyof typeof ROUTE_PERMISSIONS;

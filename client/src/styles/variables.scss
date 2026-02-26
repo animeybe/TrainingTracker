@@ -5,20 +5,25 @@
   --bg-secondary: #ffffff;
   // Акцентные плашки (10%) - темный антрацит
   --bg-accent: #1a1a1a;
-  
+
   // Всплывающие поверхности/кнопки/поп-апы
-  --surface: #edf2f7 ;
+  --surface: #edf2f7;
   // Элементы над surface
-  --onSurface: #1a1a1a ;
+  --onSurface: #1a1a1a;
+
+  // Немного прозрачный фон для карточек списка (База упражнений)
+  --bg-listItemCard: rgba(255, 255, 255, 0.95);
+  // Для строк ввода (например, строки поиска упражнений)
+  --border-forInputElements: #fce4ec;
 
   // Текст основной
   --text-primary: #1a1a1a;
   // Текст второй по важности
   --text-secondary: #e00345;
   // Редкий текст
-  --text-accent: #2563eb ;
+  --text-accent: #2563eb;
   // Текст над --bg-accent (для нормальной видимости)
-  --text-onAccent: #ffffff ;
+  --text-onAccent: #ffffff;
 }
 
 [data-theme="dark"] {
@@ -30,18 +35,23 @@
   --bg-accent: #ff3131;
 
   // Всплывающие поверхности/кнопки/поп-апы
-    --surface: #3b82f6 ;
+  --surface: #3b82f6;
   // Элементы над surface
-  --onSurface: #fff ;
+  --onSurface: #fff;
+
+  // Немного прозрачный фон для карточек списка (База упражнений)
+  --bg-listItemCard: rgba(255, 255, 255, 0.05);
+  // Для строк ввода (например, строки поиска упражнений)
+  --border-forInputElements: rgba(255, 255, 255, 0.6);
 
   // Текст основной
   --text-primary: #e0e4d9;
   // Текст второй по важности
   --text-secondary: #c74a3b;
   // Редкий текст
-  --text-accent: #ff3131 ;
+  --text-accent: #ff3131;
   // Текст над --bg-accent (для нормальной видимости)
-  --text-onAccent: #ffffff ;
+  --text-onAccent: #ffffff;
 }
 
 :root,

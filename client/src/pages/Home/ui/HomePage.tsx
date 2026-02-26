@@ -1,6 +1,8 @@
+import { useNavigate } from "react-router-dom";
 import "./HomePage.scss";
 
 export function HomePage() {
+  const navigate = useNavigate();
   return (
     <>
       <div className="home-content">
@@ -17,7 +19,9 @@ export function HomePage() {
               максимального прогресса, напоминания о занятиях, поддержка в
               каждом подходе. Достигай целей проще.
             </div>
-            <div className="start-block-left__btn-crt-plan">
+            <div
+              onClick={() => navigate("/training")}
+              className="start-block-left__btn-crt-plan">
               <span>Создать персональный план</span>
             </div>
           </div>

@@ -1,14 +1,16 @@
 import { Request, Response } from "express";
-import { container } from "../../di/container";
+import { container } from "../../infrastructure/di/container";
+import { FavoriteService } from "../../domain/services/favorite.service";
 import {
   ExerciseListResponseDto,
   ExerciseResponseDto,
 } from "../types/exercise.types";
-import { ToggleFavoriteResponseDto } from "../types/favorite.types";
+import { AuthRequest } from "../types/auth.types";
 import { UserId, ExerciseId } from "../../common/types/ids";
 import { logger } from "../../common/utils";
+import { ToggleFavoriteResponseDto } from "../types/favorite.types";
 
-const favoriteService = container.get("favoriteService");
+const favoriteService = container.get("favoriteService") as FavoriteService;
 
 function exerciseToResponse(exercise: any): ExerciseResponseDto {
   return {
@@ -26,49 +28,56 @@ function exerciseToResponse(exercise: any): ExerciseResponseDto {
 
 export class FavoriteController {
   static async toggle(
-    req: Request<{ exerciseId: string }>,
-    res: Response<ToggleFavoriteResponseDto | { error: string }>,
+    req: AuthRequest & Request<{ exerciseId: string }>,
+    res: Response<{ success: boolean; message: string } | { error: string }>,
   ) {
     try {
-      const userId = UserId.create((req as any).user.id);
+      const userId = UserId.create(req.userId!);
       const exerciseId = ExerciseId.create(req.params.exerciseId);
 
-      await favoriteService.toggleFavorite(userId, exerciseId);
+      const result = await favoriteService.toggleFavorite(userId, exerciseId);
+
+      if (!result.success) {
+        logger.error(`Toggle favorite failed: ${result.error.message}`);
+        return res.status(500).json({ error: "Failed to toggle favorite" });
+      }
 
       res.json({
         success: true,
-        message: "Favorite toggled successfully",
+        message:
+          result.value.action === "added"
+            ? "Added to favorites"
+            : "Removed from favorites",
       });
     } catch (error: any) {
-      if (error.message.includes("Removed")) {
-        res.json({ success: true, message: "Removed from favorites" });
-      } else {
-        logger.error(`Toggle favorite failed: ${error.message}`);
-        res.status(500).json({ error: "Failed to toggle favorite" });
-      }
+      logger.error(`Toggle favorite failed: ${error.message}`);
+      res.status(500).json({ error: "Failed to toggle favorite" });
     }
   }
 
   static async getFavorites(
-    req: Request,
+    req: AuthRequest,
     res: Response<ExerciseListResponseDto | { error: string }>,
   ) {
     try {
-      logger.info(`req.user: ${(req as any).user}`); // ← ДОБАВИТЬ
-      logger.info(`req.user.id: ${(req as any).user?.id}`); // ← ДОБАВИТЬ
+      logger.info(`Getting favorites for userId: ${req.userId?.slice(0, 8)}`);
+      const userId = UserId.create(req.userId!);
 
-      const userId = UserId.create((req as any).user.id);
-      logger.info(`Created UserId: ${userId.value}`); // ← ДОБАВИТЬ
+      const result = await favoriteService.getFavoritesWithExercises(userId);
 
-      const exercises = await favoriteService.getFavoritesWithExercises(userId);
+      if (!result.success) {
+        logger.error(`Get favorites failed: ${result.error.message}`);
+        return res.status(500).json({ error: "Failed to fetch favorites" });
+      }
 
       res.json({
-        data: exercises.map(exerciseToResponse),
-        total: exercises.length,
+        data: result.value.map(exerciseToResponse),
+        total: result.value.length,
       });
     } catch (error: any) {
-      logger.error(`Get favorites failed: ${error.message}`);
-      logger.error(`Stack: ${error.stack}`); // ← ДОБАВИТЬ
+      logger.error(`Get favorites failed: ${error.message}`, {
+        stack: error.stack,
+      });
       res.status(500).json({ error: "Failed to fetch favorites" });
     }
   }

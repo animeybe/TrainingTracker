@@ -1,3 +1,8 @@
+import { Request } from "express";
+import { ApiResponse } from "./common.types";
+
+export type Role = "USER" | "ADMIN";
+
 export interface LoginRequestDto {
   login: string;
   password: string;
@@ -5,31 +10,24 @@ export interface LoginRequestDto {
 
 export interface RegisterRequestDto {
   login: string;
-  email?: string;
+  email: string | null;
   password: string;
 }
 
 export interface AuthResponseDto {
   userId: string;
   login: string;
-  role: string;
+  email: string | null;
+  role: Role;
   isActive: boolean;
   token: string;
-}
-
-export interface MeResponseDto {
-  userId: string;
-  login: string;
-  role: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AuthRequest extends Request {
-  user: {
-    id: string;
-    login: string;
-    role: string;
-  };
+  userId?: string;
 }
+
+export type AuthResponse = ApiResponse<AuthResponseDto>;
+export type MeResponse = ApiResponse<AuthResponseDto>;

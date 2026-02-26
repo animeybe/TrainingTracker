@@ -1,9 +1,11 @@
 import { UserId } from "../../common/types/ids";
 import { UserProfile } from "../entities";
-import { Lifestyle, Goal } from "@prisma/client";
+import { Lifestyle, Goal } from "../../common/types/enums.types";
 
 export interface IProfileRepository {
-  findByUserId(userId: UserId): Promise<UserProfile>;
+  findByUserId(userId: UserId): Promise<UserProfile | null>;
+  createForDomain(profile: UserProfile): Promise<UserProfile>;
+
   create(data: {
     userId: string;
     weight?: number | null;
@@ -12,6 +14,7 @@ export interface IProfileRepository {
     lifestyle?: Lifestyle | null;
     goal?: Goal | null;
   }): Promise<UserProfile>;
+
   update(
     userId: UserId,
     data: Partial<{
@@ -22,5 +25,6 @@ export interface IProfileRepository {
       goal: Goal | null;
     }>,
   ): Promise<UserProfile>;
+
   delete(userId: UserId): Promise<void>;
 }

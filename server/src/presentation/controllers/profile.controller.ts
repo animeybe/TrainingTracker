@@ -1,37 +1,32 @@
 import { Request, Response } from "express";
-import { ProfileService } from "../../domain";
-import { UserService } from "../../domain";
-import { container } from "../../di/container";
+import { container } from "../../infrastructure/di/container";
+import { ProfileService } from "../../domain/services/profile.service";
 import {
   ProfileUpdateRequestDto,
   ProfileResponseDto,
+  ProfileResponse,
 } from "../types/profile.types";
+import { AuthRequest } from "../types/auth.types";
 import { UserId } from "../../common/types/ids";
 import { logger } from "../../common/utils";
 
 const profileService = container.get("profileService") as ProfileService;
-const userService = container.get("userService") as UserService;
 
 export class ProfileController {
-  static async getProfile(
-    req: Request,
-    res: Response<ProfileResponseDto | { error: string }>,
-  ) {
+  static async getProfile(req: AuthRequest, res: Response<ProfileResponse>) {
     logger.info("👤 ProfileController.getProfile()", {
-      userId: (req as any).user?.id?.slice(0, 8),
+      userId: req.userId?.slice(0, 8),
     });
 
     try {
-      const userId = UserId.create((req as any).user.id);
+      const userId = UserId.create(req.userId!);
+      const profileResult = await profileService.getByUserId(userId);
 
-      const [profile, user] = await Promise.all([
-        profileService.getOrCreate(userId),
-        userService.getById(userId),
-      ]);
+      if (!profileResult.success) {
+        return res.status(404).json({ error: profileResult.error.message });
+      }
 
-      const bmi = profile.calculateBMI();
-      const bmiCategory = profile.getBMICategory();
-
+      const profile = profileResult.value;
       const response: ProfileResponseDto = {
         id: profile.userId.value,
         userId: profile.userId.value,
@@ -40,18 +35,19 @@ export class ProfileController {
         age: profile.age,
         lifestyle: profile.lifestyle,
         goal: profile.goal,
-        bmi,
-        bmiCategory,
-        createdAt: profile.createdAt,
-        updatedAt: profile.updatedAt,
+        bmi: profile.calculateBMI(),
+        bmiCategory: profile.getBMICategory(),
+        isWeightSet: profile.isWeightSet,
+        isHeightSet: profile.isHeightSet,
+        isAgeSet: profile.isAgeSet,
+        isLifestyleSet: profile.isLifestyleSet,
+        isGoalSet: profile.isGoalSet,
+        createdAt: profile.createdAt.toISOString(),
+        updatedAt: profile.updatedAt.toISOString(),
       };
 
-      logger.info("✅ ProfileController success", {
-        login: user.login,
-        weight: profile.weight,
-      });
-
-      res.json(response);
+      logger.info("✅ ProfileController success", { weight: profile.weight });
+      res.json({ data: response });
     } catch (error: any) {
       logger.error(`ProfileController.getProfile failed: ${error.message}`);
       res.status(500).json({ error: "Failed to fetch profile" });
@@ -59,19 +55,20 @@ export class ProfileController {
   }
 
   static async updateProfile(
-    req: Request<{}, {}, ProfileUpdateRequestDto>,
-    res: Response<ProfileResponseDto | { error: string }>,
+    req: AuthRequest & Request<{}, {}, ProfileUpdateRequestDto>,
+    res: Response<ProfileResponse>,
   ) {
     logger.info("👤 ProfileController.updateProfile()");
 
     try {
-      const userId = UserId.create((req as any).user.id);
-      const profileRepo = container.get("profileRepo");
-      const profile = await profileRepo.update(userId, req.body);
+      const userId = UserId.create(req.userId!);
+      const profileResult = await profileService.update(userId, req.body);
 
-      const bmi = profile.calculateBMI();
-      const bmiCategory = profile.getBMICategory();
+      if (!profileResult.success) {
+        return res.status(400).json({ error: profileResult.error.message });
+      }
 
+      const profile = profileResult.value;
       const response: ProfileResponseDto = {
         id: profile.userId.value,
         userId: profile.userId.value,
@@ -80,14 +77,19 @@ export class ProfileController {
         age: profile.age,
         lifestyle: profile.lifestyle,
         goal: profile.goal,
-        bmi,
-        bmiCategory,
-        createdAt: profile.createdAt,
-        updatedAt: profile.updatedAt,
+        bmi: profile.calculateBMI(),
+        bmiCategory: profile.getBMICategory(),
+        isWeightSet: profile.isWeightSet,
+        isHeightSet: profile.isHeightSet,
+        isAgeSet: profile.isAgeSet,
+        isLifestyleSet: profile.isLifestyleSet,
+        isGoalSet: profile.isGoalSet,
+        createdAt: profile.createdAt.toISOString(),
+        updatedAt: profile.updatedAt.toISOString(),
       };
 
       logger.info("✅ ProfileController update success");
-      res.json(response);
+      res.json({ data: response });
     } catch (error: any) {
       logger.error(`ProfileController.updateProfile failed: ${error.message}`);
       res.status(500).json({ error: "Failed to update profile" });
