@@ -1,192 +1,253 @@
 import {
-  TrainingSplit,
-  DayType,
-  WeekPlan,
-  WorkoutDay,
-  ExerciseSet,
-  Wellbeing,
-} from "../../types/training.types";
-import { Exercise } from "../../entities/exercise.entity";
+  Difficulty,
+  Goal,
+  Lifestyle,
+  MuscleGroup,
+} from "../../../common/types/enums.types";
 import { ExerciseSelectorService } from "./exercise-selector.service";
-import { ProfileDto } from "../../../common/types/profile.types";
-
-interface WeeklySchedule {
-  trainingDaysPositions: number[];
-  restDays: number[];
-  dayTypes: DayType[];
-}
+import { DifficultyCalculatorService } from "./difficulty-calculator.service";
+import { VolumeCalculatorService } from "./volume-calculator.service";
+import {
+  DayType,
+  ExerciseSet,
+  DAY_MUSCLE_GROUPS,
+  LocalWeekPlan,
+  LocalTrainingPlan,
+} from "../../types/training.types";
+import { ExerciseEntity } from "../../entities/exercise.entity";
+import { Result } from "../../common";
+import { logger } from "../../../common/utils/logger";
+import { TypedTrainingSplit } from "../../../common/types/rec-sys.types.types";
 
 export class PlanGeneratorService {
-  constructor(private exerciseSelector: ExerciseSelectorService) {}
+  constructor(
+    private exerciseSelector: ExerciseSelectorService,
+    private difficultyCalc: DifficultyCalculatorService,
+    private volumeCalc: VolumeCalculatorService,
+  ) {}
 
-  /**
-   * Генерирует НЕДЕЛЮ по рекомендованному сплиту с научными днями отдыха
-   * Использует SplitRecommender → ExerciseSelector → оптимальный график
-   */
-  generateWeekPlan(
-    splitType: TrainingSplit,
-    favorites: Exercise[],
-    allExercises: Exercise[],
-    profile: ProfileDto,
-    week: number = 1,
-    wellbeing: Wellbeing = "normal",
-  ): WeekPlan {
-    const bmi = this.calculateBMI(profile);
-    const schedule = this.getOptimalWeeklySchedule(splitType);
+  async generateWeeklyPlan(
+    split: TypedTrainingSplit,
+    favorites: ExerciseEntity[],
+    allExercises: ExerciseEntity[],
+    userData: {
+      bmi: number;
+      age: number;
+      goal: Goal;
+      lifestyle: Lifestyle;
+      weight: number;
+    },
+    options: { week: number; wellbeing: "BAD" | "NORMAL" | "GOOD" } = {
+      week: 1,
+      wellbeing: "NORMAL",
+    },
+  ): Promise<Result<LocalWeekPlan>> {
+    try {
+      const { bmi, age, goal, lifestyle, weight } = userData;
+      const { week, wellbeing } = options;
 
-    const workoutDays: Record<number, WorkoutDay | null> = {};
+      const experience: "NEWBIE" | "INTERMEDIATE" | "ADVANCED" = "INTERMEDIATE";
+      const difficulty = this.difficultyCalc.calculateOverallDifficulty(
+        bmi,
+        age,
+        goal,
+        lifestyle,
+      );
 
-    // Генерируем тренировки по научному графику
-    schedule.trainingDaysPositions.forEach(
-      (dayNumber: number, dayIndex: number) => {
-        const dayType: DayType = schedule.dayTypes[dayIndex];
+      const expandedDays: Array<{ type: DayType; frequency: 1 }> = [];
+      split.days.forEach((dayConfig) => {
+        for (let i = 0; i < dayConfig.frequency; i++) {
+          expandedDays.push({
+            type: dayConfig.type as DayType,
+            frequency: 1,
+          });
+        }
+      });
 
-        const dayExercises = this.exerciseSelector.generateDay(
-          dayType,
-          favorites,
-          allExercises,
-          bmi,
-          profile.goal!,
-          profile.age,
-          profile.lifestyle!,
-        );
+      const trainingDayOfWeeks = this.distributeDaysEvenly(expandedDays.length);
 
-        workoutDays[dayNumber] = {
-          day: dayNumber,
-          type: dayType,
-          exercises: this.applyProgressionAndWellbeing(
-            dayExercises,
+      const trainingDays: LocalTrainingPlan[] = await Promise.all(
+        expandedDays.map(async (dayConfig, dayIndex: number) => {
+          const dayOfWeek = trainingDayOfWeeks[dayIndex];
+          const dayInCycle = dayIndex % 3;
+
+          const dayBase = await this.generateDay(
+            dayConfig.type,
+            dayOfWeek,
+            favorites,
+            allExercises,
+            bmi,
+            goal,
+            age,
+            lifestyle,
             week,
             wellbeing,
-          ),
-          progression: this.getDayProgression(week),
-        };
-      },
+            dayInCycle,
+            difficulty,
+          );
+
+          return {
+            ...dayBase,
+            dayOfWeek,
+          } as LocalTrainingPlan;
+        }),
+      );
+
+      const plan: LocalWeekPlan = {
+        week,
+        split: { ...split, days: expandedDays },
+        trainingDays,
+        userData: {
+          bmi,
+          age,
+          goal,
+          lifestyle,
+          difficulty,
+          estimated1RM: this.estimate1RM(weight, experience),
+          totalVolume: this.calculateTotalVolume(trainingDays),
+        },
+        progression: {
+          weekOffset: Math.floor((week - 1) / 4),
+          wellbeingAdjusted: wellbeing !== "NORMAL",
+        },
+        generatedAt: new Date().toISOString(),
+      };
+
+      return Result.ok(plan);
+    } catch (error) {
+      logger.error("💥 PlanGenerator ERROR", { error: String(error) });
+      return Result.error(new Error("Ошибка генерации плана"));
+    }
+  }
+
+  private async generateDay(
+    dayType: DayType,
+    dayOfWeek: number,
+    favorites: ExerciseEntity[],
+    allExercises: ExerciseEntity[],
+    bmi: number,
+    goal: Goal,
+    age: number,
+    lifestyle: Lifestyle,
+    week: number,
+    wellbeing: "BAD" | "NORMAL" | "GOOD",
+    dayInCycle: number,
+    overallDifficulty: Difficulty,
+  ): Promise<LocalTrainingPlan> {
+    const dayExercisesResult = this.exerciseSelector.generateDay(
+      dayType,
+      favorites,
+      allExercises,
+      bmi,
+      goal,
+      age,
+      lifestyle,
+      week,
+      wellbeing,
+      dayInCycle,
     );
 
-    const score = 95; // Из SplitRecommenderService
+    const exercises = dayExercisesResult.isOk ? dayExercisesResult.value! : [];
+
+    const targetMuscles = DAY_MUSCLE_GROUPS[dayType] || [];
+
+    const coveredMuscles = new Set(
+      exercises
+        .map((ex: ExerciseSet) => ex.muscleGroup)
+        .filter((mg: MuscleGroup | null): mg is MuscleGroup => Boolean(mg)),
+    );
+
+    const coverage = targetMuscles.length
+      ? Math.round((coveredMuscles.size / targetMuscles.length) * 100)
+      : 0;
 
     return {
-      week,
-      split: splitType,
-      score,
-      daysPerWeek: schedule.trainingDaysPositions.length,
-      days: workoutDays,
-      restDays: schedule.restDays,
-      wellbeing,
-      wellbeingAdjusted: wellbeing !== "normal",
-      message: this.generateMessage(splitType, wellbeing, week),
+      dayType,
+      dayIndex: dayInCycle,
+      dayOfWeek,
+      exercises,
+      targetMuscles,
+      coverage,
+      estimatedDuration: this.estimateDuration(exercises),
+      volumeLoad: this.volumeCalc.calculateDayVolume(exercises),
+      warnings: this.generateDayWarnings(exercises, overallDifficulty),
     };
   }
 
-  /** 🆕 НАУЧНЫЕ графики (48-72ч отдых между группами) */
-  private getOptimalWeeklySchedule(split: TrainingSplit): WeeklySchedule {
-    const schedules: Record<TrainingSplit, WeeklySchedule> = {
-      // PPL: 5 дней, 48ч отдых (2x/группу)
-      PPL: {
-        trainingDaysPositions: [1, 3, 4, 5, 7],
-        restDays: [2, 6],
-        dayTypes: ["pull", "push", "legs", "pull", "push"],
-      },
-
-      // Full Body: 3 дня (72ч между full)
-      FULL_BODY: {
-        trainingDaysPositions: [1, 4, 7],
-        restDays: [2, 3, 5, 6],
-        dayTypes: ["full", "full", "full"],
-      },
-
-      // Upper/Lower: 4 дня (48ч между upper/lower)
-      UPPER_LOWER: {
-        trainingDaysPositions: [1, 3, 4, 6],
-        restDays: [2, 5, 7],
-        dayTypes: ["upper", "lower", "upper", "lower"],
-      },
-
-      // Bro Split: 5 дней (72ч+ на группу)
-      BRO_SPLIT: {
-        trainingDaysPositions: [1, 2, 3, 4, 5],
-        restDays: [6, 7],
-        dayTypes: ["chest", "back", "legs", "shoulders", "arms"],
-      },
+  estimate1RM(
+    weight: number,
+    experience: "NEWBIE" | "INTERMEDIATE" | "ADVANCED",
+  ): number {
+    const multipliers = {
+      NEWBIE: 0.7,
+      INTERMEDIATE: 0.85,
+      ADVANCED: 1.0,
     };
-
-    return schedules[split] || schedules.PPL;
+    return Math.round(weight * 1.25 * (multipliers[experience] ?? 0.85));
   }
 
-  /** Применяет прогрессию + wellbeing адаптацию */
-  private applyProgressionAndWellbeing(
+  private calculateTotalVolume(days: LocalTrainingPlan[]): number {
+    return days.reduce((sum, day) => {
+      return (
+        sum +
+        day.exercises.reduce((daySum: number, ex: ExerciseSet) => {
+          const avgReps = (ex.targetRepsRange[0] + ex.targetRepsRange[1]) / 2;
+          return daySum + ex.sets * avgReps;
+        }, 0)
+      );
+    }, 0);
+  }
+
+  private estimateDuration(exercises: ExerciseSet[]): number {
+    const setsTotal = exercises.reduce((sum, ex) => sum + ex.sets, 0);
+    const restTime = 90 * setsTotal;
+    const exerciseTime = exercises.length * 120;
+    return Math.round((restTime + exerciseTime) / 60);
+  }
+
+  private generateDayWarnings(
     exercises: ExerciseSet[],
-    week: number,
-    wellbeing: Wellbeing,
-  ): ExerciseSet[] {
-    return exercises.map((ex) => {
-      // 1. БАЗОВЫЕ сеты
-      let sets = ex.sets;
+    difficulty: Difficulty,
+  ): string[] {
+    const warnings: string[] = [];
 
-      // 2. WELLBEING корректировка
-      switch (wellbeing) {
-        case "bad":
-          sets = Math.max(2, sets - 1);
-          break;
-        case "good":
-          sets = Math.min(6, sets + 1);
-          break;
-      }
+    const hardExercises = exercises.filter((ex) => Boolean(ex.warning));
+    if (difficulty === "EASY" && hardExercises.length > 2) {
+      warnings.push("⚠️ Много сложных! Фокус на технику");
+    }
 
-      // 3. ПРОГРЕССИЯ (+1 сет каждые 4 недели)
-      const progressionSets = Math.min(5, ex.sets + Math.floor((week - 1) / 4));
-      sets = Math.max(sets, progressionSets);
+    const bigLifts = [
+      "SQUAT",
+      "BENCH_PRESS",
+      "DEADLIFT",
+      "OVERHEAD_PRESS",
+      "PULLUP",
+    ];
 
-      // ✅ Безопасный progression
-      const safeProgression = ex.progression || {
-        baseSets: ex.sets,
-        baseReps: ex.targetRepsRange,
-      };
+    const bigLiftsCount = exercises.filter((ex) =>
+      bigLifts.includes(ex.exerciseId),
+    ).length;
 
-      return {
-        ...ex,
-        sets,
-        progression: {
-          ...safeProgression,
-          baseSets: ex.sets,
-          baseReps: ex.targetRepsRange,
-          currentSets: sets,
-          weekOffset: Math.floor((week - 1) / 4),
-          wellbeingAdjusted: wellbeing !== "normal",
-        },
-      };
-    });
+    if (bigLiftsCount > 2) {
+      warnings.push("⚠️ Много тяжелых базовых — восстановись!");
+    }
+
+    return warnings;
   }
 
-  private getDayProgression(week: number): WorkoutDay["progression"] {
-    return {
-      weekOffset: Math.floor((week - 1) / 4),
-      repIncrease: Math.floor((week - 1) / 2),
-    };
-  }
-
-  private calculateBMI(profile: ProfileDto): number {
-    const heightInMeters = profile.height / 100;
-    return profile.weight / (heightInMeters * heightInMeters);
-  }
-
-  private generateMessage(
-    split: TrainingSplit,
-    wellbeing: Wellbeing,
-    week: number,
-  ): string {
-    const messages: Record<TrainingSplit, string> = {
-      PPL: "🏋️‍♂️ PPL — 48-72ч отдых (2x/группу)",
-      FULL_BODY: "💪 Full Body — 72ч восстановление (3x/неделя)",
-      UPPER_LOWER: "⚖️ Upper/Lower — баланс (2x/группу)",
-      BRO_SPLIT: "🔥 Bro Split — специализация (1x/группу)",
-    };
-
-    const adjustments: string[] = [];
-    if (wellbeing !== "normal") adjustments.push(`${wellbeing} день`);
-    if (week > 4) adjustments.push(`+${Math.floor((week - 1) / 4)} сет`);
-
-    return `${messages[split]} ${adjustments.join(", ") || ""}`;
+  // Равномерно распределить дни тренеровок по дня недели
+  private distributeDaysEvenly(daysCount: number): number[] {
+    switch (daysCount) {
+      case 3: // Full Body
+        return [0, 2, 4]; // Пн, Ср, Пт
+      case 4: // Upper/Lower
+        return [0, 1, 3, 4]; // Пн, Вт, Чт, Пт
+      case 5: // BroSplit
+        return [0, 1, 2, 3, 4]; // Пн-Пт
+      case 6: // PPL
+        return [0, 1, 2, 3, 4, 5]; // Пн-Сб
+      default:
+        return Array.from({ length: Math.min(daysCount, 7) }, (_, i) => i);
+    }
   }
 }

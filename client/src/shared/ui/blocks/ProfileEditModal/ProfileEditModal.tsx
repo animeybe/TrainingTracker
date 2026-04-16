@@ -2,9 +2,10 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import type { ProfileData } from "@/shared/api/types";
 import type { SafeUser } from "@/types/auth.types";
-import { profileApi, authApi } from "@/shared/api";
+import { authApi } from "@/shared/api";
 import EyeIcon from "@/assets/icon/eye.svg";
 import "./ProfileEditModal.scss";
+import { profileApi } from "@/shared/api/profileApi";
 
 // ==================== TYPES ====================
 type TabKey = "profile" | "account";
@@ -410,7 +411,10 @@ export function ProfileEditModal({
           onClose();
           return;
         }
-        await profileApi.update(profileUpdate);
+
+        console.log("📝 Profile update:", profileUpdate);
+        const updatedProfile = await profileApi.update(profileUpdate);
+        console.log("✅ Profile updated:", updatedProfile);
       } else {
         if (loginEmailTab === "login-email") {
           const accountUpdate = prepareLoginEmailData();
@@ -443,17 +447,18 @@ export function ProfileEditModal({
         onClose();
       }, 1200);
     } catch (error: unknown) {
+      console.error("❌ Submit error:", error);
+
+      // Показываем ошибку пользователю
       const errorMessage =
         error instanceof Error ? error.message : "Ошибка сохранения";
-
       if (activeTab === "profile") {
-        setProfileErrors((prev) => ({ ...prev, general: errorMessage }));
+        setProfileErrors({ general: errorMessage });
       } else if (loginEmailTab === "login-email") {
-        setLoginEmailErrors((prev) => ({ ...prev, general: errorMessage }));
+        setLoginEmailErrors({ general: errorMessage });
       } else {
-        setPasswordErrors((prev) => ({ ...prev, general: errorMessage }));
+        setPasswordErrors({ general: errorMessage });
       }
-
       setSubmitStatus("error");
     } finally {
       setIsSubmitting(false);
@@ -620,10 +625,15 @@ export function ProfileEditModal({
                     onChange={handleProfileChange("goal")}
                     disabled={isSubmitting}>
                     <option value="">Не выбрана</option>
-                    <option value="LOSE_WEIGHT">Сбросить вес</option>
+                    <option value="LOSE_FAT">Сбросить жир</option>
                     <option value="MAINTAIN_WEIGHT">Поддерживать вес</option>
-                    <option value="GAIN_WEIGHT">Набрать вес</option>
                     <option value="GAIN_MUSCLE_MASS">Набрать мышцы</option>
+                    <option value="STRENGTH">Силовой рост</option>
+                    <option value="HYPERTROPHY">Гипертрофия</option>
+                    <option value="ENDURANCE">Выносливость</option>
+                    <option value="POWER">Силовая выносливость</option>
+                    <option value="HEALTH">Улучшение здоровья</option>
+                    <option value="REHABILITATION">Реабилитация</option>
                   </select>
                 </div>
               </div>

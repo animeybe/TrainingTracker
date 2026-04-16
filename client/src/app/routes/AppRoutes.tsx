@@ -6,13 +6,13 @@ import {
   DashboardPage,
   ExerciseBasePage,
   AdminSettingsPage,
-  InfoPage,
   HealthPage,
   TrainingPage,
 } from "@/pages";
 import { AppLayout } from "..";
 import { GuestRoute } from "@/shared/guards/GuestRoute";
 import { RoleGuard } from "@/shared/guards/RoleGuard";
+import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
 
 export const AppRoutes = () => {
   return (

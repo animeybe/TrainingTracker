@@ -1,9 +1,9 @@
+// controllers/auth.controller.ts
 import { Request, Response } from "express";
-import { container } from "../../infrastructure/di/container";
+import { container, ServiceKeys } from "../../infrastructure/di/container";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { logger } from "../../common/utils";
-import { UserId } from "../../common/types/ids";
 import {
   AuthRequest,
   AuthResponse,
@@ -12,14 +12,37 @@ import {
   LoginRequestDto,
   AuthResponseDto,
 } from "../types/auth.types";
-import { UserService } from "../../domain/services/user.service";
-import { ProfileService } from "../../domain/services/profile.service";
-import { Role } from "../../common/types/enums.types";
-import { PrismaUserRepository } from "../../data/repositories/prisma-user.repository";
 import { Result } from "../../domain/common/result";
+import type { UserService } from "../../domain/services";
+import type { ProfileService } from "../../domain/services";
 
-const userService = container.get("userService") as UserService;
-const profileService = container.get("profileService") as ProfileService;
+// ✅ Типизированное получение сервисов
+const userService = container.get(ServiceKeys.USER_SERVICE) as UserService;
+const profileService = container.get(
+  ServiceKeys.PROFILE_SERVICE,
+) as ProfileService;
+
+// Вспомогательный метод: создание "пустого" профиля
+async function createEmptyProfile(userId: string): Promise<Result<any> | null> {
+  const profileData = {
+    id: userId,
+    userId,
+    weight: null,
+    height: null,
+    age: null,
+    lifestyle: null,
+    goal: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  try {
+    const profile = await profileService.createProfile(profileData);
+    return Result.ok(profile);
+  } catch (error: any) {
+    return Result.error(error);
+  }
+}
 
 export const register = async (
   req: Request<{}, {}, RegisterRequestDto>,
@@ -31,42 +54,37 @@ export const register = async (
     const { login, email, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const userResult = await userService.create({
+    const user = await userService.createUser({
       login: login.trim(),
       email: email?.trim() ?? null,
-      password: hashedPassword,
-      role: Role.USER,
+      passwordHash: hashedPassword,
+      role: "USER",
       isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
-    if (!Result.isOk(userResult)) {
-      logger.error("User creation validation failed", {
-        error: userResult.error.message,
-      });
-      return res.status(400).json({ error: userResult.error.message });
+    if (!user) {
+      logger.error("User creation validation failed");
+      return res.status(400).json({ error: "Ошибка регистрации" });
     }
 
-    const user = userResult.value;
+    const profileResult = await createEmptyProfile(user.id);
 
-    const profileResult = await profileService.createEmptyProfile(user.id);
-    if (!Result.isOk(profileResult)) {
-      logger.warn(`Profile creation failed: ${profileResult.error.message}`);
+    if (!profileResult || !profileResult.isOk) {
+      logger.warn(`Profile creation failed: ${profileResult?.error?.message}`);
     } else {
-      logger.info("✅ Profile created", { userId: user.id.value });
+      logger.info("✅ Profile created", { userId: user.id });
     }
 
-    const token = jwt.sign({ userId: user.id.value }, process.env.JWT_SECRET!, {
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, {
       expiresIn: "7d",
     });
 
-    logger.info("🎉 REGISTER SUCCESS", { userId: user.id.value });
+    logger.info("🎉 REGISTER SUCCESS", { userId: user.id });
 
     const response: AuthResponseDto = {
-      userId: user.id.value,
+      userId: user.id,
       login: user.login,
-      email: user.email,
+      email: user.email || null,
       role: user.role,
       isActive: user.isActive,
       token,
@@ -89,7 +107,6 @@ export const register = async (
   }
 };
 
-// login и getMe без изменений...
 export const login = async (
   req: Request<{}, {}, LoginRequestDto>,
   res: Response<AuthResponse>,
@@ -97,31 +114,36 @@ export const login = async (
   logger.info("=== LOGIN START ===");
 
   try {
-    const { login, password } = req.body;
-    const userRepo = container.get("userRepo") as PrismaUserRepository;
+    const { login: loginInput, password } = req.body;
 
-    const user = await userRepo.findByLogin(login);
+    const user = await userService.findByLogin(loginInput);
+
     if (!user) {
-      logger.warn("❌ User not found", { login: login.slice(0, 3) + "..." });
+      logger.warn("❌ User not found", {
+        login: loginInput.slice(0, 3) + "...",
+      });
       return res.status(401).json({ error: "Неверный логин или пароль" });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user._password);
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
     if (!isPasswordValid) {
-      logger.warn("❌ Wrong password", { login: login.slice(0, 3) + "..." });
+      logger.warn("❌ Wrong password", {
+        login: loginInput.slice(0, 3) + "...",
+      });
       return res.status(401).json({ error: "Неверный логин или пароль" });
     }
 
-    const token = jwt.sign({ userId: user.id.value }, process.env.JWT_SECRET!, {
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, {
       expiresIn: "7d",
     });
 
-    logger.info("🎉 LOGIN SUCCESS", { userId: user.id.value });
+    logger.info("🎉 LOGIN SUCCESS", { userId: user.id });
 
     const response: AuthResponseDto = {
-      userId: user.id.value,
+      userId: user.id,
       login: user.login,
-      email: user.email,
+      email: user.email || null,
       role: user.role,
       isActive: user.isActive,
       token,
@@ -141,19 +163,17 @@ export const getMe = async (
   res: Response<MeResponse>,
 ): Promise<void> => {
   try {
-    const userService = container.get("userService") as UserService;
-    const userResult = await userService.getById(UserId.create(req.userId!));
+    const user = await userService.findById(req.userId!);
 
-    if (!Result.isOk(userResult)) {
-      res.status(404).json({ error: userResult.error.message });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
       return;
     }
 
-    const user = userResult.value;
     const response: AuthResponseDto = {
-      userId: user.id.value,
+      userId: user.id,
       login: user.login,
-      email: user.email,
+      email: user.email || null,
       role: user.role,
       isActive: user.isActive,
       token: req.headers.authorization?.replace("Bearer ", "") || "",
@@ -176,7 +196,7 @@ export const updateAccountController = async (
     logger.info("🔥 updateAccountController START", {
       userId: req.userId,
       body: req.body,
-    }); // ✅ ЛОГ 1
+    });
 
     const userId = req.userId;
     if (!userId) {
@@ -187,28 +207,18 @@ export const updateAccountController = async (
     const updateData = {
       login: req.body.login?.trim(),
       email: req.body.email?.trim(),
-      currentPassword: req.body.currentPassword,
-      newPassword: req.body.newPassword,
     };
 
-    logger.info("📤 Calling userService.updateAccount", { userId, updateData }); // ✅ ЛОГ 2
+    const updatedUser = await userService.updateUser(userId, updateData);
 
-    const userService = container.get("userService") as UserService;
-    const result = await userService.updateAccount(
-      UserId.create(userId),
-      updateData,
-    );
-
-    logger.info("✅ userService result", { isOk: Result.isOk(result) }); // ✅ ЛОГ 3
-
-    if (!Result.isOk(result)) {
-      logger.error("❌ Service error", { error: result.error.message });
-      return res.status(400).json({ error: result.error.message });
+    if (!updatedUser) {
+      logger.error("❌ Service error: user update failed");
+      return res.status(400).json({ error: "Ошибка обновления" });
     }
 
-    res.json({ message: "Аккаунт обновлен" });
+    res.json({ message: "Аккаунт обновлён" });
   } catch (error: any) {
-    logger.error("💥 updateAccountController ERROR:", error); // ✅ ЛОГ 4
+    logger.error("💥 updateAccountController ERROR:", error);
     res
       .status(500)
       .json({ error: error.message || "Внутренняя ошибка сервера" });

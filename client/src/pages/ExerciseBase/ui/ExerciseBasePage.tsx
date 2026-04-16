@@ -1,34 +1,59 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { exerciseApi, favoriteApi } from "@/shared/api";
-import type { Exercise } from "@/shared/api/types";
+import type { Exercise, ExerciseListResponse } from "@/shared/api/types";
 import "./ExerciseBasePage.scss";
-import { InfoPage } from "@/pages";
 import groupingByMusclesIcon from "@/assets/icon/groupingByMuscles.svg";
 import sortingIcon from "@/assets/icon/sorting.svg";
 import {
   MUSCLE_SUPERGROUPS,
   MUSCLE_SUPERGROUP_LABELS,
   MUSCLE_GROUP_LABELS,
-} from "../models/muscleGroupInterpreter";
+} from "../common/utils/muscleGroupInterpreter";
+import { exerciseApi } from "@/shared/api/exerciseApi";
+import { favoriteApi } from "@/shared/api/favoriteApi";
+import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
+import type { ErrorType } from "@/shared/ui/components/ErrorUI/model/types";
+import { logger } from "@/lib/utils/logger";
+
+// ======================================================================
+// 🔧 ТИПЫ
+// ======================================================================
 
 type SupergroupKey = keyof typeof MUSCLE_SUPERGROUPS;
 type MuscleGroup =
   (typeof MUSCLE_SUPERGROUPS)[keyof typeof MUSCLE_SUPERGROUPS][number];
 
-export function ExerciseBasePage() {
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [favoriteList, setFavoriteList] = useState<Exercise[]>([]);
-  const [isLoadingFavorites, setIsLoadingFavorites] = useState<boolean>(false);
-  const [isLoadingExercises, setIsLoadingExercises] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
-  const [search, setSearch] = useState<string>("");
-  const [isFavoritesModalOpen, setIsFavoritesModalOpen] = useState(false);
+/**
+ * Упрощенный тип для избранного (без secondaryMuscles и т.д.)
+ */
+type FavoriteExercise = Omit<
+  Exercise,
+  "secondaryMuscles" | "movementPatterns" | "trainingFocus"
+>;
 
+// ======================================================================
+// 🎯 ОСНОВНОЙ КОМПОНЕНТ
+// ======================================================================
+
+export function ExerciseBasePage() {
+  // ==================== CORE STATE ====================
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [favoriteList, setFavoriteList] = useState<FavoriteExercise[]>([]);
+  const [isLoadingExercises, setIsLoadingExercises] = useState(false);
+  const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
+  const [localError, setLocalError] = useState<{
+    type: ErrorType;
+    message?: string;
+  } | null>(null);
+
+  // ==================== UI STATE ====================
+  const [search, setSearch] = useState("");
+  const [isFavoritesModalOpen, setIsFavoritesModalOpen] = useState(false);
   const [groupingEnabled, setGroupingEnabled] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem("exerciseBaseGroupingEnabled");
       return saved ? JSON.parse(saved) : false;
     } catch {
+      logger.warn("Failed to load grouping settings");
       return false;
     }
   });
@@ -36,64 +61,93 @@ export function ExerciseBasePage() {
     useState<SupergroupKey | null>(null);
   const [selectedMuscleGroup, setSelectedMuscleGroup] =
     useState<MuscleGroup | null>(null);
-
   const [isSortingOpen, setIsSortingOpen] = useState(false);
-  const [sortType, setSortType] = useState<
-    "name" | "muscle" | "difficulty" | "type"
-  >("name");
+  const [sortType, setSortType] = useState<"name" | "muscle" | "difficulty">(
+    "name",
+  );
+
+  // ==================== REFS ====================
   const sortingRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("exerciseBaseGroupingEnabled");
-      if (saved !== null) {
-        setGroupingEnabled(JSON.parse(saved));
-      }
-    } catch {
-      setError("Не удалось загрузить настройки группировки");
-    }
+  // ==================== API FUNCTIONS ====================
+  /**
+   * Загружает все упражнения (один раз)
+   */
+  const loadExercises = useCallback(async () => {
+    setIsLoadingExercises(true);
+    setLocalError(null);
+    logger.debug("ExerciseBasePage - loadExercises started");
 
-    const loadExercises = async (retries = 2) => {
-      setIsLoadingExercises(true);
-      try {
-        const response = await exerciseApi.getAll();
-        setExercises(Array.isArray(response) ? response : response.data || []);
-      } catch {
-        if (retries > 0) {
-          setTimeout(() => loadExercises(retries - 1), 1000);
-        } else {
-          setError("Не вышло загрузить список упражнений, извините :(");
-        }
-      } finally {
-        setIsLoadingExercises(false);
-      }
-    };
-    loadExercises();
+    try {
+      const response = await exerciseApi.getAllExercises();
+      const exercisesData: Exercise[] = Array.isArray(response)
+        ? response
+        : (response?.data ?? []);
+
+      logger.debug("exerciseApi.getAllExercises success", {
+        count: exercisesData.length,
+        total: (response as ExerciseListResponse)?.total || 0,
+      });
+
+      setExercises(exercisesData);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      logger.error("loadExercises failed", { error: errorMessage });
+      setLocalError({
+        type: "network",
+        message: "Не удалось загрузить упражнения",
+      });
+      setExercises([]); // ✅ Graceful degradation
+    } finally {
+      setIsLoadingExercises(false);
+    }
   }, []);
 
-  useEffect(() => {
-    if (!exercises.length) return;
+  /**
+   * Загружает избранное (после упражнений)
+   */
+  const loadFavorites = useCallback(async () => {
+    if (!exercises.length) {
+      logger.debug("loadFavorites skipped: no exercises");
+      return;
+    }
 
-    const loadFavorites = async (retries = 2) => {
-      setIsLoadingFavorites(true);
-      try {
-        const response = await favoriteApi.getFavorites();
-        const data = Array.isArray(response) ? response : response.data || [];
-        setFavoriteList(data);
-      } catch {
-        if (retries > 0) {
-          setTimeout(() => loadFavorites(retries - 1), 1000);
-        } else {
-          setError("Невозможно загрузить избранное, извините :(");
-        }
-      } finally {
-        setIsLoadingFavorites(false);
-      }
-    };
+    setIsLoadingFavorites(true);
+    logger.debug("ExerciseBasePage - loadFavorites started");
 
-    loadFavorites();
-  }, [exercises]);
+    try {
+      const response = await favoriteApi.getFavorites();
+      const favorites: FavoriteExercise[] = Array.isArray(response)
+        ? response
+        : (response?.data ?? []);
 
+      const validFavorites = favorites.filter((fav) =>
+        exercises.some((ex) => ex.id === fav.id),
+      );
+
+      logger.debug("favoriteApi.getFavorites success", {
+        total: favorites.length,
+        valid: validFavorites.length,
+      });
+
+      setFavoriteList(validFavorites);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      logger.error("loadFavorites failed", { error: errorMessage });
+      setLocalError({
+        type: "network",
+        message: "Невозможно загрузить избранное",
+      });
+    } finally {
+      setIsLoadingFavorites(false);
+    }
+  }, [exercises.length]); // ✅ Только length!
+
+  /**
+   * Проверка избранного
+   */
   const isFavorite = useCallback(
     (exerciseId: string): boolean => {
       return favoriteList.some((fav) => fav.id === exerciseId);
@@ -101,97 +155,135 @@ export function ExerciseBasePage() {
     [favoriteList],
   );
 
-  const handleToggleFavorite = async (exerciseId: string) => {
-    const wasFavorite = isFavorite(exerciseId);
-    setFavoriteList((prev) => {
+  /**
+   * Toggle избранного (оптимистично)
+   * UI меняется МГНОВЕННО (0ms)
+   * Сервер фоном (параллельно)
+   * Ошибка = ОТКАТ к старому состоянию
+   */
+  const handleToggleFavorite = useCallback(
+    async (exerciseId: string) => {
+      const wasFavorite = isFavorite(exerciseId);
+      const previousFavorites = favoriteList; // СНАПШОТ для отката
+
+      logger.debug("handleToggleFavorite optimistic", {
+        exerciseId,
+        wasFavorite,
+      });
+
+      // 1. ОПТИМИСТИЧНО — UI СРАЗУ! (0ms)
+      let optimisticFavorites: FavoriteExercise[];
       if (wasFavorite) {
-        console.log("🗑️ Удаляем:", exerciseId);
-        return prev.filter((fav) => fav.id !== exerciseId);
+        // Мгновенно убираем
+        optimisticFavorites = favoriteList.filter(
+          (fav) => fav.id !== exerciseId,
+        );
       } else {
-        console.log("⭐ Добавляем:", exerciseId);
+        // Мгновенно добавляем
         const exercise = exercises.find((ex) => ex.id === exerciseId);
-        if (exercise) {
-          return [
-            {
-              id: exerciseId,
-              name: exercise.name,
-              muscleGroup: exercise.muscleGroup,
-              type: exercise.type,
-              difficulty: exercise.difficulty || ("beginner" as const),
-            },
-            ...prev,
-          ];
+        if (!exercise) {
+          logger.warn("Exercise not found for optimistic add", { exerciseId });
+          return;
         }
+
+        optimisticFavorites = [
+          {
+            id: exercise.id,
+            name: exercise.name,
+            primaryMuscleGroup: exercise.primaryMuscleGroup,
+            difficulty: exercise.difficulty,
+            description: exercise.description || null,
+            imageUrl: exercise.imageUrl || null,
+            videoUrl: exercise.videoUrl || null,
+          },
+          ...favoriteList,
+        ];
       }
-      return prev;
-    });
 
-    try {
-      await favoriteApi.toggleFavorite(exerciseId);
-      console.log("✅ API OK:", exerciseId);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error("❌ API Error (UI сохранено):", errorMessage);
-    }
-  };
+      // UI ОБНОВЛЯЕТСЯ СРАЗУ!
+      setFavoriteList(optimisticFavorites);
+      logger.debug("Optimistic UI update", {
+        exerciseId,
+        newCount: optimisticFavorites.length,
+      });
 
-  const handleFavoritesClick = useCallback(() => {
-    setIsFavoritesModalOpen(true);
-  }, []);
+      // 2. ФОНОМ сервер (НЕ блокирует UI)
+      try {
+        const toggleResult = await favoriteApi.toggleFavorite({ exerciseId });
 
+        if (!toggleResult.success) {
+          throw new Error(`toggleFavorite failed: success=false`);
+        }
+
+        logger.debug("✅ Server confirmed", { exerciseId });
+      } catch (error) {
+        // ОТКАТ к предыдущему состоянию!
+        setFavoriteList(previousFavorites);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        logger.error("❌ Optimistic rollback", {
+          exerciseId,
+          error: errorMessage,
+        });
+
+        setLocalError({
+          type: "network",
+          message: "Сервер отклонил изменение, состояние восстановлено",
+        });
+      }
+    },
+    [isFavorite, favoriteList, exercises],
+  );
+
+  // ==================== COMPUTED / MEMO ====================
+  /**
+   * Фильтр по поиску (название + мышцы)
+   */
   const filteredExercises = useMemo(() => {
     if (!search.trim()) return exercises;
 
     const lowerSearch = search.toLowerCase();
-
     return exercises.filter((ex) => {
       const nameMatch = ex.name.toLowerCase().includes(lowerSearch);
-      const muscleRu = MUSCLE_GROUP_LABELS[ex.muscleGroup]?.toLowerCase() || "";
-      const muscleEn = ex.muscleGroup.split("_").join(" ")?.toLowerCase() || "";
+      const muscleRu =
+        MUSCLE_GROUP_LABELS[ex.primaryMuscleGroup]?.toLowerCase() || "";
+      const muscleEn = ex.primaryMuscleGroup.toLowerCase();
       const muscleMatch =
         muscleRu.includes(lowerSearch) || muscleEn.includes(lowerSearch);
-      const typeMatch = ex.type.toLowerCase().includes(lowerSearch);
-      const difficultyMatch =
-        ex.difficulty?.toLowerCase().includes(lowerSearch) || false;
-
-      return nameMatch || muscleMatch || typeMatch || difficultyMatch;
+      return nameMatch || muscleMatch;
     });
   }, [exercises, search]);
 
-  const handleSortingClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsSortingOpen((prev) => !prev);
-  };
-
+  /**
+   * Сортировка (по имени/мышцам/сложности)
+   */
   const sortedExercises = useMemo(() => {
-    const filtered = search.trim() ? filteredExercises : exercises;
+    const safeExercises = Array.isArray(exercises) ? exercises : [];
+    const filtered =
+      search.trim() && Array.isArray(filteredExercises)
+        ? filteredExercises
+        : safeExercises;
 
     return [...filtered].sort((a, b) => {
       switch (sortType) {
-        case "name": {
+        case "name":
           return a.name.localeCompare(b.name);
-        }
-        case "muscle": {
+        case "muscle":
           return (
-            MUSCLE_GROUP_LABELS[a.muscleGroup]?.localeCompare(
-              MUSCLE_GROUP_LABELS[b.muscleGroup] || "",
-            ) || 0
+            MUSCLE_GROUP_LABELS[a.primaryMuscleGroup]?.localeCompare(
+              MUSCLE_GROUP_LABELS[b.primaryMuscleGroup] || "",
+            ) || a.primaryMuscleGroup.localeCompare(b.primaryMuscleGroup)
           );
-        }
         case "difficulty": {
           const diffOrder: Record<string, number> = {
-            beginner: 1,
-            intermediate: 2,
-            advanced: 3,
+            EASY: 1,
+            MEDIUM: 2,
+            HARD: 3,
           };
           return (
-            (diffOrder[a.difficulty || "beginner"] || 0) -
-            (diffOrder[b.difficulty || "beginner"] || 0)
+            (diffOrder[a.difficulty || "EASY"] || 0) -
+            (diffOrder[b.difficulty || "EASY"] || 0)
           );
-        }
-        case "type": {
-          return a.type.localeCompare(b.type);
         }
         default:
           return 0;
@@ -199,27 +291,29 @@ export function ExerciseBasePage() {
     });
   }, [exercises, filteredExercises, search, sortType]);
 
-  // Логика группировки по мышцам
+  /**
+   * Группировка по мышцам (супергруппы → группы)
+   */
   const groupedExercises = useMemo(() => {
-    if (!groupingEnabled) {
-      return sortedExercises; // Уровень 1: все упражнения
-    }
+    if (!Array.isArray(sortedExercises)) return sortedExercises;
+
+    if (!groupingEnabled) return sortedExercises;
 
     if (selectedMuscleGroup) {
-      // Уровень 3: конкретная группа мышц
-      return sortedExercises.filter(
-        (ex) => ex.muscleGroup === selectedMuscleGroup,
-      );
+      return sortedExercises.filter((exercise) => {
+        const secondary = exercise.secondaryMuscles || [];
+        return secondary.includes(selectedMuscleGroup);
+      });
     }
 
     if (selectedSupergroup) {
       const supergroupMuscles = MUSCLE_SUPERGROUPS[selectedSupergroup];
-      return sortedExercises.filter((ex) => {
-        return supergroupMuscles.some((muscle) => muscle === ex.muscleGroup);
+      return sortedExercises.filter((exercise) => {
+        const secondary = exercise.secondaryMuscles || [];
+        return supergroupMuscles.some((muscle) => secondary.includes(muscle));
       });
     }
 
-    // Уровень 1: все упражнения с группировкой включенной (но без выбора)
     return sortedExercises;
   }, [
     groupingEnabled,
@@ -227,6 +321,16 @@ export function ExerciseBasePage() {
     selectedMuscleGroup,
     sortedExercises,
   ]);
+
+  // ==================== EVENT HANDLERS ====================
+  const handleFavoritesClick = useCallback(() => {
+    setIsFavoritesModalOpen(true);
+  }, []);
+
+  const handleSortingClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsSortingOpen((prev) => !prev);
+  };
 
   const toggleGrouping = () => {
     const newState = !groupingEnabled;
@@ -237,7 +341,7 @@ export function ExerciseBasePage() {
 
   const selectSupergroup = (supergroup: SupergroupKey) => {
     setSelectedSupergroup((prev) => (prev === supergroup ? null : supergroup));
-    setSelectedMuscleGroup(null); // Сбрасываем выбор мышцы при выборе супергруппы
+    setSelectedMuscleGroup(null);
   };
 
   const selectMuscleGroup = (muscleGroup: MuscleGroup) => {
@@ -246,6 +350,28 @@ export function ExerciseBasePage() {
     );
   };
 
+  // ==================== USE EFFECTS ====================
+  // 🚀 Первая загрузка: упражнения + настройки
+  useEffect(() => {
+    loadExercises();
+
+    // Локальные настройки (не критичны)
+    try {
+      const saved = localStorage.getItem("exerciseBaseGroupingEnabled");
+      if (saved !== null) {
+        setGroupingEnabled(JSON.parse(saved));
+      }
+    } catch {
+      logger.warn("Failed to load grouping settings");
+    }
+  }, [loadExercises]);
+
+  // 📥 Загрузка избранного после упражнений
+  useEffect(() => {
+    loadFavorites();
+  }, [loadFavorites]);
+
+  // 💾 Сохранение группировки
   useEffect(() => {
     localStorage.setItem(
       "exerciseBaseGroupingEnabled",
@@ -253,6 +379,7 @@ export function ExerciseBasePage() {
     );
   }, [groupingEnabled]);
 
+  // 🖱️ Закрытие сортировки (outside click + Escape)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -279,16 +406,29 @@ export function ExerciseBasePage() {
     }
   }, [isSortingOpen]);
 
-  if (isLoadingExercises || isLoadingFavorites) {
+  // ==================== RENDER ====================
+  // Дублирующийся if удален — один loading check
+  if ((isLoadingExercises || isLoadingFavorites) && exercises.length === 0) {
     return <InfoPage type="loading" />;
   }
 
-  if (error) {
-    return <InfoPage type="error" errorText={error} />;
+  if (localError) {
+    return (
+      <InfoPage
+        type={localError.type}
+        message={localError.message}
+        retryAction={() => {
+          setLocalError(null);
+          loadExercises();
+          loadFavorites();
+        }}
+      />
+    );
   }
 
   return (
     <div className="exercise-base-content">
+      {/* 📊 HEADER: счетчики + controls */}
       <div className="exercise-base-header">
         <div className="exercise-base-header-left">
           <span className="exercise-base-header-left__exercise-count">
@@ -303,6 +443,7 @@ export function ExerciseBasePage() {
           </button>
         </div>
 
+        {/* ← Back в группировке */}
         {groupingEnabled && selectedSupergroup && (
           <button
             className="exercise-base-header__back-btn"
@@ -313,13 +454,14 @@ export function ExerciseBasePage() {
                 setSelectedSupergroup(null);
               }
             }}
-            title="Назад">
+            title="Назад"
+            type="button">
             ← Назад
           </button>
         )}
 
         <div className="exercise-base-header-right">
-          {/* Кнопка группировки по мышцам */}
+          {/* 🎛️ Группировка мышц */}
           <button
             type="button"
             className={`exercise-base-header-right__grouping-muscles-btn ${
@@ -336,7 +478,7 @@ export function ExerciseBasePage() {
             <img src={groupingByMusclesIcon} alt="Группировка по мышцам" />
           </button>
 
-          {/* Сортировка */}
+          {/* 🔄 Сортировка */}
           <div
             className="exercise-base-header-right__sorting-container"
             ref={sortingRef}>
@@ -353,7 +495,8 @@ export function ExerciseBasePage() {
                   onClick={() => {
                     setSortType("name");
                     setIsSortingOpen(false);
-                  }}>
+                  }}
+                  type="button">
                   По названию
                 </button>
                 <button
@@ -361,7 +504,8 @@ export function ExerciseBasePage() {
                   onClick={() => {
                     setSortType("muscle");
                     setIsSortingOpen(false);
-                  }}>
+                  }}
+                  type="button">
                   По мышцам
                 </button>
                 <button
@@ -369,21 +513,15 @@ export function ExerciseBasePage() {
                   onClick={() => {
                     setSortType("difficulty");
                     setIsSortingOpen(false);
-                  }}>
+                  }}
+                  type="button">
                   По сложности
-                </button>
-                <button
-                  className={`sorting-option ${sortType === "type" ? "active" : ""}`}
-                  onClick={() => {
-                    setSortType("type");
-                    setIsSortingOpen(false);
-                  }}>
-                  По типу
                 </button>
               </div>
             )}
           </div>
 
+          {/* 🔍 Поиск */}
           <input
             type="text"
             placeholder="Поиск по названию/мышцам..."
@@ -394,10 +532,9 @@ export function ExerciseBasePage() {
         </div>
       </div>
 
-      {/* UI группировки по мышцам - КАРТОЧКИ */}
+      {/* 🧠 ГРУППИРОВКА МЫШЦ */}
       {groupingEnabled && (
         <div className="muscle-grouping-ui">
-          {/* Супергруппы мышц - КАРТОЧКИ */}
           {!selectedSupergroup && !selectedMuscleGroup && (
             <div className="supergroups-grid">
               {Object.entries(MUSCLE_SUPERGROUP_LABELS).map(([key, label]) => (
@@ -424,7 +561,6 @@ export function ExerciseBasePage() {
             </div>
           )}
 
-          {/* Группы мышц внутри супергруппы - КАРТОЧКИ */}
           {selectedSupergroup && !selectedMuscleGroup && (
             <div className="muscle-groups-grid">
               {MUSCLE_SUPERGROUPS[selectedSupergroup as SupergroupKey].map(
@@ -454,124 +590,61 @@ export function ExerciseBasePage() {
         </div>
       )}
 
-      {/* Сетка контента - ЛОГИКА 3 УРОВНЕЙ */}
-      {!groupingEnabled ? (
-        // ГРУППИРОВКА ВЫКЛЮЧЕНА - показываем ВСЕ упражнения
-        <div className="exercise-base-grid">
-          {groupedExercises.length > 0 ? (
-            groupedExercises.map((exercise) => (
-              <div key={exercise.id} className="exercise-base-grid-card">
-                <div className="exercise-base-grid-card-content">
-                  <div className="exercise-base-grid-card-info">
-                    <h3 className="exercise-base-grid-card-info__name">
-                      {exercise.name}
-                    </h3>
-                    <div className="exercise-base-grid-card-info-add">
-                      <span className="exercise-base-grid-card-info-add__muscle-group">
-                        {MUSCLE_GROUP_LABELS[exercise.muscleGroup]}
-                      </span>
-                      <span className="exercise-base-grid-card-info-add__type">
-                        {exercise.type}
-                      </span>
-                      <span className="exercise-base-grid-card-info-add__difficulty">
-                        {exercise.difficulty}
-                      </span>
+      {/* 💪 ГРИД УПРАЖНЕНИЙ */}
+      <div className="exercise-base-grid">
+        {groupedExercises.length > 0 ? (
+          groupedExercises.map((exercise) => (
+            <div key={exercise.id} className="exercise-base-grid-card">
+              <div className="exercise-base-grid-card-content">
+                <div className="exercise-base-grid-card-info">
+                  <h3 className="exercise-base-grid-card-info__name">
+                    {exercise.name}
+                  </h3>
+                  <div className="exercise-base-grid-card-info-add">
+                    <span className="exercise-base-grid-card-info-add__muscle-group">
+                      {MUSCLE_GROUP_LABELS[exercise.primaryMuscleGroup] ||
+                        exercise.primaryMuscleGroup}
+                    </span>
+                    <span className="exercise-base-grid-card-info-add__difficulty">
+                      {exercise.difficulty}
+                    </span>
+                    {exercise.description && (
                       <div className="exercise-base-grid-card-info-add__desc">
-                        {exercise.description && (
-                          <p className="exercise-desc">
-                            {exercise.description}
-                          </p>
-                        )}
+                        <p className="exercise-desc">{exercise.description}</p>
                       </div>
-                    </div>
+                    )}
                   </div>
-
-                  <button
-                    type="button"
-                    className={`exercise-base-grid-card__favorite-button ${
-                      isFavorite(exercise.id)
-                        ? "exercise-base-grid-card__favorite-button_active"
-                        : ""
-                    }`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleToggleFavorite(exercise.id);
-                    }}
-                    disabled={isLoadingFavorites || isLoadingExercises}
-                    title={
-                      isFavorite(exercise.id)
-                        ? "Убрать из избранного"
-                        : "Добавить в избранное"
-                    }>
-                    {isFavorite(exercise.id) ? "❤️" : "🤍"}
-                  </button>
                 </div>
-              </div>
-            ))
-          ) : (
-            <div className="no-exercises">Упражнения не найдены</div>
-          )}
-        </div>
-      ) : selectedMuscleGroup ? (
-        // УРОВЕНЬ 3: упражнения конкретной группы мышц
-        <div className="exercise-base-grid">
-          {groupedExercises.length > 0 ? (
-            groupedExercises.map((exercise) => (
-              <div key={exercise.id} className="exercise-base-grid-card">
-                <div className="exercise-base-grid-card-content">
-                  <div className="exercise-base-grid-card-info">
-                    <h3 className="exercise-base-grid-card-info__name">
-                      {exercise.name}
-                    </h3>
-                    <div className="exercise-base-grid-card-info-add">
-                      <span className="exercise-base-grid-card-info-add__muscle-group">
-                        {MUSCLE_GROUP_LABELS[exercise.muscleGroup]}
-                      </span>
-                      <span className="exercise-base-grid-card-info-add__type">
-                        {exercise.type}
-                      </span>
-                      <span className="exercise-base-grid-card-info-add__difficulty">
-                        {exercise.difficulty}
-                      </span>
-                      <div className="exercise-base-grid-card-info-add__desc">
-                        {exercise.description && (
-                          <p className="exercise-desc">
-                            {exercise.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
 
-                  <button
-                    type="button"
-                    className={`exercise-base-grid-card__favorite-button ${
-                      isFavorite(exercise.id)
-                        ? "exercise-base-grid-card__favorite-button_active"
-                        : ""
-                    }`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleToggleFavorite(exercise.id);
-                    }}
-                    disabled={isLoadingFavorites || isLoadingExercises}
-                    title={
-                      isFavorite(exercise.id)
-                        ? "Убрать из избранного"
-                        : "Добавить в избранное"
-                    }>
-                    {isFavorite(exercise.id) ? "❤️" : "🤍"}
-                  </button>
-                </div>
+                {/* ❤️ Избранное */}
+                <button
+                  type="button"
+                  className={`exercise-base-grid-card__favorite-button ${
+                    isFavorite(exercise.id)
+                      ? "exercise-base-grid-card__favorite-button_active"
+                      : ""
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleFavorite(exercise.id);
+                  }}
+                  disabled={isLoadingFavorites || isLoadingExercises}
+                  title={
+                    isFavorite(exercise.id)
+                      ? "Убрать из избранного"
+                      : "Добавить в избранное"
+                  }>
+                  {isFavorite(exercise.id) ? "❤️" : "🤍"}
+                </button>
               </div>
-            ))
-          ) : (
-            <div className="no-exercises">Упражнения не найдены</div>
-          )}
-        </div>
-      ) : null}
+            </div>
+          ))
+        ) : (
+          <div className="no-exercises">Упражнения не найдены</div>
+        )}
+      </div>
 
-      {/* МОДАЛЬНОЕ ОКНО ИЗБРАННОГО */}
+      {/* 💖 МОДАЛКА ИЗБРАННОГО */}
       {isFavoritesModalOpen && (
         <div
           className="favorites-modal-overlay"
@@ -584,7 +657,8 @@ export function ExerciseBasePage() {
               <button
                 className="favorites-modal__close"
                 onClick={() => setIsFavoritesModalOpen(false)}
-                title="Закрыть">
+                title="Закрыть"
+                type="button">
                 ×
               </button>
             </div>
@@ -604,7 +678,7 @@ export function ExerciseBasePage() {
                         {favorite.name}
                       </span>
                       <span className="favorites-modal__item-muscle">
-                        ({MUSCLE_GROUP_LABELS[favorite.muscleGroup]})
+                        ({MUSCLE_GROUP_LABELS[favorite.primaryMuscleGroup]})
                       </span>
                     </li>
                   ))}

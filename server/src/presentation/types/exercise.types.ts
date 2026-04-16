@@ -1,17 +1,19 @@
 import { ApiResponse } from "./common.types";
 import {
   MuscleGroup,
-  ExerciseType,
   Difficulty,
+  TrainingFocus,
 } from "../../common/types/enums.types";
+import { MovementPattern, PrimaryMuscleGroup } from "@prisma/client";
 
 export interface ExerciseResponseDto {
   id: string;
   name: string;
   description: string;
-  muscleGroup: MuscleGroup;
+  primaryMuscleGroup: PrimaryMuscleGroup;
   secondaryMuscles: MuscleGroup[];
-  type: ExerciseType;
+  movementPatterns: MovementPattern[];
+  trainingFocus: TrainingFocus[];
   difficulty: Difficulty;
   imageUrl: string | null;
   videoUrl: string | null;

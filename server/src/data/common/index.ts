@@ -1,1 +1,6 @@
-export { BaseMapper } from "./base.mapper";
+export type { 
+  DomainId, 
+  ModelId, 
+  Timestamped, 
+  PaginationParams,
+} from "./types";

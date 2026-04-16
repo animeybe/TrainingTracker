@@ -6,4 +6,3 @@ export { RegisterPage } from "./Auth/Registration";
 export { AdminSettingsPage } from "./AdminSettings";
 export { TrainingPage } from "./Training";
 export { HealthPage } from "./Health";
-export { InfoPage } from "./InfoPage";

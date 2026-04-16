@@ -1,17 +1,26 @@
 import { PrismaClient } from "@prisma/client";
+import { logger } from "../../common/utils/logger";
 
 declare global {
-  var prisma: PrismaClient | undefined;
+  var __prisma: PrismaClient | undefined;
 }
 
-const prismaClient =
-  global.prisma ??
+export const prisma =
+  globalThis.__prisma ??
   new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+    log: process.env.NODE_ENV === "development" ? ["warn", "error"] : [],
   });
 
 if (process.env.NODE_ENV !== "production") {
-  global.prisma = prismaClient;
+  globalThis.__prisma = prisma;
 }
 
-export const prisma = prismaClient;
+export const PrismaModule = {
+  async init(): Promise<void> {
+    await prisma.$connect();
+    logger.info("✅ Prisma connected");
+  },
+  async close(): Promise<void> {
+    await prisma.$disconnect();
+  },
+};

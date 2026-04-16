@@ -1,56 +1,42 @@
-import { IExerciseRepository } from "../repositories/i-exercise.repository";
-import { Exercise } from "../entities/exercise.entity";
+// domain/services/exercise.service.ts
 import {
-  MuscleGroup,
-  ExerciseType,
-  Difficulty,
-} from "../../common/types/enums.types";
-import { Result } from "../common/result";
-import { EntityNotFoundError } from "../common/domain-error";
-import { ExerciseId } from "../../common/types/ids";
+  ExerciseEntity,
+  CreateExerciseEntity,
+  UpdateExerciseEntity,
+} from "../entities/exercise.entity";
+import { IExerciseRepository } from "../repositories/i-exercise.repository";
 
 export class ExerciseService {
-  constructor(private exerciseRepo: IExerciseRepository) {}
+  private repo: IExerciseRepository;
 
-  async getById(id: ExerciseId): Promise<Result<Exercise>> {
-    try {
-      const exercise = await this.exerciseRepo.findById(id);
-      return Result.ok(exercise);
-    } catch (error) {
-      return Result.error(new EntityNotFoundError("Exercise", id.value));
-    }
+  constructor(repo: IExerciseRepository) {
+    this.repo = repo;
   }
 
-  async getByMuscleGroup(muscle: MuscleGroup): Promise<Exercise[]> {
-    return this.exerciseRepo.findByMuscleGroup(muscle);
+  async createExercise(data: CreateExerciseEntity): Promise<ExerciseEntity> {
+    return await this.repo.create(data);
   }
 
-  async getByType(type: ExerciseType): Promise<Exercise[]> {
-    return this.exerciseRepo.findByType(type);
+  async updateExercise(
+    id: string,
+    data: UpdateExerciseEntity,
+  ): Promise<ExerciseEntity | null> {
+    return await this.repo.update(id, data);
   }
 
-  async getByDifficulty(difficulty: Difficulty): Promise<Exercise[]> {
-    return this.exerciseRepo.findByDifficulty(difficulty);
+  async findById(id: string): Promise<ExerciseEntity | null> {
+    return await this.repo.findById(id);
   }
 
-  async searchByName(name: string): Promise<Exercise[]> {
-    if (!name.trim()) return [];
-    return this.exerciseRepo.searchByName(name.trim());
+  async findManyByIds(ids: string[]): Promise<ExerciseEntity[]> {
+    return await this.repo.findManyByIds(ids);
   }
 
-  async getAll(): Promise<Exercise[]> {
-    return this.exerciseRepo.getAll();
+  async findAll(): Promise<ExerciseEntity[]> {
+    return await this.repo.findAll();
   }
 
-  async getPushExercises(): Promise<Exercise[]> {
-    return this.exerciseRepo.findByType("PUSH");
-  }
-
-  async getPullExercises(): Promise<Exercise[]> {
-    return this.exerciseRepo.findByType("PULL");
-  }
-
-  async getLegsExercises(): Promise<Exercise[]> {
-    return this.exerciseRepo.findByType("LEGS");
+  async deleteExercise(id: string): Promise<boolean> {
+    return await this.repo.delete(id);
   }
 }

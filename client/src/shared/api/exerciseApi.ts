@@ -1,15 +1,12 @@
-import type { ExerciseListResponse } from "./types";
 import { apiRequest } from "./index";
+import type { ExerciseListResponse } from "./types";
 
 export const exerciseApi = {
-  getAll: (): Promise<ExerciseListResponse> =>
+  getAllExercises: (): Promise<ExerciseListResponse> =>
     apiRequest<ExerciseListResponse>("/exercises"),
 
-  getByMuscle: (muscle: string): Promise<ExerciseListResponse> =>
-    apiRequest<ExerciseListResponse>(`/exercises/muscle/${muscle}`),
-
-  search: (query: string): Promise<ExerciseListResponse> =>
-    apiRequest<ExerciseListResponse>(
-      `/exercises/search?query=${encodeURIComponent(query)}`,
-    ),
+  getExercisesByMuscleGroup: (
+    MuscleGroup: string,
+  ): Promise<ExerciseListResponse> =>
+    apiRequest<ExerciseListResponse>(`/exercises/muscle/${MuscleGroup}`),
 };

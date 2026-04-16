@@ -1,30 +1,15 @@
-import { UserId } from "../../common/types/ids";
-import { UserProfile } from "../entities";
-import { Lifestyle, Goal } from "../../common/types/enums.types";
+// domain/repositories/i-profile.repository.ts
+import { UserProfileEntity } from "../entities/user-profile.entity";
 
 export interface IProfileRepository {
-  findByUserId(userId: UserId): Promise<UserProfile | null>;
-  createForDomain(profile: UserProfile): Promise<UserProfile>;
-
-  create(data: {
-    userId: string;
-    weight?: number | null;
-    height?: number | null;
-    age?: number | null;
-    lifestyle?: Lifestyle | null;
-    goal?: Goal | null;
-  }): Promise<UserProfile>;
-
+  create(data: UserProfileEntity): Promise<UserProfileEntity>;
   update(
-    userId: UserId,
-    data: Partial<{
-      weight: number | null;
-      height: number | null;
-      age: number | null;
-      lifestyle: Lifestyle | null;
-      goal: Goal | null;
-    }>,
-  ): Promise<UserProfile>;
-
-  delete(userId: UserId): Promise<void>;
+    userId: string,
+    data: Partial<UserProfileEntity>,
+  ): Promise<UserProfileEntity | null>;
+  findById(id: string): Promise<UserProfileEntity | null>;
+  findByUserId(userId: string): Promise<UserProfileEntity | null>;
+  findAll(): Promise<UserProfileEntity[]>;
+  delete(id: string): Promise<boolean>;
+  exists(userId: string): Promise<boolean>;
 }

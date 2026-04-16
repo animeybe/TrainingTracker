@@ -1,34 +1,47 @@
+// api/planApi.ts - ПОЛНЫЙ ФАЙЛ
 import { apiRequest } from "./index";
-import type { WeekPlanResponse, TrainingSplit, Wellbeing } from "./types";
+import type {
+  RecommendSplitResponse,
+  GeneratePlanRequest,
+  WeekPlanResponse,
+  TodayPlanResponse,
+  GetUserPlansRequest,
+  GetUserPlansResponse,
+} from "./types";
 
 export const planApi = {
-  recommendSplit: (): Promise<{ split: TrainingSplit }> =>
+  recommendSplit: (data: {
+    goal: "GAIN_MUSCLE" | "LOSE_FAT";
+    experience: "NEWBIE" | "INTERMEDIATE" | "ADVANCED";
+    daysPerWeek?: number;
+  }): Promise<RecommendSplitResponse> =>
     apiRequest("/plan/recommend", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
     }),
 
-  generatePlan: (
-    wellbeing: Wellbeing = "normal",
-    week: number = 1,
-    split?: TrainingSplit,
-  ): Promise<WeekPlanResponse> =>
-    apiRequest<WeekPlanResponse>("/plan/generate", {
+  generatePlan: (data: GeneratePlanRequest): Promise<WeekPlanResponse> =>
+    apiRequest("/plan/generate", {
       method: "POST",
-      body: JSON.stringify({ wellbeing, week, split }),
+      body: JSON.stringify(data),
     }),
 
   getTodayAdjusted: (
-    wellbeing: Wellbeing,
-  ): Promise<{
-    message: string;
-    wellbeing: Wellbeing;
-    adjusted: boolean;
-    multiplier: number;
-    adjustedSets: number;
-  }> =>
+    wellbeing: "BAD" | "NORMAL" | "GOOD",
+  ): Promise<TodayPlanResponse> =>
     apiRequest("/plan/today", {
       method: "POST",
       body: JSON.stringify({ wellbeing }),
+    }),
+
+  getUserPlans: (data: GetUserPlansRequest): Promise<GetUserPlansResponse> =>
+    apiRequest("/plan/user-plans", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  getPlan: (userId: string, week: number): Promise<WeekPlanResponse> =>
+    apiRequest(`/plan/${userId}/${week}`, {
+      method: "GET",
     }),
 };

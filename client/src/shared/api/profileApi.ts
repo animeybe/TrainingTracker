@@ -1,19 +1,32 @@
+// api/profile.api.ts
+
 import type { ProfileData } from "./types";
 import { apiRequest } from "./index";
 
 export const profileApi = {
-  getProfile: (): Promise<ProfileData> =>
-    apiRequest<{ data: ProfileData }>("/profile").then((res) => res.data),
+  /**
+   * GET /profile
+   */
+  getProfile(): Promise<ProfileData> {
+    return apiRequest<ProfileData>("/profile");
+  },
 
-  update: (data: {
+  /**
+   * PATCH /profile
+   */
+  update(data: {
     weight?: number;
     height?: number;
     age?: number;
-    lifestyle?: string;
-    goal?: string;
-  }): Promise<ProfileData> =>
-    apiRequest<{ data: ProfileData }>("/profile/update", {
+    lifestyle?: string | null;
+    goal?: string | null;
+  }): Promise<ProfileData> {
+    return apiRequest<ProfileData>("/profile", {
       method: "PATCH",
       body: JSON.stringify(data),
-    }).then((res) => res.data),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  },
 };

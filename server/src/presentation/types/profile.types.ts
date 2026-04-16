@@ -1,5 +1,6 @@
-import { Lifestyle, Goal } from "@prisma/client";
-import { ApiResponse } from "./common.types";
+// types/profile.types.ts
+import type { Lifestyle, Goal } from "@prisma/client";
+import type { ApiResponse } from "./common.types";
 
 export interface ProfileUpdateRequestDto {
   weight?: number;
@@ -12,16 +13,16 @@ export interface ProfileUpdateRequestDto {
 export interface ProfileResponseDto {
   id: string;
   userId: string;
-  weight: number;
-  height: number;
-  age: number;
+  weight: number | null;
+  height: number | null;
+  age: number | null;
   lifestyle: Lifestyle | null;
   goal: Goal | null;
   bmi: number | null;
-  bmiCategory: string;
+  bmiCategory: string | null;
   isWeightSet: boolean;
-  isHeightSet: boolean;
   isAgeSet: boolean;
+  isHeightSet: boolean;
   isLifestyleSet: boolean;
   isGoalSet: boolean;
   createdAt: string;

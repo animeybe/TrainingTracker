@@ -1,180 +1,278 @@
 import { Goal, Lifestyle } from "../../../common/types/enums.types";
-import { ProfileDto } from "../../../common/types/profile.types";
-import { TrainingSplit, SplitRecommendation } from "../../types/training.types";
-
-type SplitCandidate = {
-  type: TrainingSplit;
-  score: number;
-  daysPerWeek: number;
-};
-
-type ExperienceLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
-type RecoveryLevel = "LOW" | "MEDIUM" | "HIGH";
+import { UserProfileEntity } from "../../entities/user-profile.entity";
+import { SplitRecommendation } from "../../types/training.types";
+import { logger } from "../../../common/utils/logger";
+import { Result, EntityValidationError } from "../../common";
+import { calculateBMI } from "../../../common/utils/profile-utils";
 
 export class SplitRecommenderService {
-  recommend(profile: ProfileDto): SplitRecommendation {
-    const bmi = this.calculateBMI(profile);
-    const experienceLevel = this.calculateExperienceLevel(profile);
-    const recoveryCapacity = this.calculateRecoveryCapacity(profile);
+  recommend(profile: UserProfileEntity): Result<SplitRecommendation> {
+    try {
+      if (!profile.age || !profile.goal || !profile.lifestyle) {
+        return Result.error(
+          new EntityValidationError([
+            "Заполните профиль (возраст, цель, образ жизни)",
+          ]),
+        );
+      }
 
-    const candidates: SplitCandidate[] = [
-      this.scoreFullBody(
-        bmi,
-        experienceLevel,
-        recoveryCapacity,
-        profile.goal!,
-        profile.lifestyle!,
-      ),
-      this.scoreUpperLower(
-        bmi,
-        experienceLevel,
-        recoveryCapacity,
-        profile.goal!,
-        profile.lifestyle!,
-      ),
-      this.scorePushPullLegs(
-        bmi,
-        experienceLevel,
-        recoveryCapacity,
-        profile.goal!,
-        profile.lifestyle!,
-      ),
-      this.scoreBroSplit(
-        bmi,
-        experienceLevel,
-        recoveryCapacity,
-        profile.goal!,
-        profile.lifestyle!,
-      ),
-    ];
+      const bmi = calculateBMI(profile.weight, profile.height);
+      if (!bmi) {
+        return Result.error(new EntityValidationError(["Укажите вес и рост"]));
+      }
 
-    const bestMatch = candidates.sort((a, b) => b.score - a.score)[0];
+      const metrics = this.calculateMetrics(profile, bmi);
+
+      const candidates = [
+        this.scoreFullBody(metrics),
+        this.scoreUpperLower(metrics),
+        this.scorePushPullLegs(metrics),
+        this.scoreBroSplit(metrics),
+        this.scoreStrengthFocus(metrics),
+        this.scoreHypertrophyFocus(metrics),
+      ];
+
+      const PRIORITY: Record<string, number> = {
+        PPL: 4,
+        HYPERTROPHY_FOCUS: 2,
+        UPPER_LOWER: 5,
+        STRENGTH_FOCUS: 1,
+        BRO_SPLIT: 3,
+        FULL_BODY: 6,
+      };
+
+      const bestMatch = candidates.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return PRIORITY[b.split] - PRIORITY[a.split];
+      })[0];
+
+      const result: SplitRecommendation = {
+        ...bestMatch,
+        split: bestMatch.split,
+      };
+
+      candidates.forEach((element) => {
+        logger.info(`${element.split} - ${element.score}`);
+      });
+
+      return Result.ok(result);
+    } catch (error) {
+      logger.error("💥 SplitRecommender ERROR", { error: String(error) });
+      return Result.error(new EntityValidationError(["Ошибка рекомендаций"]));
+    }
+  }
+
+  private calculateMetrics(profile: UserProfileEntity, bmi: number) {
+    const age = profile.age ?? 30;
 
     return {
-      type: bestMatch.type,
-      score: bestMatch.score,
-      daysPerWeek: bestMatch.daysPerWeek,
-      alternatives: candidates
-        .filter((c) => c.type !== bestMatch.type)
-        .slice(0, 2)
-        .map((c) => ({ type: c.type, score: c.score })),
+      // Возрастные группы (исследования показывают)
+      ageGroup:
+        age < 25
+          ? "YOUNG"
+          : age < 40
+            ? "PRIME"
+            : age < 55
+              ? "MATURE"
+              : "SENIOR",
+      agePenalty: age > 50 ? 15 : age > 40 ? 8 : age < 18 ? -10 : 0,
+
+      // BMI категории (WHO стандарты)
+      bmiCategory:
+        bmi < 18.5
+          ? "UNDERWEIGHT"
+          : bmi < 25
+            ? "NORMAL"
+            : bmi < 30
+              ? "OVERWEIGHT"
+              : "OBESE",
+      bmiModifier: bmi < 20 ? -8 : bmi > 30 ? 12 : bmi > 27 ? 6 : 0,
+
+      // Восстановление по lifestyle (научно)
+      recoveryScore: this.getRecoveryScore(profile.lifestyle!),
+
+      // Цели по категориям
+      goalCategory: this.categorizeGoal(profile.goal!),
+
+      // Опыт по комплексной формуле
+      experienceLevel: this.calculateExperienceLevel(profile, bmi),
+
+      // Дни в неделю (реалистично)
+      realisticDaysPerWeek:
+        profile.lifestyle === "IMMOBILE"
+          ? 3
+          : profile.lifestyle === "LIGHT"
+            ? 4
+            : 5,
     };
   }
 
-  // FULL_BODY: 3 дня (каждая мышца 3x/нед)
-  private scoreFullBody(
+  /** 🧠 ВОЗРАСТ - ключевой фактор восстановления */
+  private getAgeScore(ageGroup: string): number {
+    return (
+      {
+        YOUNG: 0, // <25 - отличное восстановление
+        PRIME: 2, // 25-40 - пик формы
+        MATURE: 8, // 40-55 - нужно больше отдыха
+        SENIOR: 18, // 55+ - приоритет восстановлению
+      }[ageGroup] || 0
+    );
+  }
+
+  /** 🩺 BMI - влияет на сложность упражнений */
+  private getBmiScore(bmiCategory: string): number {
+    return (
+      {
+        UNDERWEIGHT: -5, // легче выполнять
+        NORMAL: 0, // идеально
+        OVERWEIGHT: 8, // кардио нагрузка
+        OBESE: 15, // нужна осторожность
+      }[bmiCategory] || 0
+    );
+  }
+
+  /** 💪 LIFESTYLE → восстановление (научно обосновано) */
+  private getRecoveryScore(lifestyle: Lifestyle): number {
+    return (
+      {
+        IMMOBILE: 25, // лежачий = плохо восстанавливается
+        LIGHT: 15, // офис = средне
+        AVERAGE: 5, // работа = нормально
+        HARD: -12, // стройка = супер восстановление
+      }[lifestyle] || 0
+    );
+  }
+
+  /** 🎯 ЦЕЛИ по научным категориям */
+  private categorizeGoal(goal: Goal): string {
+    return goal === "LOSE_FAT" || goal === "MAINTAIN_WEIGHT"
+      ? "FAT_LOSS"
+      : goal === "GAIN_MUSCLE_MASS"
+        ? "BULKING"
+        : goal === "STRENGTH" || goal === "POWER"
+          ? "STRENGTH"
+          : goal === "HYPERTROPHY"
+            ? "HYPERTROPHY"
+            : goal === "ENDURANCE"
+              ? "ENDURANCE"
+              : "HEALTH";
+  }
+
+  /** 📈 Опыт по формуле (возраст + BMI + lifestyle) */
+  private calculateExperienceLevel(
+    profile: UserProfileEntity,
     bmi: number,
-    experience: ExperienceLevel,
-    recovery: RecoveryLevel,
-    goal: Goal,
-    lifestyle: Lifestyle,
-  ): SplitCandidate {
-    let score = 85; // База для новичков
+  ): string {
+    const age = profile.age ?? 30;
+    const points = 50; // база INTERMEDIATE
 
-    if (experience === "BEGINNER") score += 15;
-    if (recovery === "LOW") score += 10;
-    if (goal === "LOSE_WEIGHT") score += 10;
-    if (bmi < 22) score += 5; // Худощавые лучше реагируют
-
-    return {
-      type: "FULL_BODY",
-      score: Math.min(score, 100),
-      daysPerWeek: 3, // НАУЧНО: 3x full body оптимально
-    };
-  }
-
-  // UPPER_LOWER: 4 дня (каждая мышца 2x/нед)
-  private scoreUpperLower(
-    bmi: number,
-    experience: ExperienceLevel,
-    recovery: RecoveryLevel,
-    goal: Goal,
-    lifestyle: Lifestyle,
-  ): SplitCandidate {
-    let score = 90; // Универсальный сплит
-
-    if (experience === "INTERMEDIATE") score += 10;
-    if (recovery === "MEDIUM") score += 10;
-    if (goal === "GAIN_MUSCLE_MASS") score += 10;
-    if (bmi > 25) score += 5; // Массивным проще восстановление
-
-    return {
-      type: "UPPER_LOWER",
-      score: Math.min(score, 100),
-      daysPerWeek: 4, // НАУЧНО: upper/lower 2x каждая группа
-    };
-  }
-
-  // PPL: 6 дней (каждая мышца 2x/нед)
-  private scorePushPullLegs(
-    bmi: number,
-    experience: ExperienceLevel,
-    recovery: RecoveryLevel,
-    goal: Goal,
-    lifestyle: Lifestyle,
-  ): SplitCandidate {
-    let score = 80;
-
-    if (experience === "ADVANCED") score += 20;
-    if (recovery === "HIGH") score += 15;
-    if (goal === "GAIN_MUSCLE_MASS") score += 10;
-
-    return {
-      type: "PPL",
-      score: Math.min(score, 100),
-      daysPerWeek: 6, // НАУЧНО: PPL 6 дней = каждая мышца 2x
-    };
-  }
-
-  // BRO_SPLIT: 5 дней (каждая мышца 1x/нед)
-  private scoreBroSplit(
-    bmi: number,
-    experience: ExperienceLevel,
-    recovery: RecoveryLevel,
-    goal: Goal,
-    lifestyle: Lifestyle,
-  ): SplitCandidate {
-    let score = 75;
-
-    if (experience === "ADVANCED") score += 15;
-    if (recovery === "HIGH") score += 10;
-    if (goal === "GAIN_MUSCLE_MASS") score += 15;
-
-    return {
-      type: "BRO_SPLIT",
-      score: Math.min(score, 100),
-      daysPerWeek: 5, // НАУЧНО: 1x/группу для максимального объема
-    };
-  }
-
-  private calculateBMI(profile: ProfileDto): number {
-    return profile.weight / Math.pow(profile.height / 100, 2);
-  }
-
-  private calculateExperienceLevel(profile: ProfileDto): ExperienceLevel {
-    const bmi = this.calculateBMI(profile);
-
-    if (profile.age <= 25 && bmi < 22 && profile.lifestyle === "LIGHT") {
+    // Молодой + худой + сидячий = новичок
+    if (age < 25 && bmi < 22 && profile.lifestyle === "LIGHT")
       return "BEGINNER";
-    }
-    if (profile.lifestyle === "HARD" || (profile.age > 30 && bmi > 25)) {
+
+    // Рабочий или зрелый массивный = опытный
+    if (profile.lifestyle === "HARD" || (age > 35 && bmi > 25))
       return "ADVANCED";
-    }
+
     return "INTERMEDIATE";
   }
 
-  private calculateRecoveryCapacity(profile: ProfileDto): RecoveryLevel {
-    switch (profile.lifestyle) {
-      case "IMMOBILE":
-        return "LOW";
-      case "LIGHT":
-        return "LOW";
-      case "AVERAGE":
-        return "MEDIUM";
-      case "HARD":
-        return "HIGH";
-      default:
-        return "MEDIUM";
-    }
+  private scoreFullBody(
+    metrics: ReturnType<typeof this.calculateMetrics>,
+  ): any {
+    let score = 92; // лучший для новичков
+
+    score += metrics.experienceLevel === "BEGINNER" ? 25 : 0;
+    score += metrics.recoveryScore > 15 ? 15 : 0; // плохо восстанавливается
+    score += metrics.goalCategory === "HEALTH" ? 20 : 0;
+    score += metrics.ageGroup === "YOUNG" ? 12 : 0;
+
+    return {
+      split: "FULL_BODY",
+      score: score,
+      daysPerWeek: 3,
+      description: `💪 Full Body • ${metrics.realisticDaysPerWeek >= 3 ? "✅ Подходит" : "⚠️ Мало времени"}`,
+    };
+  }
+
+  private scoreUpperLower(metrics: any): any {
+    let score = 90;
+
+    score += metrics.experienceLevel === "INTERMEDIATE" ? 20 : 0;
+    score +=
+      metrics.experienceLevel === "ADVANCED" && metrics.recoveryScore > 5
+        ? 15
+        : 0;
+    score += metrics.goalCategory === "GAIN_MUSCLE_MASS" ? 18 : 0;
+    score += metrics.realisticDaysPerWeek >= 4 ? 10 : 0;
+
+    return {
+      split: "UPPER_LOWER",
+      score: score,
+      daysPerWeek: 4,
+      description: "⚖️ Upper/Lower • сбалансировано",
+    };
+  }
+
+  private scorePushPullLegs(metrics: any): any {
+    let score = 88;
+
+    score += metrics.experienceLevel === "ADVANCED" ? 25 : 0;
+    score +=
+      metrics.recoveryScore <= 0 ? 20 : metrics.recoveryScore <= 5 ? 12 : 0; // HARD/AVERAGE
+    score += metrics.goalCategory === "HYPERTROPHY" ? 22 : 0;
+
+    return {
+      split: "PPL",
+      score: score,
+      daysPerWeek: 6,
+      description: "🏋️ PPL • высокая частота",
+    };
+  }
+
+  private scoreBroSplit(metrics: any): any {
+    let score = 87;
+
+    score += metrics.goalCategory === "HYPERTROPHY" ? 25 : 0;
+    score += metrics.experienceLevel === "ADVANCED" ? 18 : 0;
+    score += metrics.ageGroup === "PRIME" ? 12 : 0;
+    score += metrics.recoveryScore < 10 ? 10 : 0;
+
+    return {
+      split: "BRO_SPLIT",
+      score: score,
+      daysPerWeek: 5,
+      description: "🔥 Bro Split • максимум объема",
+    };
+  }
+
+  private scoreStrengthFocus(metrics: any): any {
+    let score = 89;
+
+    score += metrics.goalCategory === "STRENGTH" ? 30 : 0;
+    score += metrics.experienceLevel === "ADVANCED" ? 22 : 0;
+    score += metrics.bmiCategory === "OVERWEIGHT" ? 15 : 0;
+
+    return {
+      split: "STRENGTH_FOCUS",
+      score: score,
+      daysPerWeek: 4,
+      description: "⚡ Силовой • тяжелые базы",
+    };
+  }
+
+  private scoreHypertrophyFocus(metrics: any): any {
+    let score = 86;
+
+    score += metrics.goalCategory === "HYPERTROPHY" ? 28 : 0;
+    score += metrics.bmiCategory === "NORMAL" ? 15 : 0;
+    score += metrics.experienceLevel === "INTERMEDIATE" ? 12 : 0;
+
+    return {
+      score: score,
+      split: "HYPERTROPHY_FOCUS",
+      daysPerWeek: 5,
+      description: "🏋️ Гипертрофия • 8-12 повторов",
+    };
   }
 }

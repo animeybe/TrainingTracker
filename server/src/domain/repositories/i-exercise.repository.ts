@@ -1,16 +1,18 @@
-import { ExerciseId } from "../../common/types/ids";
-import { Exercise } from "../entities/exercise.entity";
+// domain/repositories/i-exercise.repository.ts
 import {
-  MuscleGroup,
-  ExerciseType,
-  Difficulty,
-} from "../../common/types/enums.types";
+  ExerciseEntity,
+  CreateExerciseEntity,
+  UpdateExerciseEntity,
+} from "../entities/exercise.entity";
 
 export interface IExerciseRepository {
-  findById(id: ExerciseId): Promise<Exercise>;
-  findByMuscleGroup(muscle: MuscleGroup): Promise<Exercise[]>;
-  findByType(type: ExerciseType): Promise<Exercise[]>;
-  findByDifficulty(difficulty: Difficulty): Promise<Exercise[]>;
-  searchByName(name: string): Promise<Exercise[]>;
-  getAll(): Promise<Exercise[]>;
+  create(data: CreateExerciseEntity): Promise<ExerciseEntity>;
+  update(
+    id: string,
+    data: UpdateExerciseEntity,
+  ): Promise<ExerciseEntity | null>;
+  findById(id: string): Promise<ExerciseEntity | null>;
+  findManyByIds(ids: string[]): Promise<ExerciseEntity[]>;
+  findAll(): Promise<ExerciseEntity[]>;
+  delete(id: string): Promise<boolean>;
 }

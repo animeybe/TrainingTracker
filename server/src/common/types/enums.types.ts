@@ -1,9 +1,32 @@
-export const Role = {
-  USER: "USER" as const,
-  ADMIN: "ADMIN" as const,
-} as const;
+export type Role = "USER" | "ADMIN";
+export type Lifestyle = "IMMOBILE" | "LIGHT" | "AVERAGE" | "HARD";
+export type Goal =
+  | "LOSE_FAT"
+  | "MAINTAIN_WEIGHT"
+  | "GAIN_MUSCLE_MASS"
+  | "STRENGTH"
+  | "HYPERTROPHY"
+  | "ENDURANCE"
+  | "POWER"
+  | "HEALTH"
+  | "REHABILITATION";
+export type Difficulty = "EASY" | "MEDIUM" | "HARD";
+export type PrimaryMuscleGroup =
+  | "LEGS"
+  | "BACK"
+  | "CHEST"
+  | "SHOULDERS"
+  | "ARMS"
+  | "CORE";
 
-export type Role = (typeof Role)[keyof typeof Role]; // "USER" | "ADMIN"
+export type TrainingSplit =
+  | "PPL"
+  | "FULL_BODY"
+  | "UPPER_LOWER"
+  | "BRO_SPLIT"
+  | "STRENGTH_FOCUS"
+  | "HYPERTROPHY_FOCUS";
+export type Wellbeing = "BAD" | "NORMAL" | "GOOD";
 
 export type MuscleGroup =
   | "NECK"
@@ -43,11 +66,21 @@ export type MuscleGroup =
   | "CALVES_GASTROCNEMIUS"
   | "CALVES_SOLEUS";
 
-export type Lifestyle = "IMMOBILE" | "LIGHT" | "AVERAGE" | "HARD";
-export type Goal =
-  | "LOSE_WEIGHT"
-  | "MAINTAIN_WEIGHT"
-  | "GAIN_WEIGHT"
-  | "GAIN_MUSCLE_MASS";
-export type ExerciseType = "PUSH" | "PULL" | "LEGS" | "OTHERS";
-export type Difficulty = "EASY" | "MEDIUM" | "HARD";
+export type MovementPattern =
+  | "PUSH"
+  | "PULL"
+  | "SQUAT"
+  | "HINGE"
+  | "CARRY"
+  | "CORE_STABILITY"
+  | "CORE_ROTATION"
+  | "CARDIO"
+  | "MOBILITY"
+  | "ISOMETRIC";
+export type TrainingFocus =
+  | "STRENGTH"
+  | "HYPERTROPHY"
+  | "ENDURANCE"
+  | "POWER"
+  | "MAINTENANCE"
+  | "REHABILITATION";

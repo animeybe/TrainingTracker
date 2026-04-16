@@ -1,4 +1,5 @@
-const API_BASE = "http://localhost:3001/api";
+// api/index.ts
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 export const apiRequest = async <T = unknown>(
   url: string,
@@ -7,7 +8,7 @@ export const apiRequest = async <T = unknown>(
   const token = localStorage.getItem("token");
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...((options.headers as Record<string, string>) || {}),
+    ...(options.headers as Record<string, string>),
   };
 
   if (token) {
@@ -37,10 +38,9 @@ export const apiRequest = async <T = unknown>(
   }
 
   const data = await response.json();
-  return data as T;
+  return (data.data || data) as T;
 };
 
-// ✅ EXPORTS API
 export { authApi } from "./authApi";
 export { exerciseApi } from "./exerciseApi";
 export { favoriteApi } from "./favoriteApi";

@@ -2,11 +2,11 @@ import { ThemeProvider } from "@/shared/store";
 import { AuthProvider } from "@/shared/store";
 import { BrowserRouter } from "react-router-dom";
 import { AppRoutes } from "..";
-import { ErrorBoundary } from "../ErrorBoundary/ErrorBoundary";
+import { ErrorProviderWrapper } from "./ErrorProviderWrapper";
 
 export function AppProviders() {
   return (
-    <ErrorBoundary>
+    <ErrorProviderWrapper>
       <ThemeProvider>
         <AuthProvider>
           <BrowserRouter>
@@ -14,6 +14,6 @@ export function AppProviders() {
           </BrowserRouter>
         </AuthProvider>
       </ThemeProvider>
-    </ErrorBoundary>
+    </ErrorProviderWrapper>
   );
 }

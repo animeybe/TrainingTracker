@@ -1,42 +1,71 @@
-import {
-  ExercisePrismaDto,
-  isExercisePrismaDto,
-} from "../dto/exercise.prisma-dto";
-import { Exercise } from "../../domain/entities/exercise.entity"; // ✅ Правильный импорт
-import { ExerciseId } from "../../common/types/ids";
-import { BaseMapper } from "../common/base.mapper";
-import {
-  MuscleGroup,
-  ExerciseType,
-  Difficulty,
-} from "../../common/types/enums.types";
+// data/mappers/exercise.mapper.ts
+import type {
+  ExerciseDto,
+  CreateExerciseDto,
+  UpdateExerciseDto,
+} from "../dtos/exercise.prisma-dto";
+import type {
+  ExerciseEntity,
+  CreateExerciseEntity,
+  UpdateExerciseEntity,
+} from "../../domain/entities/exercise.entity";
 
-export class ExerciseMapper extends BaseMapper<ExercisePrismaDto, Exercise> {
-  protected doMap(prismaDto: ExercisePrismaDto): Exercise {
-    // ✅ Используем reconstitute для данных из БД
-    return Exercise.reconstitute({
-      id: ExerciseId.create(prismaDto.id),
-      name: prismaDto.name,
-      description: prismaDto.description ?? "",
-      muscleGroup: prismaDto.muscleGroup,
-      secondaryMuscles: prismaDto.secondaryMuscles,
-      type: prismaDto.type,
-      difficulty: prismaDto.difficulty,
-      imageUrl: prismaDto.imageUrl,
-      videoUrl: prismaDto.videoUrl,
-    });
+export class ExerciseMapper {
+  static toEntity(dto: ExerciseDto): ExerciseEntity {
+    return {
+      id: dto.id,
+      name: dto.name,
+      description: dto.description,
+      primaryMuscleGroup: dto.primaryMuscleGroup,
+      secondaryMuscles: dto.secondaryMuscles,
+      movementPatterns: dto.movementPatterns,
+      trainingFocus: dto.trainingFocus,
+      difficulty: dto.difficulty,
+      imageUrl: dto.imageUrl,
+      videoUrl: dto.videoUrl,
+    };
   }
 
-  protected validatePrismaDto(prismaData: unknown): ExercisePrismaDto {
-    if (!isExercisePrismaDto(prismaData)) {
-      throw new Error(
-        `Invalid ExercisePrismaDto: ${JSON.stringify(prismaData)}`,
-      );
-    }
-    return prismaData;
+  static toDto(entity: ExerciseEntity): ExerciseDto {
+    return {
+      id: entity.id,
+      name: entity.name,
+      description: entity.description,
+      primaryMuscleGroup: entity.primaryMuscleGroup,
+      secondaryMuscles: entity.secondaryMuscles,
+      movementPatterns: entity.movementPatterns,
+      trainingFocus: entity.trainingFocus,
+      difficulty: entity.difficulty,
+      imageUrl: entity.imageUrl,
+      videoUrl: entity.videoUrl,
+    };
   }
 
-  protected isValidPrismaDto(data: unknown): data is ExercisePrismaDto {
-    return isExercisePrismaDto(data);
+  static fromCreateEntity(entity: CreateExerciseEntity): CreateExerciseDto {
+    return {
+      name: entity.name,
+      description: entity.description,
+      primaryMuscleGroup: entity.primaryMuscleGroup,
+      secondaryMuscles: entity.secondaryMuscles,
+      movementPatterns: entity.movementPatterns,
+      trainingFocus: entity.trainingFocus,
+      difficulty: entity.difficulty,
+      imageUrl: entity.imageUrl,
+      videoUrl: entity.videoUrl,
+    };
+  }
+
+  static fromUpdateEntity(entity: UpdateExerciseEntity): UpdateExerciseDto {
+    return {
+      name: entity.name,
+      description: entity.description,
+      primaryMuscleGroup: entity.primaryMuscleGroup,
+      secondaryMuscles: entity.secondaryMuscles,
+      movementPatterns: entity.movementPatterns,
+      trainingFocus: entity.trainingFocus,
+      difficulty: entity.difficulty,
+      imageUrl: entity.imageUrl,
+      videoUrl: entity.videoUrl,
+    };
   }
 }

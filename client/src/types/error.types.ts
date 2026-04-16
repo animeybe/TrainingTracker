@@ -1,15 +1,20 @@
-import type { ReactNode } from "react";
-
-export interface ErrorBoundaryProps {
-  children: ReactNode;
-  fallback?: ReactNode;
+export interface ToggleFavoriteRequest {
+  exerciseId: string;
 }
 
-export interface ErrorBoundaryState {
-  hasError: boolean;
-  error?: Error;
+export interface ToggleFavoriteResponse {
+  success: boolean;
+  message?: string;
 }
 
-export interface ErrorInfo {
-  componentStack: string;
+export interface FavoriteListItem {
+  id: string;
+  name: string;
+  primaryMuscleGroup: string;
+  difficulty: string;
+}
+
+export interface FavoriteListResponse {
+  data: FavoriteListItem[];
+  total: number;
 }

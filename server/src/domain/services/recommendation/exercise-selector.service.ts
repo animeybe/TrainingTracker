@@ -1,290 +1,423 @@
+// domain/services/recommendation/exercise-selector.service.ts
 import {
-  MuscleGroup,
   Difficulty,
   Goal,
   Lifestyle,
+  MuscleGroup,
 } from "../../../common/types/enums.types";
-import { Exercise } from "../../entities/exercise.entity";
+import { ExerciseEntity } from "../../entities/exercise.entity";
+import { EntityValidationError } from "../../common";
 import {
-  DAY_MUSCLE_GROUPS,
   DayType,
   ExerciseSet,
-  primaryMuscles,
+  DAY_MUSCLE_GROUPS,
 } from "../../types/training.types";
+import { logger } from "../../../common/utils/logger";
+
+import { SELECTOR_CONFIG } from "../../config/selector.config";
+import { Result } from "../../common";
 
 export class ExerciseSelectorService {
   generateDay(
     dayType: DayType,
-    favorites: Exercise[],
-    allExercises: Exercise[],
+    favorites: ExerciseEntity[],
+    allExercises: ExerciseEntity[],
     bmi: number,
     goal: Goal,
     age: number,
     lifestyle: Lifestyle,
-  ): ExerciseSet[] {
-    const difficulty = this.getDifficulty(bmi, goal, age, lifestyle, dayType);
-    const targetMuscles =
-      DAY_MUSCLE_GROUPS[dayType as keyof typeof DAY_MUSCLE_GROUPS];
+    week: number = 1,
+    wellbeing: "BAD" | "NORMAL" | "GOOD" = "NORMAL",
+    dayInCycle: number = 0,
+  ): Result<ExerciseSet[]> {
+    try {
+      const difficulty = this.calculateDifficulty(
+        bmi,
+        goal,
+        age,
+        lifestyle,
+        dayType,
+      );
+      const targetMuscles = DAY_MUSCLE_GROUPS[dayType];
 
-    // 1. ИЗБРАННЫЕ
-    const favoriteExercises = this.selectFavoriteExercises(
-      favorites,
-      targetMuscles,
-      difficulty,
-    );
+      // 1️⃣ ЛЮБИМЫЕ (всегда первыми)
+      const favoriteExercises = this.selectFavoritesPRO(
+        favorites,
+        targetMuscles,
+        difficulty,
+      );
 
-    // 2. ОСНОВНЫЕ для непокрытых мышц
-    const coveredMuscles = new Set(
-      favoriteExercises.map((ex: ExerciseSet) => ex.muscleGroup),
-    );
-    const uncoveredMuscles = targetMuscles.filter(
-      (m) => !coveredMuscles.has(m),
-    );
-    const compoundExercises = this.selectCompoundExercises(
-      allExercises,
-      uncoveredMuscles,
-      difficulty,
-    );
+      // 2️⃣ BIG 5 + ОСНОВНЫЕ
+      const coveredMuscles = new Set(
+        favoriteExercises.map((ex) => ex.muscleGroup!),
+      );
+      const uncoveredMuscles = targetMuscles.filter(
+        (m) => !coveredMuscles.has(m),
+      );
 
-    const accessoryExercises = this.selectAccessoryExercises(
-      allExercises,
-      difficulty,
-    );
+      const mainExercises = this.selectMainPRO(
+        allExercises,
+        uncoveredMuscles,
+        difficulty,
+        dayType,
+        dayInCycle,
+        lifestyle,
+      );
 
-    return [
-      ...favoriteExercises.slice(0, 5),
-      ...compoundExercises.slice(0, 7),
-      ...accessoryExercises.slice(0, 4),
-    ]
-      .slice(0, 15)
-      .filter(Boolean) as ExerciseSet[];
+      // 3️⃣ АКСЕССУАРЫ (всегда в конце)
+      const accessoryExercises = this.selectAccessoriesPRO(
+        allExercises,
+        difficulty,
+      );
+
+      // ✅ СОБИРАЕМ + СОРТИРОВКА
+      let finalPlan = [
+        ...favoriteExercises,
+        ...mainExercises,
+        ...accessoryExercises,
+      ].slice(0, 15);
+
+      finalPlan = this.smartSort(finalPlan, dayType);
+      finalPlan = this.applyProProgression(
+        finalPlan,
+        wellbeing,
+        week,
+        lifestyle,
+      );
+
+      return Result.ok(finalPlan);
+    } catch (error) {
+      logger.error("💥 Selector ERROR", { error: String(error) });
+      return Result.error(new EntityValidationError(["Ошибка подбора"]));
+    }
   }
 
-  private selectFavoriteExercises(
-    favorites: Exercise[],
+  /** 1️⃣ ЛЮБИМЫЕ - с приоритетом по compound */
+  private selectFavoritesPRO(
+    favorites: ExerciseEntity[],
     targetMuscles: MuscleGroup[],
-    userDifficulty: Difficulty,
+    difficulty: Difficulty,
   ): ExerciseSet[] {
     return favorites
       .filter((fav) =>
-        targetMuscles.includes(this.getMuscleGroup(fav) as MuscleGroup),
+        targetMuscles.some((muscle) => this.matchesMuscle(fav, muscle)),
       )
-      .filter((fav) =>
-        this.isSuitableDifficulty(
-          this.getExerciseDifficulty(fav),
-          userDifficulty,
-        ),
+      .filter((fav) => this.isSuitableDifficulty(fav, difficulty))
+      .sort(
+        (a, b) =>
+          this.getExercisePriority(a, "AVERAGE") -
+          this.getExercisePriority(b, "AVERAGE"),
       )
-      .map((fav) => this.toDayExercise(fav, true));
+      .slice(0, 5)
+      .map((ex) => this.toExerciseSet(ex, true, difficulty));
   }
 
-  private selectCompoundExercises(
-    exercises: Exercise[],
+  /** 2️⃣ BIG 5 + Muscle Fatigue + ANTI-OVERLAP */
+  private selectMainPRO(
+    exercises: ExerciseEntity[],
     targetMuscles: MuscleGroup[],
     difficulty: Difficulty,
+    dayType: DayType,
+    dayInCycle: number,
+    lifestyle: Lifestyle,
   ): ExerciseSet[] {
-    const suitable = exercises.filter(
-      (ex) =>
-        targetMuscles.includes(this.getMuscleGroup(ex) as MuscleGroup) &&
-        this.isSuitableDifficulty(this.getExerciseDifficulty(ex), difficulty),
-    );
+    // BIG 5 первыми
+    const big5 = this.getBig5ForDay(dayType);
+    const big5Exercises = exercises
+      .filter((ex) => big5.includes(ex.id))
+      .filter((ex) => targetMuscles.some((m) => this.matchesMuscle(ex, m)))
+      .filter((ex) => this.isSuitableDifficulty(ex, difficulty))
+      .map((ex) => this.toExerciseSet(ex, false, difficulty));
 
-    return suitable
-      .sort(() => Math.random() - 0.5)
-      .map((ex) => this.toDayExercise(ex, false));
+    // Остальные с fatigue
+    const remaining = exercises
+      .filter((ex) => !big5.includes(ex.id))
+      .filter((ex) => targetMuscles.some((m) => this.matchesMuscle(ex, m)))
+      .filter((ex) => this.isSuitableDifficulty(ex, difficulty))
+      .filter((ex) => this.preventOverlap(ex))
+      .sort((a, b) => {
+        const aFatigue = this.getMuscleFatigue(
+          a.secondaryMuscles[0],
+          dayInCycle,
+        );
+        const bFatigue = this.getMuscleFatigue(
+          b.secondaryMuscles[0],
+          dayInCycle,
+        );
+        return bFatigue - aFatigue;
+      })
+      .slice(0, 4)
+      .map((ex) => this.toExerciseSet(ex, false, difficulty));
+
+    return [...big5Exercises, ...remaining];
   }
 
-  private selectAccessoryExercises(
-    exercises: Exercise[],
+  /** 3️⃣ АКСЕССУАРЫ */
+  private selectAccessoriesPRO(
+    exercises: ExerciseEntity[],
     difficulty: Difficulty,
   ): ExerciseSet[] {
     const accessoryMuscles: MuscleGroup[] = [
-      // ✅ ТВОИ ТИПЫ — ПРЕСС
       "ABS_UPPER",
       "ABS_LOWER",
       "OBLIQUES",
-
-      // ✅ ТВОИ ТИПЫ — ИКРЫ
       "CALVES_GASTROCNEMIUS",
       "CALVES_SOLEUS",
-
-      // ✅ ТВОИ ТИПЫ — ПРЕДПЛЕЧЬЯ
       "FOREARMS_FLEXORS",
       "FOREARMS_EXTENSORS",
-
-      // ✅ ТВОИ ТИПЫ — ТРАПЕЦИИ
       "TRAPEZIUS_UPPER",
-      "TRAPEZIUS_LOWER",
-
-      // ✅ ТВОИ ТИПЫ — СПИНА
       "ERECTOR_SPINAE_UPPER",
-      "ERECTOR_SPINAE_LOWER",
     ];
 
-    const suitable = exercises.filter(
-      (ex) =>
-        accessoryMuscles.includes(this.getMuscleGroup(ex) as MuscleGroup) &&
-        this.isSuitableDifficulty(this.getExerciseDifficulty(ex), difficulty),
+    return exercises
+      .filter((ex) => accessoryMuscles.some((m) => this.matchesMuscle(ex, m)))
+      .filter((ex) => this.isSuitableDifficulty(ex, difficulty))
+      .sort(
+        (a, b) =>
+          this.getAccessoryPriority(a.secondaryMuscles[0]!) -
+          this.getAccessoryPriority(b.secondaryMuscles[0]!),
+      )
+      .slice(0, 4)
+      .map((ex) => this.toExerciseSet(ex, false, difficulty));
+  }
+
+  /** 🔥 СОРТИРОВКА: сложные→легкие | аксессуары в конце */
+  private smartSort(exercises: ExerciseSet[], dayType: DayType): ExerciseSet[] {
+    const mainExercises = exercises.filter(
+      (ex) => !this.isAccessory(ex.muscleGroup!),
+    );
+    const accessories = exercises.filter((ex) =>
+      this.isAccessory(ex.muscleGroup!),
     );
 
-    return suitable
-      .sort(() => Math.random() - 0.5)
-      .map((ex) => this.toDayExercise(ex, false));
+    // Основные: СЛОЖНЫЕ → ЛЕГКИЕ
+    const sortedMain = mainExercises.sort((a, b) => {
+      const aScore = this.getExerciseDifficultyScore(a);
+      const bScore = this.getExerciseDifficultyScore(b);
+      return bScore - aScore;
+    });
+
+    // Аксессуары: пресс→икры→предплечья
+    const sortedAccessories = accessories.sort(
+      (a, b) =>
+        this.getAccessoryPriority(a.muscleGroup!) -
+        this.getAccessoryPriority(b.muscleGroup!),
+    );
+
+    return [...sortedMain, ...sortedAccessories];
   }
 
-  private getMuscleGroup(exercise: Exercise): MuscleGroup {
-    return exercise.muscleGroup;
+  /** 🔥 ПРОГРЕССИЯ + ADAPTIVE VOLUME */
+  private applyProProgression(
+    exercises: ExerciseSet[],
+    wellbeing: "BAD" | "NORMAL" | "GOOD",
+    week: number,
+    lifestyle: Lifestyle,
+  ): ExerciseSet[] {
+    return exercises.map((ex) => {
+      let sets = ex.sets;
+      const reps: [number, number] = [
+        ex.targetRepsRange[0],
+        ex.targetRepsRange[1],
+      ];
+
+      // Adaptive volume
+      const adaptive = this.getAdaptiveVolume(ex.muscleGroup!, lifestyle);
+      const difficulty_coefficient = 0.2;
+      sets = Math.round(
+        adaptive.sets *
+          (wellbeing === "BAD"
+            ? 1.0 - difficulty_coefficient
+            : wellbeing === "GOOD"
+              ? 1.0 + difficulty_coefficient
+              : 1.0),
+      );
+
+      // Progression (по 1 сету каждые 4 недели до максимума 5)
+      const progressionSets = Math.min(5, ex.sets + Math.floor((week - 1) / 4));
+      sets = Math.max(2, Math.min(5, sets));
+
+      return {
+        ...ex,
+        sets,
+        targetRepsRange: reps,
+        progression: {
+          baseSets: ex.sets,
+          baseReps: ex.targetRepsRange,
+          currentSets: sets,
+          weekOffset: Math.floor((week - 1) / 4),
+          wellbeingAdjusted: wellbeing !== "NORMAL",
+          adaptiveSets: adaptive.sets,
+        },
+      };
+    });
   }
 
-  private getExerciseDifficulty(exercise: Exercise): Difficulty {
-    const props = (exercise as any).props || exercise;
-    return (props.difficulty as Difficulty) || "MEDIUM";
+  // ================== НАУЧНЫЕ МЕТОДЫ ==================
+
+  private getBig5ForDay(dayType: DayType): readonly string[] {
+    return SELECTOR_CONFIG.bigFive[dayType] || [];
+  }
+
+  private getMuscleFatigue(muscle: MuscleGroup, dayInCycle: number): number {
+    const fatigueCycle = SELECTOR_CONFIG.fatigue[muscle];
+    return fatigueCycle?.[dayInCycle % 3] ?? 1.0;
+  }
+
+  private getAdaptiveVolume(
+    muscle: MuscleGroup,
+    lifestyle: Lifestyle,
+  ): { sets: number } {
+    const base = SELECTOR_CONFIG.volumes[muscle] ?? 3;
+    const multiplier =
+      lifestyle === "HARD" ? 1.2 : lifestyle === "IMMOBILE" ? 0.7 : 1.0;
+    return { sets: Math.round(base * multiplier) };
+  }
+
+  private preventOverlap(exercise: ExerciseEntity): boolean {
+    const highRisk = ["DELTOIDS", "ERECTOR_SPINAE"];
+    return !highRisk.some(
+      (risk) =>
+        (exercise.secondaryMuscles || []).filter((m) => m.includes(risk))
+          .length > 1,
+    );
+  }
+
+  private getExercisePriority(
+    exercise: ExerciseEntity,
+    lifestyle: Lifestyle,
+  ): number {
+    const bigLiftIds = SELECTOR_CONFIG.bigFive.full;
+    const isBigLift = bigLiftIds.includes(exercise.id) ? 50 : 0;
+
+    const difficultyScore =
+      exercise.difficulty === "HARD"
+        ? 20
+        : exercise.difficulty === "MEDIUM"
+          ? 10
+          : 0;
+
+    return isBigLift + difficultyScore;
+  }
+
+  private getAccessoryPriority(muscle: MuscleGroup): number {
+    return SELECTOR_CONFIG.accessoryPriority[muscle] ?? 5;
+  }
+
+  private isAccessory(muscle: MuscleGroup): boolean {
+    return ["ABS", "CALVES", "FOREARMS", "TRAPEZIUS"].some((g) =>
+      muscle.includes(g),
+    );
+  }
+
+  private getExerciseDifficultyScore(exerciseSet: ExerciseSet): number {
+    const [minReps, maxReps] = exerciseSet.targetRepsRange;
+    const avgReps = (minReps + maxReps) / 2;
+    return 15 - avgReps; // меньше повторений → выше score → сложнее
+  }
+
+  // ✅ Helper методы
+  private matchesMuscle(
+    exercise: ExerciseEntity,
+    muscle: MuscleGroup,
+  ): boolean {
+    return (exercise.secondaryMuscles || []).some(
+      (mg: MuscleGroup) => mg === muscle,
+    );
   }
 
   private isSuitableDifficulty(
-    exerciseDiff: Difficulty,
+    exercise: ExerciseEntity,
+    userDifficulty: Difficulty,
+  ): boolean {
+    const exDifficulty = exercise.difficulty || "MEDIUM";
+    return this.isDifficultyCompatible(exDifficulty, userDifficulty);
+  }
+
+  private isDifficultyCompatible(
+    exDiff: Difficulty,
     userDiff: Difficulty,
   ): boolean {
     return (
-      exerciseDiff === userDiff ||
-      (userDiff === "HARD" && exerciseDiff === "MEDIUM") ||
-      (userDiff === "MEDIUM" && exerciseDiff === "EASY") ||
-      (userDiff === "HARD" && exerciseDiff === "EASY")
+      exDiff === userDiff ||
+      (userDiff === "HARD" && (exDiff === "MEDIUM" || exDiff === "EASY")) ||
+      (userDiff === "MEDIUM" && exDiff === "EASY")
     );
   }
 
-  private toDayExercise(exercise: Exercise, isFavorite: boolean): ExerciseSet {
-    const difficulty = exercise.difficulty || "MEDIUM";
+  private toExerciseSet(
+    exercise: ExerciseEntity,
+    isFavorite: boolean,
+    difficulty: Difficulty,
+  ): ExerciseSet {
     const baseSets = this.getBaseSets(exercise);
-    const baseReps = this.getBaseReps(difficulty);
+    const baseReps: [number, number] = this.getBaseReps(difficulty);
 
     return {
-      exerciseId: exercise.id.value,
+      exerciseId: exercise.id,
       sets: baseSets,
       targetRepsRange: baseReps,
       favorite: isFavorite,
-
-      warning: this.shouldWarn(exercise, difficulty),
-
+      muscleGroup:
+        exercise.secondaryMuscles?.[0] || ("CHEST_MIDDLE" as MuscleGroup),
+      warning: this.generateWarning(exercise, difficulty),
       progression: {
-        baseSets: baseSets,
-        baseReps: baseReps,
+        baseSets,
+        baseReps,
+        weekOffset: 0,
       },
     };
   }
-  getDifficulty(
-    bmi: number,
-    goal: Goal, // ✅ Твои типы!
-    age: number,
-    lifestyle: Lifestyle, // ✅ Твои типы!
-    dayType: DayType,
-  ): Difficulty {
-    // ✅ Возвращает твой Difficulty!
-    let score = 0;
 
-    // 1. BMI — точная градация
-    if (bmi < 18.5) {
-      score -= age < 18 ? 25 : 15; // Дети легче!
-    } else if (bmi > 30) {
-      score += 20; // Толстяки = кардио нагрузка
-    } else if (bmi > 27) {
-      score += 12;
-    } else if (bmi > 25) {
-      score += 8;
-    }
-
-    // 2. ВОЗРАСТ
-    if (age > 50) score += 20;
-    else if (age > 40) score += 12;
-    else if (age < 18) score -= 15;
-    else if (age < 25) score -= 8;
-
-    // 3. ТВОИ GOALS ✅
-    switch (goal) {
-      case "LOSE_WEIGHT":
-        score += 12; // Дефицит = сложнее
-        break;
-      case "GAIN_MUSCLE_MASS":
-        score -= 8; // Профицит = легче
-        break;
-      case "GAIN_WEIGHT":
-        score -= 5; // Набор массы
-        break;
-      case "MAINTAIN_WEIGHT":
-        score += 2; // Поддержка = средне
-    }
-
-    // 4. ТВОИ LIFESTYLES ✅
-    const recovery = this.getRecoveryScore(lifestyle);
-    score += recovery;
-
-    // 5. День тренировки
-    const dayDifficulty = this.getDayDifficulty(dayType);
-    score += dayDifficulty;
-
-    return score <= -20 ? "EASY" : score >= 25 ? "HARD" : "MEDIUM";
-  }
-
-  private getRecoveryScore(lifestyle: Lifestyle): number {
-    return (
-      {
-        IMMOBILE: +25, // Лежачий = плохо восстанавливается
-        LIGHT: +15, // Офис
-        AVERAGE: +5, // Работа
-        HARD: -15, // Физический труд = супер восстановление
-      }[lifestyle] || 0
-    );
-  }
   private getBaseReps(difficulty: Difficulty): [number, number] {
-    const repsMap: Record<Difficulty, [number, number]> = {
-      EASY: [12, 15],
-      MEDIUM: [10, 12],
-      HARD: [8, 10],
-    };
-    return repsMap[difficulty] || [8, 12];
+    const repsMap: Record<Difficulty, [number, number]> =
+      SELECTOR_CONFIG.baseReps;
+    return repsMap[difficulty] || [10, 12];
   }
-  private getBaseSets(exercise: Exercise): number {
-    return primaryMuscles.includes(exercise.muscleGroup) ? 4 : 3;
+
+  private getBaseSets(exercise: ExerciseEntity): number {
+    const primaryMuscles: MuscleGroup[] = [
+      "QUADS_RECTUS_FEMORIS",
+      "LATS",
+      "CHEST_MIDDLE",
+    ];
+    return primaryMuscles.some((m) => this.matchesMuscle(exercise, m)) ? 4 : 3;
   }
-  private shouldWarn(
-    exercise: Exercise,
-    userDifficulty: Difficulty,
+
+  private generateWarning(
+    exercise: ExerciseEntity,
+    difficulty: Difficulty,
   ): string | undefined {
-    if (userDifficulty === "EASY" && exercise.difficulty === "HARD") {
-      return "⚠️ Острожно! Сложное упражнение! Следи за техникой или попроси подстраховать.";
-    }
-    if (exercise.muscleGroup === "NECK") {
-      return "⚠️ Шея — осторожно с весами!";
-    }
-
-    if (exercise.muscleGroup === "ERECTOR_SPINAE_LOWER") {
-      return "⚠️ Техника важнее веса! Держи спину прямой";
-    }
-
-    if (exercise.muscleGroup === "ERECTOR_SPINAE_UPPER") {
-      return "⚠️ Не округляй плечи назад";
-    }
+    if (difficulty === "EASY" && exercise.difficulty === "HARD")
+      return "⚠️ Сложное! Техника важнее";
+    if (exercise.secondaryMuscles?.some((m) => m.includes("ERECTOR_SPINAE")))
+      return "⚠️ Спину прямо!";
     return undefined;
   }
-  private getDayDifficulty(dayType: DayType): number {
-    const dayScores: Record<DayType, number> = {
-      // ЛЁГКИЕ дни (низкая частота)
-      full: -5, // Full body = базовые
-      upper: 0,
-      lower: 0,
 
-      // СРЕДНИЕ (2x/неделя)
-      push: 5,
-      pull: 5,
-      legs: 10, // Ноги тяжелее
+  private calculateDifficulty(
+    bmi: number,
+    goal: Goal,
+    age: number,
+    lifestyle: Lifestyle,
+    dayType: DayType,
+  ): Difficulty {
+    let score = 0;
 
-      // ТЯЖЁЛЫЕ (высокая специализация)
-      chest: 15,
-      back: 15,
-      shoulders: 20, // Плечи травмоопасны
-      arms: 10,
-      core: -5, // Пресс = легко
-    };
-    return dayScores[dayType] || 0;
+    if (bmi < 18.5) score -= 15;
+    else if (bmi > 30) score += 20;
+
+    if (age > 50) score += 18;
+    else if (age < 18) score -= 12;
+
+    if (goal === "LOSE_FAT") score += 10;
+
+    const recoveryPenalty = SELECTOR_CONFIG.recoveryPenalty[lifestyle] || 0;
+    score += recoveryPenalty;
+
+    const dayDiff = SELECTOR_CONFIG.dayDifficulty[dayType] || 0;
+    score += dayDiff;
+
+    return score <= -15 ? "EASY" : score >= 20 ? "HARD" : "MEDIUM";
   }
 }

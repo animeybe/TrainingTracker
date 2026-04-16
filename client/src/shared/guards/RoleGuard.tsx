@@ -6,7 +6,7 @@ import {
 } from "react-router-dom";
 import { useAuthContext } from "@/shared/store/auth/auth-context";
 import { hasPermission, type RoleGuardProps } from "@/types/permissions";
-import { InfoPage } from "@/pages/InfoPage";
+import { InfoPage } from "../ui/components/ErrorUI/ui/InfoPage";
 
 export const RoleGuard = ({ requiredPermission }: RoleGuardProps) => {
   const { isAuthenticated, state, user } = useAuthContext();

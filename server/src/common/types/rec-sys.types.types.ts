@@ -1,6 +1,7 @@
-export interface SplitRecommendation {
-  split: "FULL_BODY" | "UPPER_LOWER" | "PUSH_PULL_LEGS" | "BRO_SPLIT";
-  daysPerWeek: number;
-  description: string;
-  score: number;
+import { DayType } from "../../domain/types/training.types";
+import { TrainingSplit } from "./enums.types";
+
+export interface TypedTrainingSplit {
+  name: TrainingSplit;
+  days: Array<{ type: DayType; frequency: number }>;
 }

@@ -1,31 +1,79 @@
-import { UserPrismaDto, isUserPrismaDto } from "../dto/user.prisma-dto";
-import { User } from "../../domain/entities/user.entity";
-import { UserId } from "../../common/types/ids";
-import { BaseMapper } from "../common/base.mapper";
+// data/mappers/user.mapper.ts
 
-export class UserMapper extends BaseMapper<UserPrismaDto, User> {
-  protected doMap(prismaDto: UserPrismaDto): User {
-    // ✅ reconstitute из БД
-    return User.reconstitute({
-      id: UserId.create(prismaDto.id),
-      login: prismaDto.login,
-      email: prismaDto.email,
-      password: prismaDto.password,
-      role: prismaDto.role,
-      isActive: prismaDto.isActive,
-      createdAt: prismaDto.createdAt,
-      updatedAt: prismaDto.updatedAt,
-    });
+import type {
+  UserDto,
+  CreateUserDto,
+  UpdateUserDto,
+} from "../dtos/user.prisma-dto";
+
+import type {
+  UserEntity,
+  CreateUserEntity,
+  UpdateUserEntity,
+} from "../../domain/entities/user.entity";
+
+import type { user } from "@prisma/client";
+import { Role } from "../../common/types/enums.types";
+
+// 1️⃣ Маппер из Prisma → UserEntity
+export function prismaUserToUserEntity(prismaUser: user): UserEntity {
+  return {
+    id: prismaUser.id,
+    login: prismaUser.login,
+    email: prismaUser.email,
+    passwordHash: prismaUser.password!,
+    role: prismaUser.role as Role,
+    isActive: prismaUser.isActive,
+    updatedAt: prismaUser.updatedAt,
+    createdAt: prismaUser.createdAt,
+  };
+}
+
+// 2️⃣ Маппер UserEntity ↔ UserDto
+export class UserMapper {
+  static toEntity(dto: UserDto): UserEntity {
+    return {
+      id: dto.id,
+      login: dto.login,
+      email: dto.email,
+      passwordHash: dto.passwordHash,
+      role: dto.role,
+      isActive: dto.isActive,
+      updatedAt: dto.updatedAt,
+      createdAt: dto.createdAt,
+    };
   }
 
-  protected validatePrismaDto(prismaData: unknown): UserPrismaDto {
-    if (!isUserPrismaDto(prismaData)) {
-      throw new Error(`Invalid UserPrismaDto: ${JSON.stringify(prismaData)}`);
-    }
-    return prismaData;
+  static toDto(entity: UserEntity): UserDto {
+    return {
+      id: entity.id,
+      login: entity.login,
+      email: entity.email,
+      passwordHash: entity.passwordHash,
+      role: entity.role,
+      isActive: entity.isActive,
+      updatedAt: entity.updatedAt,
+      createdAt: entity.createdAt,
+    };
   }
 
-  protected isValidPrismaDto(data: unknown): data is UserPrismaDto {
-    return isUserPrismaDto(data);
+  static fromCreateEntity(entity: CreateUserEntity): CreateUserDto {
+    return {
+      login: entity.login,
+      email: entity.email,
+      passwordHash: entity.passwordHash,
+      role: entity.role,
+      isActive: entity.isActive,
+    };
+  }
+
+  static fromUpdateEntity(entity: UpdateUserEntity): UpdateUserDto {
+    return {
+      login: entity.login,
+      email: entity.email,
+      passwordHash: entity.passwordHash,
+      role: entity.role,
+      isActive: entity.isActive,
+    };
   }
 }
