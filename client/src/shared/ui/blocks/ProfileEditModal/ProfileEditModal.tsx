@@ -497,7 +497,14 @@ export function ProfileEditModal({
             onClick={onClose}
             disabled={isSubmitting}
             aria-label="Закрыть модальное окно">
-            ×
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M18 6L6 18M6 6L18 18"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
           </button>
         </div>
 
@@ -890,7 +897,7 @@ export function ProfileEditModal({
                   {/* Captcha */}
                   <div className="captcha-section">
                     <h4 className="captcha-section__title">
-                      Подтверждение изменений
+                      Для сохранения решите пример
                     </h4>
                     <div className="captcha-section__container">
                       <div className="captcha-section__question">

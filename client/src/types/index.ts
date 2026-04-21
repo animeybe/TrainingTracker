@@ -7,12 +7,15 @@ export type {
   ProfileResponse,
 } from "./auth.types";
 
+export type {
+  ToggleFavoriteRequest,
+  ToggleFavoriteResponse,
+  FavoriteListItem,
+  FavoriteListResponse,
+} from "./favorite.types";
+
 export type { RoutePermission, RoleGuardProps } from "./permissions";
 
 export { hasPermission, isAdmin, isUser } from "./permissions";
 
-export type { 
-  ErrorBoundaryProps, 
-  ErrorBoundaryState, 
-  ErrorInfo 
-} from './error.types';
+export type { ProfileData } from "./profile.types";

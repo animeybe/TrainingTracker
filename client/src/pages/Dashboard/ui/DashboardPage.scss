@@ -1,271 +1,479 @@
+// ==========================================
+// 🏠 ОСНОВНОЙ КОНТЕЙНЕР
+// ==========================================
 .dashboard-content {
   width: 100%;
-  height: calc(100vh - var(--header-height) * 2);
+  min-height: calc(100vh - var(--header-height, 70px) * 2);
   display: flex;
-  flex-direction: row;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 16px;
 
-  font-family: "Sansation", sans-serif;
+  font-family:
+    "Sansation",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  padding: 16px;
 
-  padding: 10px 60px;
+  @media (min-width: 768px) {
+    gap: 20px;
+    padding: 24px 32px;
+  }
+
+  @media (min-width: 1024px) {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 0;
+    padding: 20px 60px;
+    height: calc(100vh - var(--header-height, 70px) * 2);
+  }
+
+  @media (max-width: 480px) {
+    padding: 12px;
+    gap: 12px;
+  }
 }
+
+// ==========================================
+// 🧱 БЛОКИ КОНТЕНТА
+// ==========================================
 .dashboard-content-block {
-  flex: 0 1 33%;
-  max-width: 33%;
-  background-color: var(--bg-secondary);
-  height: 100%;
-  border-radius: 20px;
-  padding: 40px 30px;
+  flex: 1;
+  min-height: clamp(280px, 40vh, 320px);
+  background: var(--bg-secondary, rgba(255, 255, 255, 0.08));
+  border-radius: 16px;
+  padding: clamp(20px, 6vw, 32px) clamp(16px, 5vw, 24px);
   overflow: hidden;
-  box-shadow: #00000077 5px 5px 5px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 
-  &_left {
+  @media (min-width: 1024px) {
+    flex: 0 1 32%;
+    max-width: 32%;
+    padding: 40px 30px;
+    border-radius: 20px;
+    box-shadow: #00000077 5px 5px 15px;
+    min-height: 100%;
   }
 
-  &_mid {
-  }
-
-  &_right {
-  }
   &__title {
-    font-size: 30px;
-    margin-bottom: 30px;
+    font-size: clamp(1.4rem, 5vw, 2rem);
+    font-weight: 700;
+    margin-bottom: clamp(16px, 4vw, 24px);
+    line-height: 1.3;
+    color: var(--text-primary, #fff);
   }
 }
 
+// ==========================================
+// 👈 ЛЕВЫЙ БЛОК (Приветствие)
+// ==========================================
 .dashboard-content-block-left {
   &__greeting {
-    font-size: clamp(1.8rem, 5vw, 2.5rem);
+    font-size: clamp(1.6rem, 7vw, 2.8rem);
     font-weight: 800;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 1rem;
+    background-clip: text;
+    margin-bottom: clamp(12px, 3vw, 20px);
     line-height: 1.2;
   }
-  &__role {
-    font-size: clamp(1rem, 2.5vw, 1.25rem);
-    font-weight: 600;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    padding: 0.75rem 1.5rem;
-    border-radius: 50px;
-    display: inline-block;
-    margin-bottom: 2rem;
-    backdrop-filter: blur(15px);
 
+  &__role {
+    font-size: clamp(0.9rem, 3.5vw, 1.2rem);
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: clamp(10px, 3vw, 14px) clamp(16px, 4vw, 20px);
+    border-radius: 25px;
+    display: inline-block;
+    margin-bottom: clamp(20px, 5vw, 32px);
+    backdrop-filter: blur(15px);
+    transition: all 0.25s ease;
+
+    // Admin (красный)
     &[style*="var(--boolean-false)"] {
       background: linear-gradient(
         135deg,
-        rgba(255, 107, 107, 0.2),
-        rgba(255, 90, 36, 0.2)
+        rgba(255, 107, 107, 0.25),
+        rgba(255, 90, 36, 0.25)
       );
-      border: 2px solid rgba(255, 107, 107, 0.4);
+      border: 2px solid rgba(255, 107, 107, 0.5);
       color: #ff6b6b;
+
+      &:hover {
+        box-shadow: 0 4px 16px rgba(255, 107, 107, 0.3);
+      }
     }
 
+    // User (зеленый)
     &[style*="var(--boolean-true)"] {
       background: linear-gradient(
         135deg,
-        rgba(34, 197, 94, 0.2),
-        rgba(74, 222, 128, 0.2)
+        rgba(34, 197, 94, 0.25),
+        rgba(74, 222, 128, 0.25)
       );
-      border: 2px solid rgba(34, 197, 94, 0.4);
+      border: 2px solid rgba(34, 197, 94, 0.5);
       color: #22c55e;
     }
   }
-  &-created {
+
+  &__created {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 2.5rem;
-    padding: 1.5rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
-    border-left: 4px solid rgba(255, 255, 255, 0.2);
+    gap: clamp(6px, 2vw, 10px);
+    margin-bottom: clamp(24px, 6vw, 36px);
+    padding: clamp(14px, 4vw, 20px);
+    background: var(--bg-hover-text);
+    color: var(--text-primary);
+    border-radius: 12px;
+    border-left: 3px solid var(--text-primary);
+    border-right: 3px solid var(--text-primary);
 
-    &__subtitle {
-      font-size: 0.95rem;
-      color: rgba(255, 255, 255, 0.6);
+    &-subtitle {
+      font-size: clamp(0.85rem, 3vw, 1rem);
       font-weight: 500;
     }
 
-    &__date {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #fff;
+    &-date {
+      font-size: clamp(1rem, 3.5vw, 1.2rem);
+      font-weight: 700;
     }
   }
-  &-add-data {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2.5rem;
 
-    span {
-      display: flex;
-      flex-direction: column;
-      padding: 1rem 1.25rem;
-      background: rgba(255, 255, 255, 0.06);
-      border-radius: 16px;
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      transition: all 0.3s ease;
-
-      strong {
-        font-size: 1.4rem;
-        font-weight: 700;
-        color: #fff;
-        margin-top: 0.25rem;
-      }
-
-      &:hover {
-        transform: translateY(-2px);
-        background: rgba(255, 255, 255, 0.12);
-        border-color: rgba(255, 255, 255, 0.2);
-      }
-    }
-  }
   &__update-data {
-    background: var(--surface);
-    color: var(--onSurface);
+    width: 100%;
+    background: #3b82f6;
+    color: #fff;
     border: none;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 16px;
+    padding: clamp(14px, 4vw, 18px) clamp(20px, 6vw, 28px);
+    border-radius: 12px;
+    font-size: clamp(15px, 4.5vw, 17px);
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
-    min-width: 120px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-    &:hover:not(:disabled) {
-      background: #2563eb;
+    &:active:not(:disabled) {
       transform: translateY(-1px);
     }
 
-    &:active:not(:disabled) {
-      transform: translateY(0);
-    }
-
     &:disabled {
-      background: #9ca3af;
+      background: #6b7280;
       cursor: not-allowed;
+      opacity: 0.7;
       transform: none;
     }
   }
 }
 
+// ==========================================
+// 📊 СРЕДНИЙ БЛОК (Статистика профиля)
+// ==========================================
+
+// 🧱 Основной контейнер среднего блока
+.dashboard-content-block__mid {
+  // Наследует стили от .dashboard-content-block
+}
+
+// 🏷️ Заголовок блока статистики
+.dashboard-content-block__mid-title {
+  font-size: clamp(1.4rem, 5vw, 2rem);
+  font-weight: 700;
+  margin-bottom: clamp(16px, 4vw, 24px);
+  line-height: 1.3;
+  color: var(--text-primary, #fff);
+}
+
+// 📊 Контейнер сетки статистики
+.dashboard-profile-stats {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(clamp(100px, 24vw, 140px), 1fr)
+  );
+  gap: clamp(10px, 2.5vw, 14px);
+  margin-top: 6px;
+}
+
+// 🧱 Элемент статистики (карточка)
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: clamp(12px, 3.5vw, 16px);
+  background: var(--bg-hover-text);
+  color: var(--text-primary);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: all 0.25s ease;
+  cursor: default;
+
+  &:nth-child(2n + 1) {
+    border-left: 3px solid var(--text-primary);
+  }
+  &:nth-child(2n) {
+    border-right: 3px solid var(--text-primary);
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  }
+
+  // 📝 Лейбл метрики
+  &__label {
+    font-size: clamp(0.7rem, 2.5vw, 0.8rem);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    line-height: 1.2;
+  }
+
+  // 📈 Значение метрики
+  &__value {
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+}
+
+// 🕳️ Пустой профиль (когда нет данных)
+.dashboard-profile-empty {
+  text-align: center;
+  padding: clamp(24px, 8vw, 40px) 20px;
+  color: var(--text-primary);
+
+  &__btn {
+    width: 100%;
+    margin-top: 20px;
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    padding: clamp(12px, 4vw, 16px) clamp(24px, 6vw, 32px);
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: clamp(14px, 4vw, 16px);
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &:active:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    &:disabled {
+      background: #6b7280;
+      cursor: not-allowed;
+      opacity: 0.7;
+      transform: none;
+    }
+  }
+}
+
+// 📱 MOBILE ADAPTATIONS для статистики
+@media (max-width: 480px) {
+  .dashboard-profile-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .stat-item {
+    padding: 10px;
+  }
+
+  .stat-item__label {
+    font-size: 0.7rem;
+  }
+
+  .stat-item__value {
+    font-size: 0.95rem;
+  }
+
+  .dashboard-profile-empty {
+    padding: 20px 12px;
+  }
+
+  .dashboard-profile-empty__btn {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  .dashboard-profile-stats {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .stat-item {
+    padding: 8px 10px;
+  }
+}
+
+// ==========================================
+// ⚙️ ПРАВЫЙ БЛОК (Настройки)
+// ==========================================
 .dashboard-content-block-right {
-  &__title {
+  &__subtitles {
+    font-size: 1.1rem;
+    font-weight: 600;
   }
 }
 .dashboard-content-block-right-settings {
-  &__subtitles {
-    font-size: 1.4em;
-  }
-  &__theme-subtitle {
-    margin-bottom: 1em;
-  }
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(24px, 6vw, 32px);
+
   &-theme-block {
     display: flex;
-    margin-bottom: 3em;
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: clamp(12px, 3vw, 20px);
+
+    @media (min-width: 1023px) {
+      flex-direction: row;
+      gap: clamp(16px, 4vw, 24px);
+    }
 
     &__item {
+      flex: 1;
       display: flex;
       align-items: center;
-      width: 10em;
-      border-radius: 0.8em;
-      font-size: 1.1em;
-      padding: 5px 10px;
+      justify-content: center;
+      padding: 16px 5px;
+      border-radius: 14px;
+      font-size: clamp(0.9rem, 3.5vw, 1rem);
+      font-weight: 600;
       cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 2px solid transparent;
+      color: var(--text-primary);
 
-      &:hover {
-        background-color: rgba(255, 255, 255, 0.1);
+      &:hover:not(:disabled) {
+        background: var(--bg-hover-text-header);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+      }
+
+      &:disabled {
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      &[aria-checked="true"] {
+        border-color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
       }
 
       &_light {
-        margin-right: 2em;
+        order: 1;
       }
-
-      [data-theme="light"] & {
-        &_light {
-          border: 2px solid var(--text-primary);
-        }
-      }
-      [data-theme="dark"] & {
-        &_dark {
-          border: 2px solid var(--text-primary);
-        }
+      &_dark {
+        order: 2;
       }
     }
 
     &__icon {
-      width: 3em;
-      margin-right: 1.3em;
-    }
-
-    &__name {
-      color: var(--text-primary);
+      width: clamp(28px, 9vw, 35px);
+      height: clamp(28px, 9vw, 35px);
+      margin-right: clamp(12px, 4vw, 18px);
+      flex-shrink: 0;
+      filter: brightness(1.1);
     }
   }
+
   &__notifications {
     display: flex;
     align-items: center;
+    justify-content: start;
+    transition: all 0.25s ease;
+
     &-subtitle {
-      margin-right: 1.3em;
+      font-size: clamp(0.95rem, 3.5vw, 1.15rem);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-right: clamp(1rem, 10vw, 9rem);
     }
+
     &-switch {
       position: relative;
-      display: inline-block;
-      width: 60px;
-      height: 34px;
+      width: clamp(52px, 16vw, 64px);
+      height: clamp(28px, 8vw, 36px);
 
-      & input {
-        opacity: 0;
+      input {
+        display: none;
         width: 0;
         height: 0;
 
-        &:checked {
-          & + .notifications-switch__slider {
-            background-color: var(--boolean-true);
+        &:checked + .notifications-switch__slider {
+          background: var(--boolean-true, #22c55e);
 
-            &::before {
-              -webkit-transform: translateX(26px);
-              -ms-transform: translateX(26px);
-              transform: translateX(26px);
-            }
+          &::before {
+            left: calc(100% - 24px) !important;
           }
         }
-        &:focus {
-          & + .notifications-switch__slider {
-            box-shadow: 0 0 1px #2196f3;
-          }
+
+        &:focus-visible + .notifications-switch__slider {
+          box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        }
+
+        &:disabled + .notifications-switch__slider {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
       }
-      & .notifications-switch__slider {
+
+      .notifications-switch__slider {
         position: absolute;
-        cursor: pointer;
         top: 0;
-        bottom: 0;
         left: 0;
         right: 0;
-        background-color: var(--boolean-false);
-        -webkit-transition: 0.4s;
-        transition: 0.4s;
-        border-radius: 34px;
+        bottom: 0;
+        background: var(--boolean-false, #ef4444);
+        border-radius: 9999px;
+        transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
 
         &::before {
           content: "";
           position: absolute;
-          width: 26px;
-          height: 26px;
+          top: 50%;
           left: 4px;
-          bottom: 4px;
-          background-color: #fff;
+          transform: translateY(-50%);
+          width: 20px;
+          height: 20px;
+          background: #fff;
           border-radius: 50%;
-          -webkit-transition: 0.4s;
-          transition: 0.4s;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+          transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         }
       }
     }
+  }
+}
+
+// ==========================================
+// ⏳ LOADING + MOBILE FIXES
+// ==========================================
+.dashboard-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: clamp(50vh, 60vh, 70vh);
+  padding: clamp(20px, 6vw, 40px);
+}
+
+// 📱 Extra small screens
+@media (max-width: 360px) {
+  .dashboard-content {
+    padding: 10px;
+  }
+
+  .dashboard-content-block {
+    padding: 18px 14px;
   }
 }

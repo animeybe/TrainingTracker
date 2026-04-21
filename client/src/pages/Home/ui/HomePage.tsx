@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import gymmanImage from "@/assets/gymman_1.webp";
 import "./HomePage.scss";
 
 export function HomePage() {
@@ -28,11 +29,7 @@ export function HomePage() {
           <div className="start-block-right">
             <div className="start-block-right__grad"></div>
             <div className="start-block-right__man">
-              <img
-                src="src/assets/gymman_1.webp"
-                alt="Спорстмен"
-                loading="lazy"
-              />
+              <img src={gymmanImage} alt="Спортсмен" loading="lazy" />
             </div>
             <div className="start-block-right__line">
               <svg

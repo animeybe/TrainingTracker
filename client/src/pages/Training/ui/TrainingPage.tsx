@@ -69,7 +69,7 @@ export function TrainingPage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [weekPlan, setWeekPlan] = useState<WeekPlanResponse | null>(null);
   const [todayPlan, setTodayPlan] = useState<TodayPlanResponse | null>(null);
-  const [currentWeek, setCurrentWeek] = useState(1);
+  const [currentWeek] = useState(1);
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState<{
     type: ErrorType;
@@ -82,8 +82,8 @@ export function TrainingPage() {
   const [showWellbeingWarning, setShowWellbeingWarning] = useState(false);
   const [wellbeingWarningAction, setWellbeingWarningAction] =
     useState<Wellbeing | null>(null);
-  const [canGoPrevWeek, setCanGoPrevWeek] = useState(false);
-  const [canGoNextWeek, setCanGoNextWeek] = useState(true);
+  const [, setCanGoPrevWeek] = useState(false);
+  const [, setCanGoNextWeek] = useState(true);
   const [exercises, setExercises] = useState<Exercise[]>([]);
 
   // ==================== COMPUTED ====================

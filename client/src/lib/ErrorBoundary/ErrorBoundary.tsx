@@ -1,5 +1,5 @@
 import type { ErrorType } from "@/shared/ui/components/ErrorUI/model/types";
-import React, { Component, type ErrorInfo, type ReactNode } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import { logger } from "../utils/logger";
 import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
 

@@ -91,7 +91,54 @@ export function DashboardPage() {
   ]);
 
   /**
-   * Форматированные stats для UI
+   * TDEE + БЖУ
+   */
+  const nutritionStats = useMemo(() => {
+    if (
+      !effectiveProfile.weight ||
+      !effectiveProfile.height ||
+      !effectiveProfile.age
+    )
+      return { tdee: "—", macros: "— / — / —" };
+
+    const weight = effectiveProfile.weight;
+    const height = effectiveProfile.height;
+    const age = effectiveProfile.age;
+
+    // !!! ЗАГЛУШКА: сдлеано для МУЖЧИНА !!!
+    // TODO: Добавить gender!
+    const bmr = 88.362 + 13.397 * weight + 4.799 * height - 5.677 * age;
+
+    const multipliers = {
+      SEDENTARY: 1.2,
+      LIGHT: 1.375,
+      MODERATE: 1.55,
+      ACTIVE: 1.725,
+      VERY_ACTIVE: 1.9,
+    };
+    const multiplier =
+      multipliers[effectiveProfile.lifestyle as keyof typeof multipliers] ||
+      1.2;
+
+    const tdee = Math.round(bmr * multiplier);
+
+    const proteins = Math.round((tdee * 0.3) / 4);
+    const fats = Math.round((tdee * 0.2) / 9);
+    const carbs = Math.round((tdee * 0.5) / 4);
+
+    return {
+      tdee: tdee.toString(),
+      macros: `${proteins}/${fats}/${carbs}`,
+    };
+  }, [
+    effectiveProfile.weight,
+    effectiveProfile.height,
+    effectiveProfile.age,
+    effectiveProfile.lifestyle,
+  ]);
+
+  /**
+   * Расширенные stats для UI
    */
   const profileStats = useMemo(
     () => ({
@@ -107,13 +154,27 @@ export function DashboardPage() {
         effectiveProfile.age != null && effectiveProfile.age > 0
           ? `${effectiveProfile.age} лет`
           : "Не заполнено",
-      goal: effectiveProfile.goal ?? "Не выбрана",
       bmi:
         effectiveProfile.bmi != null && effectiveProfile.bmi > 0
-          ? effectiveProfile.bmi.toFixed(1)
-          : "Не рассчитан",
+          ? `ИМТ ${effectiveProfile.bmi.toFixed(1)}`
+          : "ИМТ не рассчитан",
+      goal: effectiveProfile.goal ?? "Не выбрана",
+
+      tdee: nutritionStats.tdee,
+      macros: nutritionStats.macros,
+
+      favorites: "12",
+      currentPlan: "PPL • Неделя 1",
     }),
-    [effectiveProfile],
+    [
+      effectiveProfile.weight,
+      effectiveProfile.height,
+      effectiveProfile.age,
+      effectiveProfile.bmi,
+      effectiveProfile.goal,
+      nutritionStats.tdee,
+      nutritionStats.macros,
+    ],
   );
 
   // ==================== EVENT HANDLERS ====================
@@ -189,7 +250,7 @@ export function DashboardPage() {
   return (
     <div className="dashboard-content">
       {/* 👋 ЛЕВАЯ КОЛОНКА: приветствие + роль + дата */}
-      <section className="dashboard-content-block dashboard-content-block_left">
+      <section className="dashboard-content-block dashboard-content-block__left dashboard-block-mobile">
         <div className="dashboard-content-block-left__greeting dashboard-content-block__title">
           Привет, {user?.login ?? "Гость"}!
         </div>
@@ -209,11 +270,11 @@ export function DashboardPage() {
           [{user?.role ?? "USER"}]
         </div>
 
-        <div className="dashboard-content-block-left-created">
-          <span className="dashboard-content-block-left-created__subtitle">
+        <div className="dashboard-content-block-left__created">
+          <span className="dashboard-content-block-left__created-subtitle">
             Зарегистрирован:
           </span>
-          <span className="dashboard-content-block-left-created__date">
+          <span className="dashboard-content-block-left__created-date">
             {user?.createdAt ? formatRussianDate(user.createdAt) : "Недавно"}
           </span>
         </div>
@@ -228,32 +289,49 @@ export function DashboardPage() {
       </section>
 
       {/* 📊 СРЕДНЯЯ КОЛОНКА: статистика профиля */}
-      <section className="dashboard-content-block dashboard-content-block_mid">
-        <div className="dashboard-content-block-mid__title dashboard-content-block__title">
-          Статистика профиля:
+      <section className="dashboard-content-block dashboard-content-block__mid dashboard-block-mobile">
+        <div className="dashboard-content-block__mid-title dashboard-content-block__title">
+          Информация о пользователе:
         </div>
 
         {isProfileComplete ? (
           <div className="dashboard-profile-stats">
+            {/* 🎯 Цель */}
             <div className="stat-item">
-              <span className="stat-label">Вес:</span>
-              <span className="stat-value">{profileStats.weight}</span>
+              <span className="stat-item__label">Цель:</span>
+              <span className="stat-item__value">{profileStats.goal}</span>
             </div>
+
+            {/* ⚖️ ИМТ */}
             <div className="stat-item">
-              <span className="stat-label">Рост:</span>
-              <span className="stat-value">{profileStats.height}</span>
+              <span className="stat-item__label">ИМТ (BMI):</span>
+              <span className="stat-item__value">{profileStats.bmi}</span>
             </div>
+
+            {/* 🔥 Калории */}
             <div className="stat-item">
-              <span className="stat-label">Возраст:</span>
-              <span className="stat-value">{profileStats.age}</span>
+              <span className="stat-item__label">Калории/сутки:</span>
+              <span className="stat-item__value">{profileStats.tdee}</span>
             </div>
+
+            {/* 🍽️ БЖУ */}
             <div className="stat-item">
-              <span className="stat-label">Цель:</span>
-              <span className="stat-value">{profileStats.goal}</span>
+              <span className="stat-item__label">Суточное БЖУ:</span>
+              <span className="stat-item__value">{profileStats.macros}</span>
             </div>
+
+            {/* ⭐ Избранные */}
             <div className="stat-item">
-              <span className="stat-label">BMI:</span>
-              <span className="stat-value">{profileStats.bmi}</span>
+              <span className="stat-item__label">Избранных:</span>
+              <span className="stat-item__value">{profileStats.favorites}</span>
+            </div>
+
+            {/* 💪 План */}
+            <div className="stat-item">
+              <span className="stat-item__label">Текущий план:</span>
+              <span className="stat-item__value">
+                {profileStats.currentPlan}
+              </span>
             </div>
           </div>
         ) : (
@@ -262,7 +340,7 @@ export function DashboardPage() {
             <button
               onClick={handleOpenModal}
               type="button"
-              className="dashboard-fill-profile-btn">
+              className="dashboard-profile-empty__btn">
               Заполнить профиль
             </button>
           </div>
@@ -270,14 +348,14 @@ export function DashboardPage() {
       </section>
 
       {/* ⚙️ ПРАВАЯ КОЛОНКА: настройки */}
-      <section className="dashboard-content-block dashboard-content-block_right">
+      <section className="dashboard-content-block dashboard-content-block-right dashboard-block-mobile">
         <div className="dashboard-content-block-right__title dashboard-content-block__title">
           Настройки:
         </div>
 
         <div className="dashboard-content-block-right-settings">
           {/* 🎨 Theme toggle */}
-          <div className="dashboard-content-block-right-settings__theme-subtitle dashboard-content-block-right-settings__subtitles">
+          <div className="dashboard-content-block-right-settings__theme-subtitle dashboard-content-block-right__subtitles">
             Сменить тему:
           </div>
           <fieldset className="dashboard-content-block-right-settings-theme-block">
@@ -288,7 +366,7 @@ export function DashboardPage() {
               aria-checked={theme === "light"}
               onClick={handleThemeToggle}
               disabled={theme === "light"}
-              className="dashboard-content-block-right-settings-theme-block__item dashboard-content-block-right-settings-theme-block__item_light">
+              className="dashboard-content-block-right-settings-theme-block__item dashboard-content-block-right-settings-theme-block__item--light">
               <img
                 src={sunIcon}
                 alt="Светлая"
@@ -305,7 +383,7 @@ export function DashboardPage() {
               aria-checked={theme === "dark"}
               onClick={handleThemeToggle}
               disabled={theme === "dark"}
-              className="dashboard-content-block-right-settings-theme-block__item dashboard-content-block-right-settings-theme-block__item_dark">
+              className="dashboard-content-block-right-settings-theme-block__item dashboard-content-block-right-settings-theme-block__item--dark">
               <img
                 src={moonIcon}
                 alt="Тёмная"
@@ -319,11 +397,11 @@ export function DashboardPage() {
 
           {/* 🔔 Notifications (placeholder) */}
           <div className="dashboard-content-block-right-settings__notifications">
-            <span className="dashboard-content-block-right-settings__notifications-subtitle dashboard-content-block-right-settings__subtitles">
+            <span className="dashboard-content-block-right-settings__notifications-subtitle dashboard-content-block-right__subtitles">
               Уведомления:
             </span>
             <label className="dashboard-content-block-right-settings__notifications-switch">
-              <input type="checkbox" disabled title="В разработке" />
+              <input type="checkbox" title="В разработке" />
               <span className="notifications-switch__slider"></span>
             </label>
           </div>
