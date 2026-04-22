@@ -1,5 +1,7 @@
-import "./InfoPage.scss";
+// pages/common/InfoPage.tsx (или где сейчас InfoPage)
+import { Spinner } from "@/shared/ui/blocks/Spinner/Spinner";
 import type { InfoPageProps } from "../model/types";
+import "./InfoPage.scss";
 
 const messages: Record<string, { title: string; message: string }> = {
   loading: { title: "Загрузка...", message: "Подождите немного" },
@@ -15,48 +17,53 @@ const messages: Record<string, { title: string; message: string }> = {
   "permission-denied": { title: "403", message: "Нет доступа" },
 };
 
-export function InfoPage(props: InfoPageProps) {
-  const config = messages[props.type] || {
+export function InfoPage({
+  type,
+  title,
+  errorText,
+  retryAction,
+  showBackButton,
+}: InfoPageProps) {
+  const config = messages[type] || {
     title: "Ошибка",
     message: "Что-то пошло не так",
   };
 
-  const isLoading = props.type === "loading";
+  const isLoading = type === "loading";
 
   return (
     <div className="info-page">
       <div className="info-page__content">
         <div className="info-page__icon">
-          {isLoading && (
-            <div className="info-page__spinner">
-              <div className="info-page__spinner-ring info-page__spinner-ring--1" />
-              <div className="info-page__spinner-ring info-page__spinner-ring--2" />
-              <div className="info-page__spinner-ring info-page__spinner-ring--3" />
-            </div>
+          {isLoading ? (
+            <Spinner size="lg" />
+          ) : (
+            <span className="info-page__icon-static">
+              {/* можно сюда поставить статический икон‑застрех или svg */}
+            </span>
           )}
         </div>
 
         <h1 className="info-page__title">{config.title}</h1>
 
-        {props.title && <h2>{props.title}</h2>}
+        {title && <h2>{title}</h2>}
+
         {config.message && (
           <p className="info-page__message">{config.message}</p>
         )}
 
-        {props.errorText && (
-          <div className="info-page__error-text">{props.errorText}</div>
-        )}
+        {errorText && <div className="info-page__error-text">{errorText}</div>}
 
         <div className="info-page__actions">
-          {props.retryAction && (
+          {retryAction && (
             <button
               className="info-page__btn info-page__btn--primary"
-              onClick={props.retryAction}>
+              onClick={retryAction}>
               🔄 Повторить
             </button>
           )}
 
-          {props.showBackButton && (
+          {showBackButton && (
             <button
               className="info-page__btn info-page__btn--secondary"
               onClick={() => window.history.back()}>

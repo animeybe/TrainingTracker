@@ -1,0 +1,73 @@
+// shared/ui/components/Spinner/Spinner.scss
+.spinner {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #000;
+
+  &_sm {
+    transform: scale(0.75);
+  }
+
+  &_md {
+    transform: scale(1);
+  }
+
+  &_lg {
+    transform: scale(1.5);
+  }
+
+  &__ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    animation: spinner-rotate 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+
+    &_1 {
+      width: 48px;
+      height: 48px;
+      margin: -24px 0 0 -24px;
+      border-top: 4px solid var(--spinner-primary);
+      border-right: 4px solid var(--spinner-primary);
+      animation-duration: 1.2s;
+      box-shadow: 0 0 20px var(--spinner-glow);
+    }
+
+    &_2 {
+      width: 36px;
+      height: 36px;
+      margin: -18px 0 0 -18px;
+      border-bottom: 3px solid var(--spinner-secondary);
+      border-left: 3px solid var(--spinner-secondary);
+      animation-delay: -0.8s;
+      animation-duration: 1.6s;
+      box-shadow: 0 0 15px var(--spinner-glow-dark);
+    }
+
+    &_3 {
+      width: 24px;
+      height: 24px;
+      margin: -12px 0 0 -12px;
+      border-top: 3px solid var(--spinner-primary);
+      border-bottom: 3px solid var(--spinner-secondary);
+      animation-delay: -0.4s;
+      animation-duration: 2s;
+      box-shadow: 0 0 10px var(--spinner-glow);
+    }
+  }
+}
+
+@keyframes spinner-rotate {
+  0% {
+    transform: rotate(0deg) scale(0.95);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.05);
+  }
+  100% {
+    transform: rotate(360deg) scale(0.95);
+  }
+}

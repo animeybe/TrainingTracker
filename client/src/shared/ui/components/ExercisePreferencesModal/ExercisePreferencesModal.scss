@@ -1,0 +1,211 @@
+.preferences-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.preferences-modal {
+  background: var(--bg-primary);
+  border-radius: 16px;
+  max-width: 600px;
+  max-height: 80vh;
+  width: 90vw;
+  overflow: hidden;
+  box-shadow: 0 25px 50px var(--bg-secondary);
+  animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  @keyframes modalSlideIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+}
+
+.preferences-modal__header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  [data-theme="dark"] & {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.preferences-modal__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary, #000);
+}
+
+.preferences-modal__close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: var(--text-secondary, #666);
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: var(--bg-hover, rgba(0, 0, 0, 0.1));
+    color: var(--text-accent, #2563eb);
+
+    [data-theme="dark"] & {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffd700;
+    }
+  }
+}
+
+.preferences-modal__content {
+  padding: 2rem;
+  max-height: calc(80vh - 80px);
+  position: relative;
+  display: flex;
+  gap: 4px;
+}
+
+// Внутренний блок с нативной прокруткой (скроллбар скрыт)
+.preferences-modal__scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  justify-content: space-between;
+
+  // Скрываем нативный скроллбар
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+// Визуальный трек скроллбара
+.preferences-modal__custom-scrollbar {
+  position: absolute;
+  right: 0;
+  top: 2rem;
+  bottom: 2rem;
+  width: 10px;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+// Ползунок, который двигается
+.preferences-modal__scroll-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  background: var(--bg-accent);
+  border-radius: 5px;
+  transition: background 0.2s ease;
+  cursor: grab;
+
+  &:hover {
+    background: var(--bg-accent);
+    cursor: grabbing;
+  }
+
+  [data-theme="dark"] & {
+    background: var(--surface);
+  }
+}
+
+// Стили секций и элементов (без изменений)
+.preferences-section {
+  flex: 0 48%;
+
+  // ❤️ Избранное
+  &:nth-child(1) {
+    .preferences-section__title {
+      color: var(--text-accent, #2563eb);
+    }
+  }
+
+  // ❌ Нелюбимое
+  &:nth-child(2) {
+    .preferences-section__title {
+      color: #ef4444;
+    }
+  }
+}
+
+.preferences-section__title {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary, #000);
+}
+
+.preferences-section__empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary, #666);
+  font-style: italic;
+
+  [data-theme="dark"] & {
+    color: rgba(255, 255, 255, 0.6);
+  }
+}
+
+.preferences-section__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.preferences-item {
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--bg-secondary, rgba(0, 0, 0, 0.05));
+  margin-bottom: 0.5rem;
+  border-left: 4px solid var(--accent-primary, #2563eb);
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: var(--bg-hover, rgba(0, 0, 0, 0.08));
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+    [data-theme="dark"] & {
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+.preferences-item__name {
+  font-weight: 500;
+  color: var(--text-primary, #000);
+  display: block;
+}
+
+.preferences-item__muscle {
+  color: var(--text-secondary, #666);
+  font-size: 0.9rem;
+}

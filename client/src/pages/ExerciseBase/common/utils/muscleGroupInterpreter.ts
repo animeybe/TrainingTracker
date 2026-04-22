@@ -118,5 +118,14 @@ export const MUSCLE_SUPERGROUP_LABELS: Record<string, string> = {
   LEGS: "Ноги",
 } as const;
 
+export const PRIMARY_MUSCLE_GROUP_RU: Record<string, string> = {
+  CHEST: "Грудь",
+  BACK: "Спина",
+  ARMS: "Руки",
+  SHOULDERS: "Плечи",
+  LEGS: "Ноги",
+  CORE: "Мышцы кора",
+} as const;
+
 export type SupergroupKey = keyof typeof MUSCLE_SUPERGROUPS;
 export type MuscleGroup = (typeof MUSCLE_SUPERGROUPS)[SupergroupKey][number];

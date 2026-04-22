@@ -14,6 +14,7 @@ import { logger } from "@/lib/utils/logger";
 import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
 import type { ErrorType } from "@/shared/ui/components/ErrorUI/model/types";
 import { useExercises } from "@/shared/hooks/useExercises";
+import { useTrainingPlan } from "@/shared/hooks/useTrainingPlan";
 
 // ======================================================================
 // 🔧 УТИЛИТЫ
@@ -51,7 +52,9 @@ export function DashboardPage() {
   const { theme, toggleTheme } = useTheme();
   const { user, refreshUser } = useSafeAuthContext();
   const { profile, loadingProfile, reloadProfile } = useProfile();
-  const { leastFavoriteExercises, loadingExercises } = useExercises();
+  const { leastFavoriteExercises, favoriteExercises, loadingExercises } =
+    useExercises();
+  const { weekPlan } = useTrainingPlan(1);
   const navigate = useNavigate();
 
   // ==================== STATE ====================
@@ -177,8 +180,8 @@ export function DashboardPage() {
       tdee: nutritionStats.tdee,
       macros: nutritionStats.macros,
 
-      favorites: leastFavoriteExercises?.length,
-      currentPlan: "PPL • Неделя 1",
+      favorites: `${favoriteExercises?.length} / ${leastFavoriteExercises?.length}`,
+      currentPlan: weekPlan?.split.name,
     }),
     [
       effectiveProfile.weight,
@@ -188,7 +191,9 @@ export function DashboardPage() {
       effectiveProfile.goal,
       nutritionStats.tdee,
       nutritionStats.macros,
+      favoriteExercises?.length,
       leastFavoriteExercises?.length,
+      weekPlan?.split,
     ],
   );
 

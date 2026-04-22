@@ -13,9 +13,10 @@ import {
 import { useExercises } from "@/shared/hooks/useExercises";
 import { useError } from "@/shared/hooks/useError";
 import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
-import { logger } from "@/lib/utils/logger";
 import { favoriteApi, leastFavoriteApi } from "@/shared/api";
+import { logger } from "@/lib/utils/logger";
 import toast from "react-hot-toast";
+import { ExercisePreferencesModal } from "@/shared/ui/components/ExercisePreferencesModal/ExercisePreferencesModal";
 
 // ======================================================================
 // 🔧 ТИПЫ
@@ -24,14 +25,6 @@ import toast from "react-hot-toast";
 type SupergroupKey = keyof typeof MUSCLE_SUPERGROUPS;
 type MuscleGroup =
   (typeof MUSCLE_SUPERGROUPS)[keyof typeof MUSCLE_SUPERGROUPS][number];
-
-/**
- * Упрощенный тип для избранного (без secondaryMuscles и т.д.)
- */
-type FavoriteExercise = Omit<
-  Exercise,
-  "secondaryMuscles" | "movementPatterns" | "trainingFocus"
->;
 
 // ======================================================================
 // 🎯 ОСНОВНОЙ КОМПОНЕНТ
@@ -42,20 +35,16 @@ export function ExerciseBasePage() {
   const {
     allExercises: exercises,
     favoriteExercises: rawFavoriteExercises,
-    leastFavoriteExercises,
+    leastFavoriteExercises: rawLeastFavoriteExercises,
     loadingExercises,
     refetchFavorites,
     refetchLeastFavorites,
   } = useExercises();
   const { currentError: localError, setError, clearError } = useError();
 
-  // Нормализуем избранное и нелюбимое (только валидные упражнения)
-  const [favoriteList, setFavoriteList] = useState<FavoriteExercise[]>([]);
-  const [leastFavoriteList, setLeastFavoriteList] = useState<Exercise[]>([]);
-
   // ==================== UI STATE ====================
   const [search, setSearch] = useState("");
-  const [isFavoritesModalOpen, setIsFavoritesModalOpen] = useState(false);
+  const [isPreferencesModalOpen, setIsPreferencesModalOpen] = useState(false);
   const [groupingEnabled, setGroupingEnabled] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem("exerciseBaseGroupingEnabled");
@@ -74,26 +63,32 @@ export function ExerciseBasePage() {
     "name",
   );
 
+  const [favoriteExercises, setFavoriteExercises] = useState<Exercise[]>([]);
+  const [leastFavoriteExercises, setLeastFavoriteExercises] = useState<
+    Exercise[]
+  >([]);
+
   // ==================== REFS ====================
   const sortingRef = useRef<HTMLDivElement>(null);
 
-  // ==================== NORMALIZE FAVORITES ====================
+  // ==================== NORMALIZE LISTS ====================
   useEffect(() => {
     if (!exercises || !rawFavoriteExercises) return;
 
-    const validFavorites: FavoriteExercise[] = rawFavoriteExercises.filter(
-      (fav) => exercises.some((ex) => ex.id === fav.id),
+    const validFavorites = rawFavoriteExercises.filter((fav) =>
+      exercises.some((ex) => ex.id === fav.id),
     );
-    setFavoriteList(validFavorites);
+    setFavoriteExercises(validFavorites);
   }, [exercises, rawFavoriteExercises]);
 
   useEffect(() => {
-    if (!exercises || !leastFavoriteExercises) return;
-    const validLeastFavorites = leastFavoriteExercises.filter((lf) =>
+    if (!exercises || !rawLeastFavoriteExercises) return;
+
+    const validLeastFavorites = rawLeastFavoriteExercises.filter((lf) =>
       exercises.some((ex) => ex.id === lf.id),
     );
-    setLeastFavoriteList(validLeastFavorites);
-  }, [exercises, leastFavoriteExercises]);
+    setLeastFavoriteExercises(validLeastFavorites);
+  }, [exercises, rawLeastFavoriteExercises]);
 
   // ==================== API FUNCTIONS ====================
   /**
@@ -101,89 +96,79 @@ export function ExerciseBasePage() {
    */
   const isFavorite = useCallback(
     (exerciseId: string): boolean => {
-      return favoriteList.some((fav) => fav.id === exerciseId);
+      return favoriteExercises.some((fav) => fav.id === exerciseId);
     },
-    [favoriteList],
+    [favoriteExercises],
   );
 
-  // Проверка нелюбимого
   const isLeastFavorite = useCallback(
     (exerciseId: string): boolean => {
-      return leastFavoriteList.some((lf) => lf.id === exerciseId);
+      return leastFavoriteExercises.some((lf) => lf.id === exerciseId);
     },
-    [leastFavoriteList],
+    [leastFavoriteExercises],
   );
 
   /**
    * Toggle избранного (оптимистично)
-   * UI меняется МГНОВЕННО (0ms)
-   * Сервер фоном (параллельно)
-   * Ошибка = ОТКАТ к старому состоянию
+   * 1. UI меняется МГНОВЕННО (0ms)
+   * 2. Сервер фоном (параллельно)
+   * 3. Ошибка = ОТКАТ к старому состоянию
    */
   const handleToggleFavorite = useCallback(
     async (exerciseId: string) => {
+      // Бизнес-правило: нельзя из нелюбимых в любимые
       if (isLeastFavorite(exerciseId)) {
         toast.error("Упражнение уже в нелюбимых! Сначала уберите его");
         return;
       }
 
       const wasFavorite = isFavorite(exerciseId);
-      const previousFavorites = favoriteList; // СНАПШОТ для отката
+      const previousFavorites = favoriteExercises; // ✅ SNAPSHOT для отката
 
       logger.debug("handleToggleFavorite optimistic", {
         exerciseId,
         wasFavorite,
+        count: favoriteExercises.length,
       });
 
       // 1. ОПТИМИСТИЧНО — UI СРАЗУ! (0ms)
-      let optimisticFavorites: FavoriteExercise[];
+      const exercise = exercises?.find((ex) => ex.id === exerciseId);
+      if (!exercise) {
+        logger.warn("Exercise not found for optimistic update", { exerciseId });
+        return;
+      }
+
+      let optimisticFavorites: Exercise[];
       if (wasFavorite) {
-        // Мгновенно убираем
-        optimisticFavorites = favoriteList.filter(
+        // ✅ Мгновенно УБИРАЕМ
+        optimisticFavorites = favoriteExercises.filter(
           (fav) => fav.id !== exerciseId,
         );
       } else {
-        // Мгновенно добавляем
-        const exercise = exercises?.find((ex) => ex.id === exerciseId);
-        if (!exercise) {
-          logger.warn("Exercise not found for optimistic add", { exerciseId });
-          return;
-        }
-
-        optimisticFavorites = [
-          {
-            id: exercise.id,
-            name: exercise.name,
-            primaryMuscleGroup: exercise.primaryMuscleGroup,
-            difficulty: exercise.difficulty,
-            description: exercise.description || null,
-            imageUrl: exercise.imageUrl || null,
-            videoUrl: exercise.videoUrl || null,
-          },
-          ...favoriteList,
-        ];
+        // ✅ Мгновенно ДОБАВЛЯЕМ
+        optimisticFavorites = [exercise, ...favoriteExercises];
       }
 
       // UI ОБНОВЛЯЕТСЯ СРАЗУ!
-      setFavoriteList(optimisticFavorites);
-      logger.debug("Optimistic UI update", {
+      setFavoriteExercises(optimisticFavorites);
+      logger.debug("✅ Optimistic UI update", {
         exerciseId,
         newCount: optimisticFavorites.length,
       });
 
       // 2. ФОНОМ сервер (НЕ блокирует UI)
       try {
-        const toggleResult = await favoriteApi.toggleFavorite({ exerciseId });
-        await refetchFavorites();
-
-        if (!toggleResult.success) {
-          throw new Error(`toggleFavorite failed: success=false`);
+        const result = await favoriteApi.toggleFavorite({ exerciseId });
+        if (!result.success) {
+          throw new Error(`Server returned !success: ${result.message}`);
         }
 
+        // ✅ Сервер подтвердил — refetch синхронизирует
+        await refetchFavorites();
         logger.debug("✅ Server confirmed", { exerciseId });
       } catch (error: unknown) {
-        // ОТКАТ к предыдущему состоянию!
-        setFavoriteList(previousFavorites);
+        // ❌ ОТКАТ к предыдущему состоянию!
+        setFavoriteExercises(previousFavorites);
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         logger.error("❌ Optimistic rollback", {
@@ -191,57 +176,94 @@ export function ExerciseBasePage() {
           error: errorMessage,
         });
 
-        setError(
-          "network",
-          "Сервер отклонил изменение, состояние восстановлено",
-        );
+        toast.error("Сервер отклонил изменение, состояние восстановлено");
+        setError("network", errorMessage);
       }
     },
     [
-      isLeastFavorite,
-      isFavorite,
-      favoriteList,
       exercises,
+      favoriteExercises,
+      isFavorite,
+      isLeastFavorite,
       refetchFavorites,
       setError,
     ],
   );
 
-  // Toggle нелюбимого (оптимистично)
+  /**
+   * Toggle нелюбимого (оптимистично)
+   */
   const handleToggleLeastFavorite = useCallback(
     async (exerciseId: string) => {
+      // Бизнес-правило: нельзя из любимых в нелюбимые
       if (isFavorite(exerciseId)) {
         toast.error("Упражнение уже в избранном! Сначала уберите его");
         return;
       }
 
       const wasLeastFavorite = isLeastFavorite(exerciseId);
-      const previousLeastFavorites = leastFavoriteList;
+      const previousLeastFavorites = leastFavoriteExercises; // ✅ SNAPSHOT!
 
+      logger.debug("handleToggleLeastFavorite optimistic", {
+        exerciseId,
+        wasLeastFavorite,
+        count: leastFavoriteExercises.length,
+      });
+
+      // 1. ОПТИМИСТИЧНО
       const exercise = exercises?.find((ex) => ex.id === exerciseId);
-      if (!exercise) return;
+      if (!exercise) {
+        logger.warn("Exercise not found for optimistic update", { exerciseId });
+        return;
+      }
 
-      // ОПТИМИСТИЧНО
-      const optimisticLeastFavorites = wasLeastFavorite
-        ? leastFavoriteList.filter((lf) => lf.id !== exerciseId)
-        : [exercise, ...leastFavoriteList];
+      let optimisticLeastFavorites: Exercise[];
+      if (wasLeastFavorite) {
+        // ✅ Мгновенно УБИРАЕМ
+        optimisticLeastFavorites = leastFavoriteExercises.filter(
+          (lf) => lf.id !== exerciseId,
+        );
+      } else {
+        // ✅ Мгновенно ДОБАВЛЯЕМ
+        optimisticLeastFavorites = [exercise, ...leastFavoriteExercises];
+      }
 
-      setLeastFavoriteList(optimisticLeastFavorites);
+      setLeastFavoriteExercises(optimisticLeastFavorites);
+      logger.debug("✅ Optimistic UI update", {
+        exerciseId,
+        newCount: optimisticLeastFavorites.length,
+      });
 
-      // СЕРВЕР
+      // 2. ФОНОМ сервер
       try {
-        await leastFavoriteApi.toggleLeastFavorite({ exerciseId });
+        const result = await leastFavoriteApi.toggleLeastFavorite({
+          exerciseId,
+        });
+        if (!result.success) {
+          throw new Error(`Server returned !success: ${result.message}`);
+        }
+
         await refetchLeastFavorites();
-      } catch {
-        setLeastFavoriteList(previousLeastFavorites);
-        setError("network", "Сервер отклонил изменение");
+        logger.debug("✅ Server confirmed", { exerciseId });
+      } catch (error: unknown) {
+        // ❌ ОТКАТ!
+        setLeastFavoriteExercises(previousLeastFavorites);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        logger.error("❌ Optimistic rollback", {
+          exerciseId,
+          error: errorMessage,
+        });
+
+        toast.error("Сервер отклонил изменение, состояние восстановлено");
+        setError("network", errorMessage);
       }
     },
     [
+      exercises,
+      leastFavoriteExercises,
       isFavorite,
       isLeastFavorite,
-      leastFavoriteList,
-      exercises,
       refetchLeastFavorites,
       setError,
     ],
@@ -337,8 +359,8 @@ export function ExerciseBasePage() {
   ]);
 
   // ==================== EVENT HANDLERS ====================
-  const handleFavoritesClick = useCallback(() => {
-    setIsFavoritesModalOpen(true);
+  const handlePreferencesModalOpen = useCallback(() => {
+    setIsPreferencesModalOpen(true);
   }, []);
 
   const handleSortingClick = (e: React.MouseEvent) => {
@@ -430,11 +452,11 @@ export function ExerciseBasePage() {
             Упражнения ({exercises?.length ?? 0})
           </span>
           <button
-            type="button"
-            className="exercise-base-header-left__exercise-favorite-count"
-            onClick={handleFavoritesClick}
-            title="Показать избранное">
-            Избранное: {favoriteList.length}
+            className="exercise-base-header-left__exercise-preferences-count"
+            onClick={handlePreferencesModalOpen}
+            title="Ваши предпочтения">
+            Мои предпочтения:{" "}
+            {`${favoriteExercises.length} / ${leastFavoriteExercises.length}`}
           </button>
         </div>
 
@@ -675,48 +697,15 @@ export function ExerciseBasePage() {
       </div>
 
       {/* 💖 МОДАЛКА ИЗБРАННОГО */}
-      {isFavoritesModalOpen && (
-        <div
-          className="favorites-modal-overlay"
-          onClick={() => setIsFavoritesModalOpen(false)}>
-          <div className="favorites-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="favorites-modal__header">
-              <h2 className="favorites-modal__title">
-                Избранное ({favoriteList.length})
-              </h2>
-              <button
-                className="favorites-modal__close"
-                onClick={() => setIsFavoritesModalOpen(false)}
-                title="Закрыть"
-                type="button">
-                ×
-              </button>
-            </div>
-
-            <div className="favorites-modal__content">
-              {loadingExercises.favorites ? (
-                <div className="favorites-modal__loading">🔄 Загружаем...</div>
-              ) : favoriteList.length === 0 ? (
-                <div className="favorites-modal__empty">
-                  ❤️ Добавь упражнения в избранное
-                </div>
-              ) : (
-                <ul className="favorites-modal__list">
-                  {favoriteList.map((favorite) => (
-                    <li key={favorite.id} className="favorites-modal__item">
-                      <span className="favorites-modal__item-name">
-                        {favorite.name}
-                      </span>
-                      <span className="favorites-modal__item-muscle">
-                        ({MUSCLE_GROUP_LABELS[favorite.primaryMuscleGroup]})
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
+      {isPreferencesModalOpen && (
+        <ExercisePreferencesModal
+          favoriteExercises={favoriteExercises}
+          leastFavoriteExercises={leastFavoriteExercises}
+          isLoading={
+            loadingExercises.favorites || loadingExercises.leastFavorites
+          }
+          onClose={() => setIsPreferencesModalOpen(false)}
+        />
       )}
     </div>
   );
