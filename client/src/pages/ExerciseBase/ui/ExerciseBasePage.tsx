@@ -1,18 +1,21 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { Exercise, ExerciseListResponse } from "@/shared/api/types";
+import type { Exercise } from "@/shared/api/types";
 import "./ExerciseBasePage.scss";
 import groupingByMusclesIcon from "@/assets/icon/groupingByMuscles.svg";
 import sortingIcon from "@/assets/icon/sorting.svg";
+import dislikeIcon from "@/assets/icon/dislike-blue.svg";
+import dislikeFilledIcon from "@/assets/icon/dislike-red.svg";
 import {
   MUSCLE_SUPERGROUPS,
   MUSCLE_SUPERGROUP_LABELS,
   MUSCLE_GROUP_LABELS,
 } from "../common/utils/muscleGroupInterpreter";
-import { exerciseApi } from "@/shared/api/exerciseApi";
-import { favoriteApi } from "@/shared/api/favoriteApi";
+import { useExercises } from "@/shared/hooks/useExercises";
+import { useError } from "@/shared/hooks/useError";
 import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
-import type { ErrorType } from "@/shared/ui/components/ErrorUI/model/types";
 import { logger } from "@/lib/utils/logger";
+import { favoriteApi, leastFavoriteApi } from "@/shared/api";
+import toast from "react-hot-toast";
 
 // ======================================================================
 // 🔧 ТИПЫ
@@ -36,14 +39,19 @@ type FavoriteExercise = Omit<
 
 export function ExerciseBasePage() {
   // ==================== CORE STATE ====================
-  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const {
+    allExercises: exercises,
+    favoriteExercises: rawFavoriteExercises,
+    leastFavoriteExercises,
+    loadingExercises,
+    refetchFavorites,
+    refetchLeastFavorites,
+  } = useExercises();
+  const { currentError: localError, setError, clearError } = useError();
+
+  // Нормализуем избранное и нелюбимое (только валидные упражнения)
   const [favoriteList, setFavoriteList] = useState<FavoriteExercise[]>([]);
-  const [isLoadingExercises, setIsLoadingExercises] = useState(false);
-  const [isLoadingFavorites, setIsLoadingFavorites] = useState(false);
-  const [localError, setLocalError] = useState<{
-    type: ErrorType;
-    message?: string;
-  } | null>(null);
+  const [leastFavoriteList, setLeastFavoriteList] = useState<Exercise[]>([]);
 
   // ==================== UI STATE ====================
   const [search, setSearch] = useState("");
@@ -69,82 +77,25 @@ export function ExerciseBasePage() {
   // ==================== REFS ====================
   const sortingRef = useRef<HTMLDivElement>(null);
 
+  // ==================== NORMALIZE FAVORITES ====================
+  useEffect(() => {
+    if (!exercises || !rawFavoriteExercises) return;
+
+    const validFavorites: FavoriteExercise[] = rawFavoriteExercises.filter(
+      (fav) => exercises.some((ex) => ex.id === fav.id),
+    );
+    setFavoriteList(validFavorites);
+  }, [exercises, rawFavoriteExercises]);
+
+  useEffect(() => {
+    if (!exercises || !leastFavoriteExercises) return;
+    const validLeastFavorites = leastFavoriteExercises.filter((lf) =>
+      exercises.some((ex) => ex.id === lf.id),
+    );
+    setLeastFavoriteList(validLeastFavorites);
+  }, [exercises, leastFavoriteExercises]);
+
   // ==================== API FUNCTIONS ====================
-  /**
-   * Загружает все упражнения (один раз)
-   */
-  const loadExercises = useCallback(async () => {
-    setIsLoadingExercises(true);
-    setLocalError(null);
-    logger.debug("ExerciseBasePage - loadExercises started");
-
-    try {
-      const response = await exerciseApi.getAllExercises();
-      const exercisesData: Exercise[] = Array.isArray(response)
-        ? response
-        : (response?.data ?? []);
-
-      logger.debug("exerciseApi.getAllExercises success", {
-        count: exercisesData.length,
-        total: (response as ExerciseListResponse)?.total || 0,
-      });
-
-      setExercises(exercisesData);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      logger.error("loadExercises failed", { error: errorMessage });
-      setLocalError({
-        type: "network",
-        message: "Не удалось загрузить упражнения",
-      });
-      setExercises([]); // ✅ Graceful degradation
-    } finally {
-      setIsLoadingExercises(false);
-    }
-  }, []);
-
-  /**
-   * Загружает избранное (после упражнений)
-   */
-  const loadFavorites = useCallback(async () => {
-    if (!exercises.length) {
-      logger.debug("loadFavorites skipped: no exercises");
-      return;
-    }
-
-    setIsLoadingFavorites(true);
-    logger.debug("ExerciseBasePage - loadFavorites started");
-
-    try {
-      const response = await favoriteApi.getFavorites();
-      const favorites: FavoriteExercise[] = Array.isArray(response)
-        ? response
-        : (response?.data ?? []);
-
-      const validFavorites = favorites.filter((fav) =>
-        exercises.some((ex) => ex.id === fav.id),
-      );
-
-      logger.debug("favoriteApi.getFavorites success", {
-        total: favorites.length,
-        valid: validFavorites.length,
-      });
-
-      setFavoriteList(validFavorites);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      logger.error("loadFavorites failed", { error: errorMessage });
-      setLocalError({
-        type: "network",
-        message: "Невозможно загрузить избранное",
-      });
-    } finally {
-      setIsLoadingFavorites(false);
-    }
-  }, [exercises.length]); // ✅ Только length!
-
   /**
    * Проверка избранного
    */
@@ -155,6 +106,14 @@ export function ExerciseBasePage() {
     [favoriteList],
   );
 
+  // Проверка нелюбимого
+  const isLeastFavorite = useCallback(
+    (exerciseId: string): boolean => {
+      return leastFavoriteList.some((lf) => lf.id === exerciseId);
+    },
+    [leastFavoriteList],
+  );
+
   /**
    * Toggle избранного (оптимистично)
    * UI меняется МГНОВЕННО (0ms)
@@ -163,6 +122,11 @@ export function ExerciseBasePage() {
    */
   const handleToggleFavorite = useCallback(
     async (exerciseId: string) => {
+      if (isLeastFavorite(exerciseId)) {
+        toast.error("Упражнение уже в нелюбимых! Сначала уберите его");
+        return;
+      }
+
       const wasFavorite = isFavorite(exerciseId);
       const previousFavorites = favoriteList; // СНАПШОТ для отката
 
@@ -180,7 +144,7 @@ export function ExerciseBasePage() {
         );
       } else {
         // Мгновенно добавляем
-        const exercise = exercises.find((ex) => ex.id === exerciseId);
+        const exercise = exercises?.find((ex) => ex.id === exerciseId);
         if (!exercise) {
           logger.warn("Exercise not found for optimistic add", { exerciseId });
           return;
@@ -210,13 +174,14 @@ export function ExerciseBasePage() {
       // 2. ФОНОМ сервер (НЕ блокирует UI)
       try {
         const toggleResult = await favoriteApi.toggleFavorite({ exerciseId });
+        await refetchFavorites();
 
         if (!toggleResult.success) {
           throw new Error(`toggleFavorite failed: success=false`);
         }
 
         logger.debug("✅ Server confirmed", { exerciseId });
-      } catch (error) {
+      } catch (error: unknown) {
         // ОТКАТ к предыдущему состоянию!
         setFavoriteList(previousFavorites);
         const errorMessage =
@@ -226,13 +191,60 @@ export function ExerciseBasePage() {
           error: errorMessage,
         });
 
-        setLocalError({
-          type: "network",
-          message: "Сервер отклонил изменение, состояние восстановлено",
-        });
+        setError(
+          "network",
+          "Сервер отклонил изменение, состояние восстановлено",
+        );
       }
     },
-    [isFavorite, favoriteList, exercises],
+    [
+      isLeastFavorite,
+      isFavorite,
+      favoriteList,
+      exercises,
+      refetchFavorites,
+      setError,
+    ],
+  );
+
+  // Toggle нелюбимого (оптимистично)
+  const handleToggleLeastFavorite = useCallback(
+    async (exerciseId: string) => {
+      if (isFavorite(exerciseId)) {
+        toast.error("Упражнение уже в избранном! Сначала уберите его");
+        return;
+      }
+
+      const wasLeastFavorite = isLeastFavorite(exerciseId);
+      const previousLeastFavorites = leastFavoriteList;
+
+      const exercise = exercises?.find((ex) => ex.id === exerciseId);
+      if (!exercise) return;
+
+      // ОПТИМИСТИЧНО
+      const optimisticLeastFavorites = wasLeastFavorite
+        ? leastFavoriteList.filter((lf) => lf.id !== exerciseId)
+        : [exercise, ...leastFavoriteList];
+
+      setLeastFavoriteList(optimisticLeastFavorites);
+
+      // СЕРВЕР
+      try {
+        await leastFavoriteApi.toggleLeastFavorite({ exerciseId });
+        await refetchLeastFavorites();
+      } catch {
+        setLeastFavoriteList(previousLeastFavorites);
+        setError("network", "Сервер отклонил изменение");
+      }
+    },
+    [
+      isFavorite,
+      isLeastFavorite,
+      leastFavoriteList,
+      exercises,
+      refetchLeastFavorites,
+      setError,
+    ],
   );
 
   // ==================== COMPUTED / MEMO ====================
@@ -240,6 +252,8 @@ export function ExerciseBasePage() {
    * Фильтр по поиску (название + мышцы)
    */
   const filteredExercises = useMemo(() => {
+    if (!exercises) return [];
+
     if (!search.trim()) return exercises;
 
     const lowerSearch = search.toLowerCase();
@@ -258,9 +272,9 @@ export function ExerciseBasePage() {
    * Сортировка (по имени/мышцам/сложности)
    */
   const sortedExercises = useMemo(() => {
-    const safeExercises = Array.isArray(exercises) ? exercises : [];
+    const safeExercises = exercises ?? [];
     const filtered =
-      search.trim() && Array.isArray(filteredExercises)
+      search.trim() && filteredExercises.length > 0
         ? filteredExercises
         : safeExercises;
 
@@ -295,7 +309,7 @@ export function ExerciseBasePage() {
    * Группировка по мышцам (супергруппы → группы)
    */
   const groupedExercises = useMemo(() => {
-    if (!Array.isArray(sortedExercises)) return sortedExercises;
+    if (!sortedExercises.length) return sortedExercises;
 
     if (!groupingEnabled) return sortedExercises;
 
@@ -351,26 +365,6 @@ export function ExerciseBasePage() {
   };
 
   // ==================== USE EFFECTS ====================
-  // 🚀 Первая загрузка: упражнения + настройки
-  useEffect(() => {
-    loadExercises();
-
-    // Локальные настройки (не критичны)
-    try {
-      const saved = localStorage.getItem("exerciseBaseGroupingEnabled");
-      if (saved !== null) {
-        setGroupingEnabled(JSON.parse(saved));
-      }
-    } catch {
-      logger.warn("Failed to load grouping settings");
-    }
-  }, [loadExercises]);
-
-  // 📥 Загрузка избранного после упражнений
-  useEffect(() => {
-    loadFavorites();
-  }, [loadFavorites]);
-
   // 💾 Сохранение группировки
   useEffect(() => {
     localStorage.setItem(
@@ -408,7 +402,10 @@ export function ExerciseBasePage() {
 
   // ==================== RENDER ====================
   // Дублирующийся if удален — один loading check
-  if ((isLoadingExercises || isLoadingFavorites) && exercises.length === 0) {
+  if (
+    (loadingExercises.all || loadingExercises.favorites) &&
+    (!exercises || exercises.length === 0)
+  ) {
     return <InfoPage type="loading" />;
   }
 
@@ -418,9 +415,7 @@ export function ExerciseBasePage() {
         type={localError.type}
         message={localError.message}
         retryAction={() => {
-          setLocalError(null);
-          loadExercises();
-          loadFavorites();
+          clearError();
         }}
       />
     );
@@ -432,7 +427,7 @@ export function ExerciseBasePage() {
       <div className="exercise-base-header">
         <div className="exercise-base-header-left">
           <span className="exercise-base-header-left__exercise-count">
-            Упражнения ({exercises.length})
+            Упражнения ({exercises?.length ?? 0})
           </span>
           <button
             type="button"
@@ -540,7 +535,9 @@ export function ExerciseBasePage() {
               {Object.entries(MUSCLE_SUPERGROUP_LABELS).map(([key, label]) => (
                 <div
                   key={key}
-                  className={`muscle-supergroup-card ${selectedSupergroup === key ? "active" : ""}`}
+                  className={`muscle-supergroup-card ${
+                    selectedSupergroup === key ? "active" : ""
+                  }`}
                   onClick={() => selectSupergroup(key as SupergroupKey)}
                   role="button"
                   tabIndex={0}
@@ -567,7 +564,9 @@ export function ExerciseBasePage() {
                 (muscleGroup) => (
                   <div
                     key={muscleGroup}
-                    className={`muscle-group-card ${selectedMuscleGroup === muscleGroup ? "active" : ""}`}
+                    className={`muscle-group-card ${
+                      selectedMuscleGroup === muscleGroup ? "active" : ""
+                    }`}
                     onClick={() => selectMuscleGroup(muscleGroup)}
                     role="button"
                     tabIndex={0}
@@ -616,7 +615,7 @@ export function ExerciseBasePage() {
                   </div>
                 </div>
 
-                {/* ❤️ Избранное */}
+                {/* ❤️ Избранное + ❌ Нелюбимое */}
                 <button
                   type="button"
                   className={`exercise-base-grid-card__favorite-button ${
@@ -628,13 +627,44 @@ export function ExerciseBasePage() {
                     e.stopPropagation();
                     handleToggleFavorite(exercise.id);
                   }}
-                  disabled={isLoadingFavorites || isLoadingExercises}
+                  disabled={loadingExercises.favorites || loadingExercises.all}
                   title={
                     isFavorite(exercise.id)
                       ? "Убрать из избранного"
                       : "Добавить в избранное"
                   }>
                   {isFavorite(exercise.id) ? "❤️" : "🤍"}
+                </button>
+
+                <button
+                  type="button"
+                  className={`exercise-base-grid-card__least-favorite-button ${
+                    isLeastFavorite(exercise.id)
+                      ? "exercise-base-grid-card__least-favorite-button_active"
+                      : ""
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleLeastFavorite(exercise.id);
+                  }}
+                  disabled={
+                    loadingExercises.leastFavorites || loadingExercises.all
+                  }
+                  title={
+                    isLeastFavorite(exercise.id)
+                      ? "Убрать из нелюбимых"
+                      : "Добавить в нелюбимые"
+                  }>
+                  <img
+                    src={
+                      isLeastFavorite(exercise.id)
+                        ? dislikeFilledIcon
+                        : dislikeIcon
+                    }
+                    alt="Нелюбимое"
+                    width={26}
+                    height={26}
+                  />
                 </button>
               </div>
             </div>
@@ -664,7 +694,7 @@ export function ExerciseBasePage() {
             </div>
 
             <div className="favorites-modal__content">
-              {isLoadingFavorites ? (
+              {loadingExercises.favorites ? (
                 <div className="favorites-modal__loading">🔄 Загружаем...</div>
               ) : favoriteList.length === 0 ? (
                 <div className="favorites-modal__empty">

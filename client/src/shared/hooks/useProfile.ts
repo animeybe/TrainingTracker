@@ -4,17 +4,17 @@ import type { ProfileData } from "@/shared/api/types";
 
 export const useProfile = () => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   const loadProfile = async () => {
-    setLoading(true);
+    setLoadingProfile(true);
     try {
       const data = await profileApi.getProfile();
       setProfile(data);
     } catch (error) {
       console.error("Failed to load profile", error);
     } finally {
-      setLoading(false);
+      setLoadingProfile(false);
     }
   };
 
@@ -22,5 +22,5 @@ export const useProfile = () => {
     loadProfile();
   }, []);
 
-  return { profile, loading, reloadProfile: loadProfile };
+  return { profile, loadingProfile, reloadProfile: loadProfile };
 };

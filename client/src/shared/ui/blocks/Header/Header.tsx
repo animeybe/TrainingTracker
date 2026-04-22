@@ -50,12 +50,12 @@ export function Header() {
             <li
               className="header-nav__item"
               onClick={() => navigate("/training")}>
-              Тренировка
+              Тренировочный план
             </li>
             <li
               className="header-nav__item"
               onClick={() => navigate("/health")}>
-              Здоровье
+              Записи тренировок
             </li>
             <li
               className="header-nav__item"

@@ -1,13 +1,13 @@
 import type {
-  FavoriteListResponse,
+  ExerciseListResponse,
   ToggleFavoriteRequest,
   ToggleFavoriteResponse,
 } from "./types";
 import { apiRequest } from "./index";
 
 export const favoriteApi = {
-  getFavorites: (): Promise<FavoriteListResponse> =>
-    apiRequest<FavoriteListResponse>("/favorites"),
+  getFavorites: (): Promise<ExerciseListResponse> =>
+    apiRequest<ExerciseListResponse>("/favorites"),
 
   toggleFavorite: (
     data: ToggleFavoriteRequest,

@@ -1,4 +1,5 @@
 // data/dtos/user-profile.prisma-dto.ts
+import { Gender } from "@prisma/client";
 import type { Lifestyle, Goal } from "../../common/types/enums.types";
 
 export type UserProfileDto = {
@@ -7,6 +8,7 @@ export type UserProfileDto = {
   weight: number | null;
   height: number | null;
   age: number | null;
+  gender: Gender | null;
   lifestyle: Lifestyle | null;
   goal: Goal | null;
   createdAt: Date;
@@ -18,6 +20,7 @@ export type CreateUserProfileDto = {
   weight: number | null;
   height: number | null;
   age: number | null;
+  gender: Gender | null;
   lifestyle: Lifestyle | null;
   goal: Goal | null;
 };
@@ -26,6 +29,7 @@ export type UpdateUserProfileDto = {
   weight?: number | null;
   height?: number | null;
   age?: number | null;
+  gender?: Gender | null;
   lifestyle?: Lifestyle | null;
   goal?: Goal | null;
 };

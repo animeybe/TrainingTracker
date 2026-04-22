@@ -27,4 +27,16 @@ export class FavoriteExerciseRepositoryImpl implements IFavoriteExerciseReposito
   async exists(userId: string, exerciseId: string): Promise<boolean> {
     return await this.prismaRepo.existsByUserAndExercise(userId, exerciseId);
   }
+
+  async deleteByComposite(
+    userId: string,
+    exerciseId: string,
+  ): Promise<boolean> {
+    const dtos = await this.prismaRepo.findByUserId(userId);
+    const target = dtos.find((dto) => dto.exerciseId === exerciseId);
+
+    if (!target?.id) return false;
+
+    return await this.prismaRepo.delete(target.id);
+  }
 }

@@ -8,8 +8,6 @@ export type TrainingExerciseExecutionEntity = {
   sets: number;
   repsRange: Prisma.JsonValue;
   orderInDay: number;
-  wellbeingAdjusted: boolean;
-  compensationNext: boolean;
 };
 
 export type CreateTrainingExerciseExecutionEntity = {
@@ -18,8 +16,6 @@ export type CreateTrainingExerciseExecutionEntity = {
   sets: number;
   repsRange: Prisma.JsonValue;
   orderInDay: number;
-  wellbeingAdjusted: boolean;
-  compensationNext: boolean;
 };
 
 export type UpdateTrainingExerciseExecutionEntity = Partial<

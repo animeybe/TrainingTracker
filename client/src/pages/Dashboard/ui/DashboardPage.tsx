@@ -7,12 +7,13 @@ import sunIcon from "@/assets/icon/sun.svg";
 import moonIcon from "@/assets/icon/moon.svg";
 import { useState, useCallback, useMemo } from "react";
 import type { ProfileData } from "@/shared/api/types";
-import { ProfileEditModal } from "@/shared/ui/blocks/ProfileEditModal";
+import { ProfileEditModal } from "@/shared/ui/components/ProfileEditModal";
 import { useNavigate } from "react-router-dom";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { logger } from "@/lib/utils/logger";
 import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
 import type { ErrorType } from "@/shared/ui/components/ErrorUI/model/types";
+import { useExercises } from "@/shared/hooks/useExercises";
 
 // ======================================================================
 // 🔧 УТИЛИТЫ
@@ -26,6 +27,7 @@ const createEmptyProfile = (userId: string = ""): ProfileData => ({
   userId,
   weight: null,
   height: null,
+  gender: null,
   age: null,
   lifestyle: null!,
   goal: null!,
@@ -48,7 +50,8 @@ export function DashboardPage() {
   // ==================== CONTEXTS & HOOKS ====================
   const { theme, toggleTheme } = useTheme();
   const { user, refreshUser } = useSafeAuthContext();
-  const { profile, loading, reloadProfile } = useProfile();
+  const { profile, loadingProfile, reloadProfile } = useProfile();
+  const { leastFavoriteExercises, loadingExercises } = useExercises();
   const navigate = useNavigate();
 
   // ==================== STATE ====================
@@ -79,12 +82,14 @@ export function DashboardPage() {
       effectiveProfile.height > 0 &&
       effectiveProfile.age != null &&
       effectiveProfile.age > 0 &&
+      effectiveProfile.gender != null &&
       effectiveProfile.goal != null &&
       effectiveProfile.lifestyle != null
     );
   }, [
     effectiveProfile.weight,
     effectiveProfile.height,
+    effectiveProfile.gender,
     effectiveProfile.age,
     effectiveProfile.goal,
     effectiveProfile.lifestyle,
@@ -97,34 +102,42 @@ export function DashboardPage() {
     if (
       !effectiveProfile.weight ||
       !effectiveProfile.height ||
-      !effectiveProfile.age
+      !effectiveProfile.age ||
+      !effectiveProfile.gender
     )
       return { tdee: "—", macros: "— / — / —" };
 
     const weight = effectiveProfile.weight;
     const height = effectiveProfile.height;
     const age = effectiveProfile.age;
+    const gender = effectiveProfile.gender;
 
-    // !!! ЗАГЛУШКА: сдлеано для МУЖЧИНА !!!
-    // TODO: Добавить gender!
-    const bmr = 88.362 + 13.397 * weight + 4.799 * height - 5.677 * age;
+    // Harris-Benedict Revised формула
+    let bmr: number;
+    if (gender === "Male") {
+      bmr = 88.362 + 13.397 * weight + 4.799 * height - 5.677 * age;
+    } else if (gender === "Female") {
+      bmr = 447.593 + 9.247 * weight + 3.098 * height - 4.33 * age;
+    } else {
+      return { tdee: "—", macros: "— / — / —" };
+    }
 
-    const multipliers = {
-      SEDENTARY: 1.2,
+    // Множители активности (Lifestyle)
+    const multipliers: Record<string, number> = {
+      IMMOBILE: 1.2,
       LIGHT: 1.375,
-      MODERATE: 1.55,
-      ACTIVE: 1.725,
-      VERY_ACTIVE: 1.9,
+      AVERAGE: 1.55,
+      HARD: 1.725,
     };
     const multiplier =
-      multipliers[effectiveProfile.lifestyle as keyof typeof multipliers] ||
-      1.2;
+      multipliers[effectiveProfile.lifestyle ?? "IMOBILE"] || 1.2;
 
     const tdee = Math.round(bmr * multiplier);
 
-    const proteins = Math.round((tdee * 0.3) / 4);
-    const fats = Math.round((tdee * 0.2) / 9);
-    const carbs = Math.round((tdee * 0.5) / 4);
+    // БЖУ: 30% protein, 20% fat, 50% carbs
+    const proteins = Math.round((tdee * 0.3) / 4); // г
+    const fats = Math.round((tdee * 0.2) / 9); // г
+    const carbs = Math.round((tdee * 0.5) / 4); // г
 
     return {
       tdee: tdee.toString(),
@@ -134,6 +147,7 @@ export function DashboardPage() {
     effectiveProfile.weight,
     effectiveProfile.height,
     effectiveProfile.age,
+    effectiveProfile.gender,
     effectiveProfile.lifestyle,
   ]);
 
@@ -163,7 +177,7 @@ export function DashboardPage() {
       tdee: nutritionStats.tdee,
       macros: nutritionStats.macros,
 
-      favorites: "12",
+      favorites: leastFavoriteExercises?.length,
       currentPlan: "PPL • Неделя 1",
     }),
     [
@@ -174,6 +188,7 @@ export function DashboardPage() {
       effectiveProfile.goal,
       nutritionStats.tdee,
       nutritionStats.macros,
+      leastFavoriteExercises?.length,
     ],
   );
 
@@ -239,7 +254,12 @@ export function DashboardPage() {
     );
   }
 
-  if (loading) {
+  if (
+    loadingExercises.all ||
+    loadingExercises.favorites ||
+    loadingExercises.leastFavorites ||
+    loadingProfile
+  ) {
     return (
       <div className="dashboard-loading">
         <InfoPage type="loading" />

@@ -8,7 +8,6 @@ export type TrainingDayExecutionEntity = {
   dayOfWeek: number;
   executionDate: Date;
   wellbeingToday: Wellbeing;
-  setsCompleted: number;
   notes: string | null;
   createdAt: Date;
 };
@@ -19,7 +18,6 @@ export type CreateTrainingDayExecutionEntity = {
   dayOfWeek: number;
   executionDate: Date;
   wellbeingToday: Wellbeing;
-  setsCompleted: number;
   notes: string | null;
 };
 

@@ -1,48 +1,57 @@
 // di/container.ts
 import {
-  PrismaUserRepository,
   PrismaExerciseRepository,
-  PrismaProfileRepository,
-  PrismaPlanRepository,
   PrismaFavoriteExerciseRepository,
+  PrismaLeastFavoriteExerciseRepository,
+  PrismaPlanRepository,
+  PrismaTrainingDayExecutionRepository,
+  PrismaTrainingExerciseExecutionRepository,
+  PrismaUserRepository,
+  PrismaUserProfileRepository,
+  PrismaWeeklyTrainingExerciseRepository,
 } from "../../data/repositories";
 import {
-  FavoriteExerciseRepositoryImpl,
   ExerciseRepositoryImpl,
-  ProfileRepositoryImpl,
+  FavoriteExerciseRepositoryImpl,
+  LeastFavoriteExerciseRepositoryImpl,
   PlanRepositoryImpl,
+  TrainingDayExecutionRepositoryImpl,
+  TrainingExerciseExecutionRepositoryImpl,
   UserRepositoryImpl,
+  UserProfileRepositoryImpl,
+  WeeklyTrainingExerciseRepositoryImpl,
 } from "../../data/repositories";
-import { TrainingDayExecutionRepositoryImpl } from "../../data/repositories/adapters/training-day-execution.repository";
-import { TrainingExerciseExecutionRepositoryImpl } from "../../data/repositories/adapters/training-exercise-execution.repository";
-import { WeeklyTrainingExerciseRepositoryImpl } from "../../data/repositories/adapters/weekly-training-exercise.repository";
-import { PrismaTrainingDayExecutionRepository } from "../../data/repositories/prisma/prisma-training-day-execution.repository";
-import { PrismaTrainingExerciseExecutionRepository } from "../../data/repositories/prisma/prisma-training-exercise-execution.repository";
-import { PrismaWeeklyTrainingExerciseRepository } from "../../data/repositories/prisma/prisma-weekly-training-exercise.repository";
 import {
-  IUserRepository,
   IExerciseRepository,
-  IProfileRepository,
-  IPlanRepository,
   IFavoriteExerciseRepository,
+  ILeastFavoriteExerciseRepository,
+  IPlanRepository,
+  ITrainingDayExecutionRepository,
+  ITrainingExerciseExecutionRepository,
+  IUserRepository,
+  IUserProfileRepository,
+  IWeeklyTrainingExerciseRepository,
 } from "../../domain/repositories";
-import { ITrainingDayExecutionRepository } from "../../domain/repositories/i-training-day-execution.repository";
-import { ITrainingExerciseExecutionRepository } from "../../domain/repositories/i-training-exercise-execution.repository";
-import { IWeeklyTrainingExerciseRepository } from "../../domain/repositories/i-weekly-training-exercise.repository";
 import {
-  UserService,
   ExerciseService,
-  ProfileService,
-  PlanService,
   FavoriteExerciseService,
+  LeastFavoriteExerciseService,
+  PlanService,
+  TrainingDayExecutionService,
+  TrainingExerciseExecutionService,
+  UserService,
+  UserProfileService,
+  WeeklyTrainingExerciseService,
+} from "../../domain/services";
+import {
   ExerciseSelectorService,
   SplitRecommenderService,
   PlanGeneratorService,
   DifficultyCalculatorService,
   VolumeCalculatorService,
-  TrainingDayExecutionService,
-  TrainingExerciseExecutionService,
-  WeeklyTrainingExerciseService,
+} from "../../domain/services";
+import {
+  ExercisePreferenceService,
   TrainingPlanGenerationService,
 } from "../../domain/services";
 
@@ -56,6 +65,7 @@ export enum ServiceKeys {
   PROFILE_REPO = "profileRepo",
   PLAN_REPO = "planRepo",
   FAVORITE_REPO = "favoriteRepo",
+  LEAST_FAVORITE_REPO = "leastFavoriteRepo",
 
   WEEKLY_EXERCISE_REPO = "weeklyExerciseRepo",
   TRAINING_DAY_EXECUTION_REPO = "trainingDayExecutionRepo",
@@ -66,6 +76,7 @@ export enum ServiceKeys {
   EXERCISE_SERVICE = "exerciseService",
   PLAN_SERVICE = "planService",
   FAVORITE_SERVICE = "favoriteService",
+  LEAST_FAVORITE_SERVICE = "leastFavoriteService",
 
   WEEKLY_EXERCISE_SERVICE = "weeklyExerciseService",
   TRAINING_DAY_EXECUTION_SERVICE = "trainingDayExecutionService",
@@ -78,8 +89,8 @@ export enum ServiceKeys {
   PLAN_GENERATOR = "planGenerator",
 
   TRAINING_PLAN_GENERATION_SERVICE = "trainingPlanGenerationService",
+  EXERCISE_PREFERENCE_SERVICE = "exercisePreferenceService",
 }
-
 
 // ==============================================================================
 // Типизация DI‑контейнера
@@ -89,9 +100,10 @@ interface ServiceRegistry {
   // Репозитории (data)
   [ServiceKeys.USER_REPO]: IUserRepository;
   [ServiceKeys.EXERCISE_REPO]: IExerciseRepository;
-  [ServiceKeys.PROFILE_REPO]: IProfileRepository;
+  [ServiceKeys.PROFILE_REPO]: IUserProfileRepository;
   [ServiceKeys.PLAN_REPO]: IPlanRepository;
   [ServiceKeys.FAVORITE_REPO]: IFavoriteExerciseRepository;
+  [ServiceKeys.LEAST_FAVORITE_REPO]: ILeastFavoriteExerciseRepository;
 
   [ServiceKeys.WEEKLY_EXERCISE_REPO]: IWeeklyTrainingExerciseRepository;
   [ServiceKeys.TRAINING_DAY_EXECUTION_REPO]: ITrainingDayExecutionRepository;
@@ -99,10 +111,11 @@ interface ServiceRegistry {
 
   // Сервисы домена
   [ServiceKeys.USER_SERVICE]: UserService;
-  [ServiceKeys.PROFILE_SERVICE]: ProfileService;
+  [ServiceKeys.PROFILE_SERVICE]: UserProfileService;
   [ServiceKeys.EXERCISE_SERVICE]: ExerciseService;
   [ServiceKeys.PLAN_SERVICE]: PlanService;
   [ServiceKeys.FAVORITE_SERVICE]: FavoriteExerciseService;
+  [ServiceKeys.LEAST_FAVORITE_SERVICE]: LeastFavoriteExerciseService;
 
   [ServiceKeys.WEEKLY_EXERCISE_SERVICE]: WeeklyTrainingExerciseService;
   [ServiceKeys.TRAINING_DAY_EXECUTION_SERVICE]: TrainingDayExecutionService;
@@ -117,8 +130,10 @@ interface ServiceRegistry {
 
   // Объеденённый сервис рекомендаций
   [ServiceKeys.TRAINING_PLAN_GENERATION_SERVICE]: TrainingPlanGenerationService;
-}
 
+  // Оркестратор препдпочтениями пользователя
+  [ServiceKeys.EXERCISE_PREFERENCE_SERVICE]: ExercisePreferenceService;
+}
 
 // ==============================================================================
 // Контейнер (DI)
@@ -141,30 +156,42 @@ class Container {
     // 1. Prisma‑реализации (data)
     const prismaUserRepo = new PrismaUserRepository();
     const prismaExerciseRepo = new PrismaExerciseRepository();
-    const prismaProfileRepo = new PrismaProfileRepository();
+    const prismaProfileRepo = new PrismaUserProfileRepository();
     const prismaPlanRepo = new PrismaPlanRepository();
     const prismaFavoriteRepo = new PrismaFavoriteExerciseRepository();
+    const prismaLeastFavoriteRepo = new PrismaLeastFavoriteExerciseRepository();
 
-    const prismaWeeklyExerciseRepo = new PrismaWeeklyTrainingExerciseRepository();
-    const prismaTrainingDayExecutionRepo = new PrismaTrainingDayExecutionRepository();
+    const prismaWeeklyExerciseRepo =
+      new PrismaWeeklyTrainingExerciseRepository();
+    const prismaTrainingDayExecutionRepo =
+      new PrismaTrainingDayExecutionRepository();
     const prismaTrainingExerciseExecutionRepo =
       new PrismaTrainingExerciseExecutionRepository();
 
     // 2. Адаптеры (data → domain)
     const userRepoImpl = new UserRepositoryImpl(prismaUserRepo);
     const exerciseRepoImpl = new ExerciseRepositoryImpl(prismaExerciseRepo);
-    const profileRepoImpl = new ProfileRepositoryImpl(prismaProfileRepo);
+    const profileRepoImpl = new UserProfileRepositoryImpl(prismaProfileRepo);
     const planRepoImpl = new PlanRepositoryImpl(prismaPlanRepo);
-    const favoriteRepoImpl = new FavoriteExerciseRepositoryImpl(prismaFavoriteRepo);
+    const favoriteRepoImpl = new FavoriteExerciseRepositoryImpl(
+      prismaFavoriteRepo,
+    );
+    const leastFavoriteRepoImpl = new LeastFavoriteExerciseRepositoryImpl(
+      prismaLeastFavoriteRepo,
+    );
 
-    const weeklyExerciseRepoImpl =
-      new WeeklyTrainingExerciseRepositoryImpl(prismaWeeklyExerciseRepo);
+    const weeklyExerciseRepoImpl = new WeeklyTrainingExerciseRepositoryImpl(
+      prismaWeeklyExerciseRepo,
+    );
 
-    const trainingDayExecutionRepoImpl =
-      new TrainingDayExecutionRepositoryImpl(prismaTrainingDayExecutionRepo);
+    const trainingDayExecutionRepoImpl = new TrainingDayExecutionRepositoryImpl(
+      prismaTrainingDayExecutionRepo,
+    );
 
     const trainingExerciseExecutionRepoImpl =
-      new TrainingExerciseExecutionRepositoryImpl(prismaTrainingExerciseExecutionRepo);
+      new TrainingExerciseExecutionRepositoryImpl(
+        prismaTrainingExerciseExecutionRepo,
+      );
 
     // 3. Регистрация адаптеров
     this.services[ServiceKeys.USER_REPO] = userRepoImpl;
@@ -172,27 +199,45 @@ class Container {
     this.services[ServiceKeys.PROFILE_REPO] = profileRepoImpl;
     this.services[ServiceKeys.PLAN_REPO] = planRepoImpl;
     this.services[ServiceKeys.FAVORITE_REPO] = favoriteRepoImpl;
+    this.services[ServiceKeys.LEAST_FAVORITE_REPO] = leastFavoriteRepoImpl;
 
     this.services[ServiceKeys.WEEKLY_EXERCISE_REPO] = weeklyExerciseRepoImpl;
-    this.services[ServiceKeys.TRAINING_DAY_EXECUTION_REPO] = trainingDayExecutionRepoImpl;
+    this.services[ServiceKeys.TRAINING_DAY_EXECUTION_REPO] =
+      trainingDayExecutionRepoImpl;
     this.services[ServiceKeys.TRAINING_EXERCISE_EXECUTION_REPO] =
       trainingExerciseExecutionRepoImpl;
 
     // 4. Сервисы домена
-    this.services[ServiceKeys.USER_SERVICE] =
-      new UserService(this.get(ServiceKeys.USER_REPO));
+    this.services[ServiceKeys.USER_SERVICE] = new UserService(
+      this.get(ServiceKeys.USER_REPO),
+    );
 
-    this.services[ServiceKeys.EXERCISE_SERVICE] =
-      new ExerciseService(this.get(ServiceKeys.EXERCISE_REPO));
+    this.services[ServiceKeys.EXERCISE_SERVICE] = new ExerciseService(
+      this.get(ServiceKeys.EXERCISE_REPO),
+    );
 
-    this.services[ServiceKeys.PROFILE_SERVICE] =
-      new ProfileService(this.get(ServiceKeys.PROFILE_REPO));
+    this.services[ServiceKeys.PROFILE_SERVICE] = new UserProfileService(
+      this.get(ServiceKeys.PROFILE_REPO),
+    );
 
-    this.services[ServiceKeys.PLAN_SERVICE] =
-      new PlanService(this.get(ServiceKeys.PLAN_REPO));
+    this.services[ServiceKeys.PLAN_SERVICE] = new PlanService(
+      this.get(ServiceKeys.PLAN_REPO),
+    );
 
-    this.services[ServiceKeys.FAVORITE_SERVICE] =
-      new FavoriteExerciseService(this.get(ServiceKeys.FAVORITE_REPO));
+    this.services[ServiceKeys.FAVORITE_SERVICE] = new FavoriteExerciseService(
+      this.get(ServiceKeys.FAVORITE_REPO),
+    );
+
+    this.services[ServiceKeys.LEAST_FAVORITE_SERVICE] =
+      new LeastFavoriteExerciseService(
+        this.get(ServiceKeys.LEAST_FAVORITE_REPO),
+      );
+
+    this.services[ServiceKeys.EXERCISE_PREFERENCE_SERVICE] =
+      new ExercisePreferenceService(
+        this.get(ServiceKeys.FAVORITE_SERVICE),
+        this.get(ServiceKeys.LEAST_FAVORITE_SERVICE),
+      );
 
     this.services[ServiceKeys.WEEKLY_EXERCISE_SERVICE] =
       new WeeklyTrainingExerciseService(
@@ -222,12 +267,11 @@ class Container {
     this.services[ServiceKeys.VOLUME_CALCULATOR] =
       new VolumeCalculatorService();
 
-    this.services[ServiceKeys.PLAN_GENERATOR] =
-      new PlanGeneratorService(
-        this.get(ServiceKeys.EXERCISE_SELECTOR),
-        this.get(ServiceKeys.DIFFICULTY_CALCULATOR),
-        this.get(ServiceKeys.VOLUME_CALCULATOR),
-      );
+    this.services[ServiceKeys.PLAN_GENERATOR] = new PlanGeneratorService(
+      this.get(ServiceKeys.EXERCISE_SELECTOR),
+      this.get(ServiceKeys.DIFFICULTY_CALCULATOR),
+      this.get(ServiceKeys.VOLUME_CALCULATOR),
+    );
 
     // 6. Сервис рекомендаций: генерация недельного плана
     this.services[ServiceKeys.TRAINING_PLAN_GENERATION_SERVICE] =

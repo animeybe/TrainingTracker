@@ -8,7 +8,6 @@ export type TrainingDayExecutionDto = {
   dayOfWeek: number;
   executionDate: Date;
   wellbeingToday: Wellbeing;
-  setsCompleted: number;
   notes: string | null;
   createdAt: Date;
 };
@@ -19,7 +18,6 @@ export type CreateTrainingDayExecutionDto = {
   dayOfWeek: number;
   executionDate: Date;
   wellbeingToday: Wellbeing;
-  setsCompleted: number;
   notes: string | null;
 };
 
@@ -28,6 +26,5 @@ export type UpdateTrainingDayExecutionDto = {
   dayOfWeek?: number;
   executionDate?: Date;
   wellbeingToday?: Wellbeing;
-  setsCompleted?: number;
   notes?: string | null;
 };

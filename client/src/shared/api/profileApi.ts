@@ -1,6 +1,6 @@
 // api/profile.api.ts
 
-import type { ProfileData } from "./types";
+import type { Gender, Goal, Lifestyle, ProfileData } from "./types";
 import { apiRequest } from "./index";
 
 export const profileApi = {
@@ -17,9 +17,10 @@ export const profileApi = {
   update(data: {
     weight?: number;
     height?: number;
+    gender?: Gender;
     age?: number;
-    lifestyle?: string | null;
-    goal?: string | null;
+    lifestyle?: Lifestyle | null;
+    goal?: Goal | null;
   }): Promise<ProfileData> {
     return apiRequest<ProfileData>("/profile", {
       method: "PATCH",

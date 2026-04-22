@@ -21,8 +21,6 @@ export class PrismaTrainingExerciseExecutionRepository {
         sets: data.sets,
         repsRange: data.repsRange ?? Prisma.JsonNull,
         orderInDay: data.orderInDay,
-        wellbeingAdjusted: data.wellbeingAdjusted,
-        compensationNext: data.compensationNext,
       } satisfies Prisma.trainingExerciseExecutionCreateInput,
     });
     return result;
@@ -61,8 +59,6 @@ export class PrismaTrainingExerciseExecutionRepository {
           sets: dto.sets,
           repsRange: dto.repsRange ?? Prisma.JsonNull,
           orderInDay: dto.orderInDay,
-          wellbeingAdjusted: dto.wellbeingAdjusted,
-          compensationNext: dto.compensationNext,
         } satisfies Prisma.trainingExerciseExecutionUpdateInput,
       });
       return result;

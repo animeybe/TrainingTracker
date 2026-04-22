@@ -21,8 +21,6 @@ export class TrainingExerciseExecutionMapper {
       sets: dto.sets,
       repsRange: dto.repsRange,
       orderInDay: dto.orderInDay,
-      wellbeingAdjusted: dto.wellbeingAdjusted,
-      compensationNext: dto.compensationNext,
     };
   }
 
@@ -36,8 +34,6 @@ export class TrainingExerciseExecutionMapper {
       sets: entity.sets,
       repsRange: entity.repsRange,
       orderInDay: entity.orderInDay,
-      wellbeingAdjusted: entity.wellbeingAdjusted,
-      compensationNext: entity.compensationNext,
     };
   }
 
@@ -50,8 +46,6 @@ export class TrainingExerciseExecutionMapper {
       sets: entity.sets,
       repsRange: entity.repsRange,
       orderInDay: entity.orderInDay,
-      wellbeingAdjusted: entity.wellbeingAdjusted,
-      compensationNext: entity.compensationNext,
     };
   }
 
@@ -62,8 +56,6 @@ export class TrainingExerciseExecutionMapper {
       sets: entity.sets,
       repsRange: entity.repsRange,
       orderInDay: entity.orderInDay,
-      wellbeingAdjusted: entity.wellbeingAdjusted,
-      compensationNext: entity.compensationNext,
     };
   }
 }

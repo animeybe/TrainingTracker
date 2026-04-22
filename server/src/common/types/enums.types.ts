@@ -1,4 +1,5 @@
 export type Role = "USER" | "ADMIN";
+export type Gender = "Male" | "Female";
 export type Lifestyle = "IMMOBILE" | "LIGHT" | "AVERAGE" | "HARD";
 export type Goal =
   | "LOSE_FAT"

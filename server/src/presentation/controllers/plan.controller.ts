@@ -17,7 +17,7 @@ import type {
   ExerciseService,
   FavoriteExerciseService,
   TrainingPlanGenerationService,
-  ProfileService,
+  UserProfileService,
   PlanService,
   SplitRecommenderService,
 } from "../../domain/services";
@@ -43,7 +43,7 @@ const trainingPlanGenerationService = container.get(
 
 const profileService = container.get(
   ServiceKeys.PROFILE_SERVICE,
-) as ProfileService;
+) as UserProfileService;
 
 const favoriteService = container.get(
   ServiceKeys.FAVORITE_SERVICE,

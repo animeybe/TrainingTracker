@@ -6,7 +6,7 @@ export type FavoriteExerciseEntity = {
   createdAt: Date;
 };
 
-export type CreateFavoriteExerciseEntity = {
-  userId: string;
-  exerciseId: string;
-};
+export type CreateFavoriteExerciseEntity = Omit<
+  FavoriteExerciseEntity,
+  "id" | "createdAt"
+>;

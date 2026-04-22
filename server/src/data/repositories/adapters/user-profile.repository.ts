@@ -1,11 +1,11 @@
 // data/repositories/adapters/profile.repository.ts
-import { PrismaProfileRepository } from "../prisma/prisma-user-profile.repository";
+import { PrismaUserProfileRepository } from "../prisma/prisma-user-profile.repository";
 import { UserProfileMapper } from "../../mappers/user-profile.mapper";
 import { UserProfileEntity } from "../../../domain/entities/user-profile.entity";
-import { IProfileRepository } from "../../../domain/repositories/i-profile.repository";
+import { IUserProfileRepository } from "../../../domain/repositories/i-user-profile.repository";
 
-export class ProfileRepositoryImpl implements IProfileRepository {
-  constructor(private prismaRepo: PrismaProfileRepository) {}
+export class UserProfileRepositoryImpl implements IUserProfileRepository {
+  constructor(private prismaRepo: PrismaUserProfileRepository) {}
 
   async create(data: UserProfileEntity): Promise<UserProfileEntity> {
     const dto = UserProfileMapper.toDto(data);
@@ -21,6 +21,7 @@ export class ProfileRepositoryImpl implements IProfileRepository {
       userId,
       weight: data.weight,
       height: data.height,
+      gender: data.gender,
       age: data.age,
       lifestyle: data.lifestyle,
       goal: data.goal,

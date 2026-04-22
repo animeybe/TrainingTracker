@@ -23,7 +23,8 @@ export interface ProfileResponse {
   userId: string;
   weight: number;
   height: number;
-  age: number;
+  gender: string | null;
+  age: number | null;
   lifestyle: string | null;
   goal: string | null;
   bmi: number;

@@ -9,7 +9,7 @@ import { UserProfileMapper } from "../../mappers/user-profile.mapper";
 import { BaseRepository } from "../common/base-prisma-repository";
 import { logger } from "../../../common/utils";
 
-export class PrismaProfileRepository implements BaseRepository<
+export class PrismaUserProfileRepository implements BaseRepository<
   CreateUserProfileDto,
   UpdateUserProfileDto,
   UserProfileDto
@@ -22,6 +22,7 @@ export class PrismaProfileRepository implements BaseRepository<
         },
         weight: data.weight,
         height: data.height,
+        gender: data.gender,
         age: data.age,
         lifestyle: data.lifestyle,
         goal: data.goal,
@@ -57,6 +58,7 @@ export class PrismaProfileRepository implements BaseRepository<
         update: {
           weight: data.weight,
           height: data.height,
+          gender: data.gender,
           age: data.age,
           lifestyle: data.lifestyle,
           goal: data.goal,
@@ -65,6 +67,7 @@ export class PrismaProfileRepository implements BaseRepository<
           userId,
           weight: data.weight,
           height: data.height,
+          gender: data.gender,
           age: data.age,
           lifestyle: data.lifestyle,
           goal: data.goal,

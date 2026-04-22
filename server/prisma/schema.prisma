@@ -13,6 +13,11 @@ enum Role {
   ADMIN
 }
 
+enum Gender {
+  Male
+  Female
+}
+
 enum Lifestyle {
   IMMOBILE
   LIGHT
@@ -129,6 +134,7 @@ model exercise {
   videoUrl            String?
 
   favorites           favoriteExercise[]
+  leastFavoriteExercises leastFavoriteExercise[]
   weeklyExercises     weeklyTrainingExercise[]
   dailyExecutions     trainingExerciseExecution[]
 
@@ -160,6 +166,7 @@ model user {
 
   profile         userProfile?
   favoriteExercises favoriteExercise[]
+  leastFavoriteExercises leastFavoriteExercise[]
   weeklyPlans     weeklyTrainingPlan[]
   dailyExecutions trainingDayExecution[]
 
@@ -171,6 +178,7 @@ model userProfile {
   userId    String    @unique
   weight    Float?
   height    Float?
+  gender    Gender?
   age       Int?
   lifestyle Lifestyle?
   goal      Goal?     
@@ -193,6 +201,20 @@ model favoriteExercise {
 
   @@unique([userId, exerciseId])
   @@map("favorite_exercises")
+  @@index([userId])
+}
+
+model leastFavoriteExercise {
+  id         String   @id @default(cuid())
+  userId     String
+  exerciseId String
+  createdAt  DateTime @default(now())
+
+  user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise   exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, exerciseId])
+  @@map("least_favorite_exercises")
   @@index([userId])
 }
 
@@ -243,7 +265,6 @@ model trainingDayExecution {
   dayOfWeek      Int                        
   executionDate  DateTime                   
   wellbeingToday Wellbeing                  
-  setsCompleted  Int                       @default(0)
   notes          String?                   
   createdAt      DateTime                  @default(now())
 
@@ -263,8 +284,6 @@ model trainingExerciseExecution {
   sets             Int      
   repsRange        Json     
   orderInDay       Int
-  wellbeingAdjusted Boolean @default(false)
-  compensationNext Boolean @default(false)
 
   execution        trainingDayExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
   exercise         exercise             @relation(fields: [exerciseId], references: [id])

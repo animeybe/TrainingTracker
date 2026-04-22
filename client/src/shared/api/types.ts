@@ -1,4 +1,5 @@
 export type Wellbeing = "BAD" | "NORMAL" | "GOOD";
+export type Gender = "Male" | "Female";
 export type Goal =
   | "LOSE_FAT"
   | "MAINTAIN_WEIGHT"
@@ -169,6 +170,7 @@ export interface ProfileData {
   userId: string;
   weight: number | null;
   height: number | null;
+  gender: Gender | null;
   age: number | null;
   lifestyle: Lifestyle | null;
   goal: Goal | null;
@@ -226,20 +228,4 @@ export interface ToggleFavoriteRequest {
 export interface ToggleFavoriteResponse {
   success: boolean;
   message?: string;
-}
-
-// 👉 Для ответа /favorites: список «избранного» упражнений
-export interface FavoriteItem {
-  id: string;
-  name: string;
-  primaryMuscleGroup: PrimaryMuscleGroup;
-  difficulty: Difficulty;
-  description: string | null;
-  imageUrl: string | null;
-  videoUrl: string | null;
-}
-
-export interface FavoriteListResponse {
-  data: FavoriteItem[];
-  total: number;
 }

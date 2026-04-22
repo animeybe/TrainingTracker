@@ -1,11 +1,11 @@
 // domain/services/profile.service.ts
 import { UserProfileEntity } from "../entities/user-profile.entity";
-import { IProfileRepository } from "../repositories/i-profile.repository";
+import { IUserProfileRepository } from "../repositories/i-user-profile.repository";
 
-export class ProfileService {
-  private repo: IProfileRepository;
+export class UserProfileService {
+  private repo: IUserProfileRepository;
 
-  constructor(repo: IProfileRepository) {
+  constructor(repo: IUserProfileRepository) {
     this.repo = repo;
   }
 

@@ -14,13 +14,13 @@ import {
 } from "../types/auth.types";
 import { Result } from "../../domain/common/result";
 import type { UserService } from "../../domain/services";
-import type { ProfileService } from "../../domain/services";
+import type { UserProfileService } from "../../domain/services";
 
 // ✅ Типизированное получение сервисов
 const userService = container.get(ServiceKeys.USER_SERVICE) as UserService;
 const profileService = container.get(
   ServiceKeys.PROFILE_SERVICE,
-) as ProfileService;
+) as UserProfileService;
 
 // Вспомогательный метод: создание "пустого" профиля
 async function createEmptyProfile(userId: string): Promise<Result<any> | null> {
@@ -29,6 +29,7 @@ async function createEmptyProfile(userId: string): Promise<Result<any> | null> {
     userId,
     weight: null,
     height: null,
+    gender: null,
     age: null,
     lifestyle: null,
     goal: null,

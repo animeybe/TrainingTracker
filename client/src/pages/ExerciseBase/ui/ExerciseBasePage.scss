@@ -421,6 +421,52 @@
       opacity: 1;
     }
   }
+
+  &__least-favorite-button {
+    position: absolute;
+    display: flex;
+    align-items: end;
+    justify-content: center;
+    top: 53px;
+    right: 10px;
+    width: 40px;
+    height: 40px;
+    padding: 5px;
+    border-radius: 50%;
+    background: transparent;
+    opacity: 0.5;
+    transition: all 0.25s ease;
+
+    img {
+      width: 26px;
+      height: 26px;
+      object-fit: contain;
+      filter: opacity(0.6);
+      transition: filter 0.2s ease;
+    }
+
+    &_active {
+      background: rgba(255, 71, 87, 0.3);
+
+      img {
+        filter: brightness(1.2) saturate(1.5);
+      }
+    }
+
+    &:hover {
+      opacity: 1;
+
+      img {
+        filter: brightness(1.1);
+      }
+    }
+
+    &:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+  }
+
   &::before {
     content: "";
     position: absolute;

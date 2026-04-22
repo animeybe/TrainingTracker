@@ -1,9 +1,12 @@
 // domain/repositories/i-favorite-exercise.repository.ts
-import { FavoriteExerciseEntity } from "../entities";
+import {
+  FavoriteExerciseEntity,
+  CreateFavoriteExerciseEntity,
+} from "../entities";
 
 export interface IFavoriteExerciseRepository {
-  create(data: FavoriteExerciseEntity): Promise<FavoriteExerciseEntity>;
+  create(data: CreateFavoriteExerciseEntity): Promise<FavoriteExerciseEntity>;
   findByUserId(userId: string): Promise<FavoriteExerciseEntity[]>;
-  delete(data: FavoriteExerciseEntity): Promise<boolean>;
+  deleteByComposite(userId: string, exerciseId: string): Promise<boolean>;
   exists(userId: string, exerciseId: string): Promise<boolean>;
 }

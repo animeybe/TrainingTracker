@@ -17,7 +17,7 @@
   --bg-hover-text: rgba(84, 84, 84, 0.1);
   // Для строк ввода (например, строки поиска упражнений)
   --border-forInputElements: #fce4ec;
-    // Для некоторых обводок в окне настроек
+  // Для некоторых обводок в окне настроек
   --border-forSettingsWindow: rgba(0, 0, 0, 0.1);
 
   // Текст основной
@@ -28,6 +28,12 @@
   --text-accent: #2563eb;
   // Текст над --bg-accent (для нормальной видимости)
   --text-onAccent: #ffffff;
+
+  // Переменные для лоадера/спинера
+  --spinner-primary: #3b82f6;
+  --spinner-secondary: #10b981;
+  --spinner-glow: rgba(59, 130, 246, 0.4);
+  --spinner-glow-dark: rgba(16, 185, 129, 0.3);
 }
 
 [data-theme="dark"] {
@@ -60,6 +66,12 @@
   --text-accent: #ff3131;
   // Текст над --bg-accent (для нормальной видимости)
   --text-onAccent: #ffffff;
+
+  // Переменные для лоадера/спинера
+  --spinner-primary: #60a5fa;
+  --spinner-secondary: #34d399;
+  --spinner-glow: rgba(96, 165, 250, 0.5);
+  --spinner-glow-dark: rgba(52, 211, 153, 0.4);
 }
 
 :root,

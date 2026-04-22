@@ -9,10 +9,10 @@ import { AuthRequest } from "../types/auth.types";
 import { logger } from "../../common/utils";
 import {
   ExerciseEntity,
+  ExercisePreferenceService,
   ExerciseService,
   FavoriteExerciseService,
 } from "../../domain";
-import { prisma } from "../../infrastructure/prisma/client";
 
 const exerciseService = container.get(
   "exerciseService" as any,
@@ -20,6 +20,9 @@ const exerciseService = container.get(
 const favoriteService = container.get(
   "favoriteService" as any,
 ) as FavoriteExerciseService;
+const preferenceService = container.get(
+  "exercisePreferenceService" as any,
+) as ExercisePreferenceService;
 
 function exerciseToResponse(exercise: ExerciseEntity): ExerciseResponseDto {
   return {
@@ -69,59 +72,42 @@ export class FavoriteController {
   ) {
     try {
       const userId = req.userId!;
-      const exerciseId = req.params.exerciseId;
+      const { exerciseId } = req.params;
 
-      // 1. Проверить, существует ли упражнение
+      // Проверка упражнения
       const exercise = await exerciseService.findById(exerciseId);
       if (!exercise) {
-        logger.error(`Exercise not found: ${exerciseId}`);
         return res.status(404).json({ error: "Exercise not found" });
       }
 
-      // 2. Проверить наличие в избранном
-      const exists = await favoriteService.exists(userId, exerciseId);
-      const action = exists ? "removed" : "added";
+      // Один вызов оркестратора!
+      const success = await preferenceService.toggleFavorite(
+        userId,
+        exerciseId,
+      );
 
-      if (exists) {
-        // 1️⃣  Найти реальный `id` в БД
-        const record = await prisma.favoriteExercise.findUnique({
-          where: { userId_exerciseId: { userId, exerciseId } },
-        });
-
-        if (!record) {
-          return res.status(404).json({ error: "Favorite record not found" });
-        }
-
-        // 2️⃣  Передать `FavoriteExerciseEntity` с реальным `id`
-        const removed = await favoriteService.removeFavoriteExercise({
-          id: record.id,
+      if (!success) {
+        logger.warn(`Toggle favorite returned false`, {
           userId,
           exerciseId,
-          createdAt: record.createdAt,
         });
-        if (!removed) {
-          logger.error(`Failed to remove favorite exercise: ${exerciseId}`);
-          return res.status(500).json({ error: "Failed to remove favorite" });
-        }
-      } else {
-        // Создать в избранном
-        await favoriteService.createFavoriteExercise({
-          id: `${userId}_${exerciseId}`,
-          userId,
-          exerciseId,
-          createdAt: new Date(),
-        });
+        return res.status(500).json({ error: "Toggle operation failed" });
       }
 
-      logger.info(`Favorite ${action}`, { userId, exerciseId });
-      res.json({
-        success: true,
-        message:
-          action === "added" ? "Добавлено в избранное" : "Убрано из избранного",
-      });
+      const status = await preferenceService.getPreferenceStatus(
+        userId,
+        exerciseId,
+      );
+      const message =
+        status === "FAVORITE"
+          ? "Добавлено в избранное"
+          : "Убрано из избранного";
+
+      logger.info(`Favorite toggled`, { userId, exerciseId, status });
+      res.json({ success: true, message });
     } catch (error: any) {
       logger.error(`Toggle favorite failed: ${error.message}`);
-      res.status(500).json({ error: "Failed to toggle favorite" });
+      res.status(500).json({ error: error.message });
     }
   }
 }

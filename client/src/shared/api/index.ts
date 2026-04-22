@@ -44,5 +44,6 @@ export const apiRequest = async <T = unknown>(
 export { authApi } from "./authApi";
 export { exerciseApi } from "./exerciseApi";
 export { favoriteApi } from "./favoriteApi";
+export { leastFavoriteApi } from "./leastFavoriteApi";
 export { planApi } from "./planApi";
 export { profileApi } from "./profileApi";

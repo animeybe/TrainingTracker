@@ -1,3 +1,65 @@
+// src/lib/utils/training-utils.ts
+import type { ProfileData, Wellbeing } from "@/shared/api/types";
+
+/**
+ * Извлекает userId из JWT токена localStorage
+ */
+export const getUserIdFromToken = (): string | null => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.userId;
+  } catch {
+    console.warn("getUserIdFromToken failed - invalid token");
+    return null;
+  }
+};
+
+/**
+ * Проверяет полноту профиля для генерации плана
+ */
+export const checkProfileCompleteness = (
+  profile: ProfileData | null,
+): boolean => {
+  if (!profile) return true;
+  return (
+    profile.weight != null &&
+    profile.weight > 0 &&
+    profile.height != null &&
+    profile.height > 0 &&
+    profile.age != null &&
+    profile.age > 0 &&
+    profile.gender != null &&
+    profile.goal != null &&
+    profile.lifestyle != null
+  );
+};
+
+/**
+ * Форматирует дату в YYYY-MM-DD (для localStorage wellbeing)
+ */
+export const getTodayString = (): string =>
+  new Date().toISOString().split("T")[0];
+
+/**
+ * Сохраняет wellbeing в localStorage
+ */
+export const setStoredWellbeingToday = (wellbeing: Wellbeing): void => {
+  const today = getTodayString();
+  const stored = JSON.parse(localStorage.getItem("wellbeingHistory") || "{}");
+  stored[today] = wellbeing;
+  localStorage.setItem("wellbeingHistory", JSON.stringify(stored));
+};
+
+/**
+ * Читает wellbeing за сегодня из localStorage
+ */
+export const getStoredWellbeingToday = (): Wellbeing | null => {
+  const stored = JSON.parse(localStorage.getItem("wellbeingHistory") || "{}");
+  return stored[getTodayString()] ?? null;
+};
+
 import type { DayType, TrainingSplit } from "@/shared/api/types";
 
 /**

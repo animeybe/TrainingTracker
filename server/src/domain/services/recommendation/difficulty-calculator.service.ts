@@ -1,6 +1,4 @@
 import { Difficulty, Goal, Lifestyle } from "../../../common/types/enums.types";
-import { ExerciseService } from "../exercise.service";
-import { ProfileService } from "../profile.service";
 
 export class DifficultyCalculatorService {
   calculateOverallDifficulty(

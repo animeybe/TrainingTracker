@@ -6,7 +6,7 @@ import {
   DashboardPage,
   ExerciseBasePage,
   AdminSettingsPage,
-  HealthPage,
+  RecordsPage,
   TrainingPage,
 } from "@/pages";
 import { AppLayout } from "..";
@@ -38,7 +38,7 @@ export const AppRoutes = () => {
           <Route path="/training" element={<TrainingPage />} />
         </Route>
         <Route element={<RoleGuard requiredPermission="health" />}>
-          <Route path="/health" element={<HealthPage />} />
+          <Route path="/health" element={<RecordsPage />} />
         </Route>
 
         {/* ТОЛЬКО ADMIN */}

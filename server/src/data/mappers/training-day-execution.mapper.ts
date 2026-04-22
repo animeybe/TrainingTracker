@@ -19,7 +19,6 @@ export class TrainingDayExecutionMapper {
       dayOfWeek: dto.dayOfWeek,
       executionDate: dto.executionDate,
       wellbeingToday: dto.wellbeingToday,
-      setsCompleted: dto.setsCompleted,
       notes: dto.notes,
       createdAt: dto.createdAt,
     };
@@ -33,7 +32,6 @@ export class TrainingDayExecutionMapper {
       dayOfWeek: entity.dayOfWeek,
       executionDate: entity.executionDate,
       wellbeingToday: entity.wellbeingToday,
-      setsCompleted: entity.setsCompleted,
       notes: entity.notes,
       createdAt: entity.createdAt,
     };
@@ -48,7 +46,6 @@ export class TrainingDayExecutionMapper {
       dayOfWeek: entity.dayOfWeek,
       executionDate: entity.executionDate,
       wellbeingToday: entity.wellbeingToday,
-      setsCompleted: entity.setsCompleted,
       notes: entity.notes,
     };
   }
@@ -61,7 +58,6 @@ export class TrainingDayExecutionMapper {
       dayOfWeek: entity.dayOfWeek,
       executionDate: entity.executionDate,
       wellbeingToday: entity.wellbeingToday,
-      setsCompleted: entity.setsCompleted,
       notes: entity.notes,
     };
   }

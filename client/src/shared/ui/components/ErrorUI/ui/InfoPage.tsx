@@ -21,12 +21,21 @@ export function InfoPage(props: InfoPageProps) {
     message: "Что-то пошло не так",
   };
 
+  const isLoading = props.type === "loading";
+
   return (
     <div className="info-page">
       <div className="info-page__content">
         <div className="info-page__icon">
-          {props.type === "loading" ? "⏳" : "❌"}
+          {isLoading && (
+            <div className="info-page__spinner">
+              <div className="info-page__spinner-ring info-page__spinner-ring--1" />
+              <div className="info-page__spinner-ring info-page__spinner-ring--2" />
+              <div className="info-page__spinner-ring info-page__spinner-ring--3" />
+            </div>
+          )}
         </div>
+
         <h1 className="info-page__title">{config.title}</h1>
 
         {props.title && <h2>{props.title}</h2>}

@@ -1,6 +1,6 @@
 // routes/profile.routes.ts
 import { Router } from "express";
-import { ProfileController } from "../controllers/profile.controller";
+import { ProfileController } from "../controllers/user-profile.controller";
 import { authenticateToken } from "../middleware/auth.middleware";
 
 const router = Router();

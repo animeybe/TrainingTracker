@@ -8,8 +8,6 @@ export type TrainingExerciseExecutionDto = {
   sets: number;
   repsRange: Prisma.JsonValue;
   orderInDay: number;
-  wellbeingAdjusted: boolean;
-  compensationNext: boolean;
 };
 
 export type CreateTrainingExerciseExecutionDto = {
@@ -18,14 +16,10 @@ export type CreateTrainingExerciseExecutionDto = {
   sets: number;
   repsRange: Prisma.JsonValue;
   orderInDay: number;
-  wellbeingAdjusted: boolean;
-  compensationNext: boolean;
 };
 
 export type UpdateTrainingExerciseExecutionDto = {
   sets?: number;
   repsRange?: Prisma.JsonValue;
   orderInDay?: number;
-  wellbeingAdjusted?: boolean;
-  compensationNext?: boolean;
 };

@@ -1,7 +1,7 @@
 // domain/repositories/i-profile.repository.ts
 import { UserProfileEntity } from "../entities/user-profile.entity";
 
-export interface IProfileRepository {
+export interface IUserProfileRepository {
   create(data: UserProfileEntity): Promise<UserProfileEntity>;
   update(
     userId: string,

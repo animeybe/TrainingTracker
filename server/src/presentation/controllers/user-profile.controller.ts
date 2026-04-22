@@ -9,13 +9,13 @@ import type {
 import { AuthRequest } from "../types/auth.types";
 import { UserId } from "../../common/types/ids";
 import { logger } from "../../common/utils";
-import type { ProfileService } from "../../domain/services";
+import type { UserProfileService } from "../../domain/services";
 import { calculateBMI, getBMICategory } from "../../common/utils/profile-utils";
 import { UserProfileEntity } from "../../domain";
 
 const profileService = container.get(
   ServiceKeys.PROFILE_SERVICE,
-) as ProfileService;
+) as UserProfileService;
 
 export class ProfileController {
   static async getProfile(
@@ -48,6 +48,7 @@ export class ProfileController {
         userId: profile.userId,
         weight: profile.weight,
         height: profile.height,
+        gender: profile.gender,
         age: profile.age,
         lifestyle: profile.lifestyle,
         goal: profile.goal,
@@ -93,6 +94,7 @@ export class ProfileController {
       const updateData: Partial<UserProfileEntity> = {
         weight: req.body.weight,
         height: req.body.height,
+        gender: req.body.gender,
         age: req.body.age,
         lifestyle: req.body.lifestyle,
         goal: req.body.goal,
@@ -120,6 +122,7 @@ export class ProfileController {
         userId: updated.userId,
         weight: updated.weight,
         height: updated.height,
+        gender: updated.gender,
         age: updated.age,
         lifestyle: updated.lifestyle,
         goal: updated.goal,
@@ -138,6 +141,7 @@ export class ProfileController {
       logger.info("✅ ProfileController update success", {
         weight: updated.weight,
         height: updated.height,
+        gender: updated.gender,
         age: updated.age,
         lifestyle: updated.lifestyle,
         goal: updated.goal,

@@ -39,4 +39,5 @@ export class ExerciseService {
   async deleteExercise(id: string): Promise<boolean> {
     return await this.repo.delete(id);
   }
+  
 }

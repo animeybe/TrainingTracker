@@ -3,6 +3,7 @@ import { AuthProvider } from "@/shared/store";
 import { BrowserRouter } from "react-router-dom";
 import { AppRoutes } from "..";
 import { ErrorProviderWrapper } from "./ErrorProviderWrapper";
+import { Toaster } from "react-hot-toast";
 
 export function AppProviders() {
   return (
@@ -14,6 +15,9 @@ export function AppProviders() {
           </BrowserRouter>
         </AuthProvider>
       </ThemeProvider>
+      <Toaster
+      position='bottom-right'
+      />
     </ErrorProviderWrapper>
   );
 }

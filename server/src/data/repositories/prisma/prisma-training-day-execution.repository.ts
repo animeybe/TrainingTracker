@@ -19,7 +19,6 @@ export class PrismaTrainingDayExecutionRepository {
         dayOfWeek: data.dayOfWeek,
         executionDate: data.executionDate,
         wellbeingToday: data.wellbeingToday,
-        setsCompleted: data.setsCompleted,
         notes: data.notes,
       } satisfies Prisma.trainingDayExecutionCreateInput,
     });
@@ -69,7 +68,6 @@ export class PrismaTrainingDayExecutionRepository {
           dayOfWeek: dto.dayOfWeek,
           executionDate: dto.executionDate,
           wellbeingToday: dto.wellbeingToday,
-          setsCompleted: dto.setsCompleted,
           notes: dto.notes,
         } satisfies Prisma.trainingDayExecutionUpdateInput,
       });
