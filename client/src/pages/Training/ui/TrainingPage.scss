@@ -1,4 +1,56 @@
 // Блок: training-page
+// Главный блок страницы
+
+$color-text-main: #2c3e50;
+$color-bg-daycell: #f8f9ff;
+$color-bg-today: #667eea10;
+$color-line-selected: #e74c3c;
+$color-btn-primary: #4facfe;
+
+$radius: 16px;
+$radius-large: 24px;
+$radius-very-large: 32px;
+$border: 1px solid #d0e0ff;
+
+@mixin button-shadow($shadow, $transform-hover: translateY(-3px)) {
+  box-shadow: 0 15px 35px $shadow;
+  transition: all 0.3s ease;
+  position: relative;
+
+  &:hover:not(:disabled) {
+    transform: $transform-hover;
+    box-shadow: 0 25px 50px $shadow;
+  }
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.3),
+      transparent
+    );
+  }
+
+  &:hover:not(:disabled)::before {
+    left: 100%;
+    transition: 0.6s;
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+}
+
+// ------------------------------
+// Блок training-page
+// ------------------------------
 
 .training-page {
   min-height: 100vh;
@@ -6,9 +58,42 @@
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, sans-serif;
-  color: #2c3e50;
+  color: $color-text-main;
 
-  // Вариант: когда план уже есть
+  // ------------------------------
+  // Кнопка создания плана на следующую неделю
+  // ------------------------------
+
+  &__generate-next-week-btn {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    height: 50px;
+    min-width: 260px;
+    padding: 0 20px;
+    border: none;
+    border-radius: 30px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #667eea 0%, #a044ff 100%);
+
+    @include button-shadow(rgba(102, 126, 234, 0.4));
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+    }
+
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+  }
+
+  // Когда план уже есть: блок плана
   &__plan {
     width: 100%;
     max-width: 900px;
@@ -32,7 +117,7 @@
     margin: 0;
   }
 
-  // Сегодня — сверху
+  // Сегодня — верхний блок на день
   &__today {
     margin-bottom: 3rem;
     padding: 2.5rem;
@@ -58,6 +143,7 @@
     color: #444;
   }
 
+  // Список упражнений на сегодня
   &__today-exercises {
     display: flex;
     flex-direction: column;
@@ -85,7 +171,7 @@
   &__exercise-name {
     font-weight: 700;
     font-size: 1.15rem;
-    color: #2c3e50;
+    color: $color-text-main;
     flex: 1;
   }
 
@@ -109,9 +195,10 @@
     margin-top: 2rem;
   }
 
+  // Отдельная ячейка дня
   &__day-cell {
     padding: 1.2rem;
-    background: #f8f9ff;
+    background: $color-bg-daycell;
     border-radius: 16px;
     border: 1px solid #d0e0ff;
     transition: all 0.25s ease;
@@ -122,10 +209,15 @@
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
     }
 
+    // Когда этот день выбран (сегодняшний)
     &--selected {
       background: #ffebee;
-      border-color: #e74c3c;
+      border-color: $color-line-selected;
       box-shadow: 0 8px 20px rgba(231, 76, 60, 0.2);
+
+      .training-page__day-type {
+        color: $color-line-selected;
+      }
     }
   }
 
@@ -161,7 +253,64 @@
     color: #999;
   }
 
-  // Когда плана нет: профиль + кнопка
+  &__day-type {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #666;
+    margin-top: 0.1rem;
+    display: block;
+  }
+
+  // ------------------------------
+  // Навигация по неделям (внутри тренировочного плана)
+  // ------------------------------
+
+  &__week-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+    margin-bottom: 1rem;
+  }
+
+  &__week-nav-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid #ddd;
+    background: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover:not(:disabled) {
+      background: #f0f8ff;
+      border-color: #007bff;
+      transform: scale(1.05);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+  }
+
+  &__week-nav-label {
+    font-weight: 600;
+    font-size: 1.1em;
+    min-width: 80px;
+    text-align: center;
+    color: #444;
+  }
+
+  // ------------------------------
+  // Когда плана нет: блок профиля + кнопки
+  // ------------------------------
 
   &__no-plan {
     display: flex;
@@ -172,7 +321,6 @@
     margin: 0 auto;
   }
 
-  // Профиль (без плана)
   &__profile {
     background: #fff;
     border-radius: 24px;
@@ -184,7 +332,7 @@
       font-size: 1.6rem;
       font-weight: 700;
       margin-bottom: 1.5rem;
-      color: #2c3e50;
+      color: $color-text-main;
     }
 
     &-row {
@@ -207,18 +355,16 @@
 
     &-value {
       font-weight: 700;
-      color: #2c3e50;
+      color: $color-text-main;
     }
   }
 
-  // Красная ошибка профиля
   &__error {
     color: #e74c3c;
     font-weight: 600;
     font-size: 1rem;
   }
 
-  // Блок кнопки
   &__controls {
     display: flex;
     justify-content: center;
@@ -236,42 +382,13 @@
     background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
     color: #ffffff;
     cursor: pointer;
-    box-shadow: 0 15px 35px rgba(79, 172, 254, 0.4);
-    transition: all 0.3s ease;
-    position: relative;
 
-    &::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.3),
-        transparent
-      );
-    }
-
-    &:hover:not(:disabled)::before {
-      left: 100%;
-      transition: 0.6s;
-    }
-
-    &:hover:not(:disabled) {
-      transform: translateY(-3px);
-      box-shadow: 0 25px 50px rgba(79, 172, 254, 0.5);
-    }
-
-    &:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
-    }
+    @include button-shadow(rgba(79, 172, 254, 0.4));
   }
 
-  // Модальные окна wellbeing
+  // ------------------------------
+  // Wellbeing‑модалки
+  // ------------------------------
 
   &__modal-overlay {
     position: fixed;
@@ -301,7 +418,7 @@
   &__modal-title {
     font-size: 2.1rem;
     font-weight: 800;
-    color: #2c3e50;
+    color: $color-text-main;
     margin-bottom: 2.2rem;
   }
 
@@ -330,6 +447,7 @@
       transform: translateY(-2px);
     }
 
+    // Когда кнопка выбрана
     &--selected {
       background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
       color: #ffffff;
@@ -338,7 +456,7 @@
     }
   }
 
-  // модальное окно BAD/GOOD
+  // Модальное окно подтверждения BAD/GOOD
   &__warning-overlay {
     position: fixed;
     top: 0;
@@ -388,6 +506,10 @@
     }
   }
 
+  // ------------------------------
+  // Управление wellbeing (элементы в блоке today)
+  // ------------------------------
+
   &__today-controls {
     display: flex;
     justify-content: center;
@@ -430,81 +552,22 @@
     font-weight: 700;
     font-size: 0.9rem;
 
-    &.wellbeing-bad {
+    &--bad {
       color: #e74c3c;
     }
-    &.wellbeing-normal {
+    &--normal {
       color: #f39c12;
     }
-    &.wellbeing-good {
+    &--good {
       color: #27ae60;
     }
   }
-
-  &__week-nav {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-left: auto;
-  }
-  &__week-label {
-    font-weight: 600;
-    font-size: 1.1em;
-    min-width: 80px;
-    text-align: center;
-  }
-  &__week-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: 2px solid #ddd;
-    background: white;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:hover:not(:disabled) {
-      background: #f0f8ff;
-      border-color: #007bff;
-      transform: scale(1.05);
-    }
-  }
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  &--prev {
-    &:hover:not(:disabled) {
-      transform: scale(1.05) rotate(-10deg);
-    }
-  }
-
-  &--next {
-    &:hover:not(:disabled) {
-      transform: scale(1.05) rotate(10deg);
-    }
-  }
-
-  &__day-type {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #666;
-    margin-top: 0.1rem;
-    display: block;
-  }
-
-  &__day-cell--selected &__day-type {
-    color: #e74c3c;
-  }
 }
 
-// Анимации
+// ====================================================
+// Анимации (оставлены как есть)
+// ====================================================
+
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -538,7 +601,11 @@
   }
 }
 
-// responsive
+// ====================================================
+// Responsive
+// (адаптивный дизайн, как ты просил — оставились те же breakpoints и стили)
+// ====================================================
+
 @media (max-width: 768px) {
   .training-page {
     padding: 1.5rem 1rem;
@@ -566,6 +633,55 @@
 
     &__profile {
       padding: 1.8rem 1.4rem;
+
+      &-title {
+        font-size: 1.5rem;
+      }
+
+      &-row {
+        padding: 0.8rem 0;
+      }
+    }
+
+    // Навигация по неделям на мобильном — чуть компактнее
+    &__week-nav {
+      flex-wrap: wrap;
+      justify-content: center;
+
+      &-label {
+        min-width: 70px;
+        font-size: 1rem;
+      }
+
+      &-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+      }
+    }
+
+    &__today-controls {
+      flex-direction: column;
+      gap: 0.8rem;
+
+      .training-page__change-wellbeing-btn {
+        width: 100%;
+        max-width: 280px;
+        margin: 0 auto;
+      }
+    }
+
+    &__day-cell {
+      padding: 1rem;
+      font-size: 0.9rem;
+
+      &__day-name {
+        font-size: 0.85rem;
+      }
+
+      &__day-type {
+        font-size: 0.7rem;
+      }
     }
   }
 }
@@ -588,6 +704,71 @@
 
     &__calendar {
       grid-template-columns: 1fr;
+    }
+
+    &__week-nav {
+      flex-direction: column;
+      gap: 0.8rem;
+
+      &-label {
+        font-size: 1rem;
+      }
+
+      &-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 13px;
+        margin: 0 auto;
+      }
+    }
+
+    &__day-cell {
+      padding: 1rem 0.8rem;
+
+      &__day-name {
+        font-size: 0.8rem;
+      }
+
+      &__day-type {
+        font-size: 0.65rem;
+      }
+    }
+
+    &__no-plan {
+      gap: 1.6rem;
+    }
+
+    &__profile {
+      padding: 1.4rem 0.8rem;
+
+      &-title {
+        font-size: 1.4rem;
+      }
+
+      &-row {
+        padding: 0.7rem 0;
+        font-size: 0.95rem;
+      }
+    }
+
+    &__today-controls {
+      &,
+      & > * {
+        width: 100%;
+      }
+    }
+
+    &__current-wellbeing {
+      padding: 0.5rem 1rem;
+
+      &-badge {
+        font-size: 0.8rem;
+      }
+    }
+
+    &__change-wellbeing-btn {
+      height: 52px;
+      font-size: 0.9rem;
     }
   }
 }

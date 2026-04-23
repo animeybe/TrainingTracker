@@ -1,10 +1,10 @@
 // data/repositories/prisma/prisma-training-exercise-execution.repository.ts
+
 import { prisma } from "../../../infrastructure/prisma/client";
 import type {
   TrainingExerciseExecutionDto,
   CreateTrainingExerciseExecutionDto,
 } from "../../dtos/training-exercise-execution.prisma-dto";
-import { Prisma } from "@prisma/client";
 
 export class PrismaTrainingExerciseExecutionRepository {
   async create(
@@ -19,9 +19,9 @@ export class PrismaTrainingExerciseExecutionRepository {
           connect: { id: data.exerciseId },
         },
         sets: data.sets,
-        repsRange: data.repsRange ?? Prisma.JsonNull,
+        reps: data.reps,
         orderInDay: data.orderInDay,
-      } satisfies Prisma.trainingExerciseExecutionCreateInput,
+      },
     });
     return result;
   }
@@ -57,9 +57,9 @@ export class PrismaTrainingExerciseExecutionRepository {
         where: { id },
         data: {
           sets: dto.sets,
-          repsRange: dto.repsRange ?? Prisma.JsonNull,
+          reps: dto.reps, // теперь просто number, не JSON
           orderInDay: dto.orderInDay,
-        } satisfies Prisma.trainingExerciseExecutionUpdateInput,
+        },
       });
       return result;
     } catch (_error) {

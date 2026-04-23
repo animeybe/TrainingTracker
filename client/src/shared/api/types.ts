@@ -229,3 +229,8 @@ export interface ToggleFavoriteResponse {
   success: boolean;
   message?: string;
 }
+
+export interface UserStateResponse {
+  currentWeek: number;
+}
+export type UserStateResponseDto = UserStateResponse;

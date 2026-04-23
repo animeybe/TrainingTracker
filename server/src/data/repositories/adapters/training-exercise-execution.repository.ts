@@ -2,8 +2,6 @@
 import { PrismaTrainingExerciseExecutionRepository } from "../prisma/prisma-training-exercise-execution.repository";
 import type {
   TrainingExerciseExecutionEntity,
-  CreateTrainingExerciseExecutionEntity,
-  UpdateTrainingExerciseExecutionEntity,
 } from "../../../domain/entities/training-exercise-execution.entity";
 import { TrainingExerciseExecutionMapper } from "../../mappers/training-exercise-execution.mapper";
 import type { ITrainingExerciseExecutionRepository } from "../../../domain/repositories/i-training-exercise-execution.repository";

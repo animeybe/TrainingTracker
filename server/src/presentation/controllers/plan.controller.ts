@@ -20,6 +20,7 @@ import type {
   UserProfileService,
   PlanService,
   SplitRecommenderService,
+  UserStateService,
 } from "../../domain/services";
 import {
   DayType,
@@ -36,6 +37,7 @@ import { WeeklyTrainingExerciseEntity } from "../../domain/entities/weekly-train
 import { calculateBMI } from "../../common/utils/profile-utils";
 import { repsToJsonArray } from "../../common/utils/exercise-utils";
 import { TypedTrainingSplit } from "../../common/types/rec-sys.types.types";
+import { getWeekIndex } from "../../common/utils/getWeekIndex";
 
 const trainingPlanGenerationService = container.get(
   ServiceKeys.TRAINING_PLAN_GENERATION_SERVICE,
@@ -52,6 +54,10 @@ const favoriteService = container.get(
 const exerciseService = container.get(
   ServiceKeys.EXERCISE_SERVICE,
 ) as ExerciseService;
+
+const userStateService = container.get(
+  ServiceKeys.USER_STATE_SERVICE,
+) as UserStateService;
 
 const planService = container.get(ServiceKeys.PLAN_SERVICE) as PlanService;
 const weeklyExerciseService = container.get(
@@ -104,27 +110,42 @@ export class PlanController {
     req: AuthRequest & Request<{}, {}, GeneratePlanRequestDto>,
     res: Response<PlanResponse>,
   ) {
-    try {
-      const userId = req.userId!;
-      const { week = 1, wellbeing = "NORMAL" } = req.body;
+    const userId = req.userId!;
+    const { week, wellbeing = "NORMAL" } = req.body;
 
-      const profile = await profileService.findByUserId(userId);
-      if (!profile) {
-        return res.status(404).json({ error: "Профиль не найден" });
-      }
+    const profile = await profileService.findByUserId(userId);
+    if (!profile) {
+      return res.status(404).json({ error: "Профиль не найден" });
+    }
 
-      const favorites = await favoriteService.findByUserId(userId);
-      const favoriteExercises = await exerciseService.findManyByIds(
-        favorites.map((f) => f.exerciseId),
-      );
-      const allExercises = await exerciseService.findAll();
+    const favorites = await favoriteService.findByUserId(userId);
+    const favoriteExercises = await exerciseService.findManyByIds(
+      favorites.map((f) => f.exerciseId),
+    );
+    const allExercises = await exerciseService.findAll();
+
+    // Вычисляем текущую неделю из даты
+    const today = new Date();
+    const weekIndex = getWeekIndex(today);
+
+    // Проверяем, есть ли план на эту неделю
+    const plans = await planService.findByUserId(userId);
+    const planExists = plans.some((plan) => plan.week === weekIndex);
+
+    if (planExists) {
+      const latestPlan = plans[plans.length - 1];
+      // Если план уже есть — просто возвращаем currentWeek + сохранение данных
+      await userStateService.updateCurrentWeek(userId, latestPlan.week);
+      res.json({ data: null });
+    } else {
+      const nextWeek = week;
 
       const planResult =
         await trainingPlanGenerationService.generatePlanForUser(
           userId,
           profile,
           { favorites: favoriteExercises, allExercises },
-          { week, wellbeing },
+          { week: nextWeek, wellbeing },
         );
 
       if (!planResult.isOk) {
@@ -133,10 +154,13 @@ export class PlanController {
 
       await this.saveGeneratedPlan(userId, planResult.value, wellbeing);
 
+      // Обновляем currentWeek только при создании нового плана
+      const updatedCurrentWeek = await userStateService.updateCurrentWeek(
+        userId,
+        nextWeek,
+      );
+
       res.json({ data: planResult.value.originalPlan });
-    } catch (error: any) {
-      logger.error("Plan generate error", error);
-      res.status(500).json({ error: "Ошибка генерации плана" });
     }
   }
 
@@ -375,6 +399,28 @@ export class PlanController {
     } catch (error: any) {
       logger.error("Plan getPlan error", error);
       res.status(500).json({ error: "Ошибка загрузки плана" });
+    }
+  }
+
+  static async getMaxWeekForUser(
+    req: AuthRequest,
+    res: Response<{ maxWeek: number; currentWeek: number } | { error: string }>,
+  ) {
+    try {
+      const userId = req.userId!;
+
+      const plans = await planService.findByUserId(userId);
+      const latestPlan = plans[plans.length - 1];
+      const maxWeek = latestPlan ? latestPlan.week : 0;
+
+      // Это уже возвращает числовое значение
+      const userState = await userStateService.findByUserId(userId);
+      const currentWeek: number = userState ? userState.currentWeek : 1;
+
+      res.json({ maxWeek, currentWeek });
+    } catch (error: any) {
+      logger.error(`Get maxWeek for user failed: ${error.message}`);
+      res.status(500).json({ error: "Failed to get maxWeek" });
     }
   }
 

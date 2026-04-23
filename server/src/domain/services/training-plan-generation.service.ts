@@ -17,6 +17,7 @@ import { WeeklyTrainingExerciseService } from "./weekly-training-exercise.servic
 import { SplitRecommenderService } from "./recommendation/split-recommender.service";
 import { DifficultyCalculatorService } from "./recommendation/difficulty-calculator.service";
 import { PlanGeneratorService } from "./recommendation/plan-generator.service";
+import { UserStateService } from "../services/user-state.service";
 
 import { TrainingSplit, Wellbeing } from "../../common/types/enums.types";
 import {
@@ -30,6 +31,7 @@ import cuid from "cuid";
 export class TrainingPlanGenerationService {
   constructor(
     private planService: PlanService,
+    private userStateService: UserStateService,
     private weeklyExerciseService: WeeklyTrainingExerciseService,
 
     private splitRecommender: SplitRecommenderService,
@@ -45,7 +47,7 @@ export class TrainingPlanGenerationService {
       allExercises: ExerciseEntity[];
     },
     options: {
-      week: number;
+      week?: number;
       wellbeing: Wellbeing;
     },
   ): Promise<
@@ -55,7 +57,13 @@ export class TrainingPlanGenerationService {
       originalPlan: LocalWeekPlan;
     }>
   > {
-    const { week, wellbeing } = options;
+    const { wellbeing } = options;
+
+    const userState =
+      (await this.userStateService.findByUserId(userId)) ??
+      (await this.userStateService.create({ userId, currentWeek: 1 }));
+
+    const weekToUse = options.week ?? userState.currentWeek;
 
     try {
       if (
@@ -98,7 +106,7 @@ export class TrainingPlanGenerationService {
           lifestyle: profile.lifestyle,
           weight: profile.weight,
         },
-        { week, wellbeing },
+        { week: weekToUse, wellbeing },
       );
 
       if (!weekPlanResult.isOk) {
@@ -109,7 +117,7 @@ export class TrainingPlanGenerationService {
 
       const existingPlan = await this.planService.findByUserIdAndWeek(
         userId,
-        week,
+        weekToUse,
       );
       const planId = existingPlan ? existingPlan.id : cuid();
 
@@ -130,6 +138,8 @@ export class TrainingPlanGenerationService {
       const plan = existingPlan
         ? (await this.planService.updatePlan(existingPlan.id, createPlanData))!
         : await this.planService.createPlan(createPlanData)!;
+
+      await this.userStateService.updateCurrentWeek(userId, weekToUse + 1);
 
       const weeklyExercises: WeeklyTrainingExerciseEntity[] = [];
 

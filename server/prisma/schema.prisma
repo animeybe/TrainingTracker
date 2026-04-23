@@ -27,15 +27,15 @@ enum Lifestyle {
 
 // Цели
 enum Goal {
-  LOSE_FAT           
-  MAINTAIN_WEIGHT    
-  GAIN_MUSCLE_MASS   
-  STRENGTH           
-  HYPERTROPHY        
-  ENDURANCE          
-  POWER              
-  HEALTH             
-  REHABILITATION     
+  LOSE_FAT
+  MAINTAIN_WEIGHT
+  GAIN_MUSCLE_MASS
+  STRENGTH
+  HYPERTROPHY
+  ENDURANCE
+  POWER
+  HEALTH
+  REHABILITATION
 }
 
 enum Difficulty {
@@ -45,25 +45,25 @@ enum Difficulty {
 }
 
 enum MovementPattern {
-  PUSH              // Жимы
-  PULL              // Тяги
-  SQUAT             // Приседания
-  HINGE             // Разгибания бедра (deadlift)
-  CARRY             // Переносы (farmer walk)
-  CORE_STABILITY    // Стабилизация корпуса
-  CORE_ROTATION     // Ротация корпуса
-  CARDIO            // Кардио
-  MOBILITY          // Мобильность
-  ISOMETRIC         // Изометрия (планка)
+  PUSH // Жимы
+  PULL // Тяги
+  SQUAT // Приседания
+  HINGE // Разгибания бедра (deadlift)
+  CARRY // Переносы (farmer walk)
+  CORE_STABILITY // Стабилизация корпуса
+  CORE_ROTATION // Ротация корпуса
+  CARDIO // Кардио
+  MOBILITY // Мобильность
+  ISOMETRIC // Изометрия (планка)
 }
 
 enum TrainingFocus {
-  STRENGTH          // 3-6 reps
-  HYPERTROPHY       // 8-12 reps
-  ENDURANCE         // 15+ reps
-  POWER             // Взрывная сила
-  MAINTENANCE       // Поддержание формы
-  REHABILITATION    // Терапия/реабилитация
+  STRENGTH // 3-6 reps
+  HYPERTROPHY // 8-12 reps
+  ENDURANCE // 15+ reps
+  POWER // Взрывная сила
+  MAINTENANCE // Поддержание формы
+  REHABILITATION // Терапия/реабилитация
 }
 
 enum Wellbeing {
@@ -122,25 +122,25 @@ enum MuscleGroup {
 
 // ===== УПРАЖНЕНИЯ (обновленные) =====
 model exercise {
-  id                  String              @id @default(cuid())
-  name                String
-  description         String?
-  primaryMuscleGroup  PrimaryMuscleGroup
-  secondaryMuscles    MuscleGroup[]       // Анатомия
-  movementPatterns    MovementPattern[]   // Множественные паттерны
-  trainingFocus       TrainingFocus[]     // Цели тренировки
-  difficulty          Difficulty          @default(EASY)
-  imageUrl            String?
-  videoUrl            String?
+  id                 String             @id @default(cuid())
+  name               String
+  description        String?
+  primaryMuscleGroup PrimaryMuscleGroup
+  secondaryMuscles   MuscleGroup[] // Анатомия
+  movementPatterns   MovementPattern[] // Множественные паттерны
+  trainingFocus      TrainingFocus[] // Цели тренировки
+  difficulty         Difficulty         @default(EASY)
+  imageUrl           String?
+  videoUrl           String?
 
-  favorites           favoriteExercise[]
+  favorites              favoriteExercise[]
   leastFavoriteExercises leastFavoriteExercise[]
-  weeklyExercises     weeklyTrainingExercise[]
-  dailyExecutions     trainingExerciseExecution[]
+  weeklyExercises        weeklyTrainingExercise[]
+  dailyExecutions        trainingExerciseExecution[]
 
-  @@map("exercises")
   @@index([primaryMuscleGroup])
   @@index([name(500)])
+  @@map("exercises")
 }
 
 // ===== SPLIT'Ы (упрощенные) =====
@@ -155,39 +155,41 @@ enum TrainingSplit {
 
 // ===== МОДЕЛИ (остальные без изменений) =====
 model user {
-  id              String                  @id @default(cuid())
-  login           String                  @unique
-  email           String?                 @unique
-  password        String
-  role            Role                    @default(USER)
-  isActive        Boolean                 @default(true)
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @updatedAt
+  id        String   @id @default(cuid())
+  login     String   @unique
+  email     String?  @unique
+  password  String
+  role      Role     @default(USER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  profile         userProfile?
-  favoriteExercises favoriteExercise[]
+  profile                userProfile?
+  userState              userState?
+  favoriteExercises      favoriteExercise[]
   leastFavoriteExercises leastFavoriteExercise[]
-  weeklyPlans     weeklyTrainingPlan[]
-  dailyExecutions trainingDayExecution[]
+  weeklyPlans            weeklyTrainingPlan[]
+  dailyExecutions        trainingDayExecution[]
 
   @@map("users")
 }
 
 model userProfile {
-  id        String    @id @default(cuid())
-  userId    String    @unique
+  id        String     @id @default(cuid())
+  userId    String     @unique
   weight    Float?
   height    Float?
   gender    Gender?
   age       Int?
   lifestyle Lifestyle?
-  goal      Goal?     
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  goal      Goal?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
-  user      user      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@map("user_profiles")
+  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
+  @@map("user_profiles")
 }
 
 model favoriteExercise {
@@ -196,12 +198,12 @@ model favoriteExercise {
   exerciseId String
   createdAt  DateTime @default(now())
 
-  user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercise   exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  user     user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
   @@unique([userId, exerciseId])
-  @@map("favorite_exercises")
   @@index([userId])
+  @@map("favorite_exercises")
 }
 
 model leastFavoriteExercise {
@@ -210,84 +212,100 @@ model leastFavoriteExercise {
   exerciseId String
   createdAt  DateTime @default(now())
 
-  user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercise   exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  user     user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
   @@unique([userId, exerciseId])
-  @@map("least_favorite_exercises")
   @@index([userId])
+  @@map("least_favorite_exercises")
 }
 
 // ===== НЕДЕЛЬНЫЙ ПЛАН =====
 model weeklyTrainingPlan {
-  id           String                   @id @default(cuid())
-  userId       String
-  week         Int                      
-  split        TrainingSplit            
-  score        Float                    
-  daysPerWeek  Int
-  restDays     Int[]                    
-  message      String?                  
-  createdAt    DateTime                 @default(now())
-  updatedAt    DateTime                 @updatedAt
+  id          String        @id @default(cuid())
+  userId      String
+  week        Int
+  split       TrainingSplit
+  score       Float
+  daysPerWeek Int
+  restDays    Int[]
+  message     String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
-  user         user                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercises    weeklyTrainingExercise[] 
+  user      user                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises weeklyTrainingExercise[]
 
   @@unique([userId, week])
-  @@map("weekly_training_plans")
   @@index([userId])
+  @@map("weekly_training_plans")
 }
 
 // УПРАЖНЕНИЯ ПЛАНА
 model weeklyTrainingExercise {
-  id          String        @id @default(cuid())
-  planId      String
-  exerciseId  String
-  dayOfWeek   Int           
-  sets        Int           
-  repsRange   Json          
-  orderInDay  Int           
+  id         String @id @default(cuid())
+  planId     String
+  exerciseId String
+  dayOfWeek  Int
+  sets       Int
+  repsRange  Json
+  orderInDay Int
 
-  plan        weeklyTrainingPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
-  exercise    exercise               @relation(fields: [exerciseId], references: [id])
+  plan     weeklyTrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  exercise exercise           @relation(fields: [exerciseId], references: [id])
 
   @@unique([planId, dayOfWeek, orderInDay])
-  @@map("weekly_training_exercises")
   @@index([planId, dayOfWeek])
+  @@map("weekly_training_exercises")
 }
 
 // ===== ЕЖЕДНЕВНЫЕ ВЫПОЛНЕНИЯ =====
 model trainingDayExecution {
-  id             String                     @id @default(cuid())
+  id             String    @id @default(cuid())
   userId         String
-  week           Int                        
-  dayOfWeek      Int                        
-  executionDate  DateTime                   
-  wellbeingToday Wellbeing                  
-  notes          String?                   
-  createdAt      DateTime                  @default(now())
+  week           Int
+  dayOfWeek      Int
+  executionDate  DateTime
+  wellbeingToday Wellbeing
+  notes          String?
+  createdAt      DateTime  @default(now())
 
-  user           user                       @relation(fields: [userId], references: [id])
-  exercises      trainingExerciseExecution[]
+  user      user                        @relation(fields: [userId], references: [id])
+  exercises trainingExerciseExecution[]
 
   @@unique([userId, week, dayOfWeek, executionDate])
-  @@map("training_day_executions")
   @@index([userId, executionDate])
   @@index([week, dayOfWeek])
+  @@map("training_day_executions")
 }
 
 model trainingExerciseExecution {
-  id               String   @id @default(cuid())
-  executionId      String
-  exerciseId       String
-  sets             Int      
-  repsRange        Json     
-  orderInDay       Int
+  id          String @id @default(cuid())
+  executionId String
+  exerciseId  String
+  sets        Int
+  reps        Int // сумма повторов по всем сетам
+  orderInDay  Int
 
-  execution        trainingDayExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
-  exercise         exercise             @relation(fields: [exerciseId], references: [id])
+  execution trainingDayExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  exercise  exercise             @relation(fields: [exerciseId], references: [id])
 
-  @@map("training_exercise_executions")
   @@index([executionId, orderInDay])
+  @@map("training_exercise_executions")
+}
+
+// ===== ДАННЫЕ О ПЛАНАХ ПОЛЬЗОВАТЕЛЯ =====
+
+model userState {
+  id          String @id @default(cuid())
+  userId      String @unique
+  currentWeek Int    @default(1) // Какую неделю показывает интерфейс пользователю
+
+  user user @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("user_states")
 }

@@ -9,6 +9,7 @@ import {
   PrismaUserRepository,
   PrismaUserProfileRepository,
   PrismaWeeklyTrainingExerciseRepository,
+  PrismaUserStateRepository,
 } from "../../data/repositories";
 import {
   ExerciseRepositoryImpl,
@@ -20,6 +21,7 @@ import {
   UserRepositoryImpl,
   UserProfileRepositoryImpl,
   WeeklyTrainingExerciseRepositoryImpl,
+  UserStateRepositoryImpl,
 } from "../../data/repositories";
 import {
   IExerciseRepository,
@@ -31,6 +33,7 @@ import {
   IUserRepository,
   IUserProfileRepository,
   IWeeklyTrainingExerciseRepository,
+  IUserStateRepository,
 } from "../../domain/repositories";
 import {
   ExerciseService,
@@ -42,6 +45,7 @@ import {
   UserService,
   UserProfileService,
   WeeklyTrainingExerciseService,
+  UserStateService,
 } from "../../domain/services";
 import {
   ExerciseSelectorService,
@@ -70,6 +74,7 @@ export enum ServiceKeys {
   WEEKLY_EXERCISE_REPO = "weeklyExerciseRepo",
   TRAINING_DAY_EXECUTION_REPO = "trainingDayExecutionRepo",
   TRAINING_EXERCISE_EXECUTION_REPO = "trainingExerciseExecutionRepo",
+  USER_STATE_REPO = "userStateRepo",
 
   USER_SERVICE = "userService",
   PROFILE_SERVICE = "profileService",
@@ -77,6 +82,7 @@ export enum ServiceKeys {
   PLAN_SERVICE = "planService",
   FAVORITE_SERVICE = "favoriteService",
   LEAST_FAVORITE_SERVICE = "leastFavoriteService",
+  USER_STATE_SERVICE = "userStateService",
 
   WEEKLY_EXERCISE_SERVICE = "weeklyExerciseService",
   TRAINING_DAY_EXECUTION_SERVICE = "trainingDayExecutionService",
@@ -104,6 +110,7 @@ interface ServiceRegistry {
   [ServiceKeys.PLAN_REPO]: IPlanRepository;
   [ServiceKeys.FAVORITE_REPO]: IFavoriteExerciseRepository;
   [ServiceKeys.LEAST_FAVORITE_REPO]: ILeastFavoriteExerciseRepository;
+  [ServiceKeys.USER_STATE_REPO]: IUserStateRepository;
 
   [ServiceKeys.WEEKLY_EXERCISE_REPO]: IWeeklyTrainingExerciseRepository;
   [ServiceKeys.TRAINING_DAY_EXECUTION_REPO]: ITrainingDayExecutionRepository;
@@ -116,6 +123,7 @@ interface ServiceRegistry {
   [ServiceKeys.PLAN_SERVICE]: PlanService;
   [ServiceKeys.FAVORITE_SERVICE]: FavoriteExerciseService;
   [ServiceKeys.LEAST_FAVORITE_SERVICE]: LeastFavoriteExerciseService;
+  [ServiceKeys.USER_STATE_SERVICE]: UserStateService;
 
   [ServiceKeys.WEEKLY_EXERCISE_SERVICE]: WeeklyTrainingExerciseService;
   [ServiceKeys.TRAINING_DAY_EXECUTION_SERVICE]: TrainingDayExecutionService;
@@ -160,6 +168,7 @@ class Container {
     const prismaPlanRepo = new PrismaPlanRepository();
     const prismaFavoriteRepo = new PrismaFavoriteExerciseRepository();
     const prismaLeastFavoriteRepo = new PrismaLeastFavoriteExerciseRepository();
+    const prismaUserStateRepo = new PrismaUserStateRepository();
 
     const prismaWeeklyExerciseRepo =
       new PrismaWeeklyTrainingExerciseRepository();
@@ -176,6 +185,7 @@ class Container {
     const favoriteRepoImpl = new FavoriteExerciseRepositoryImpl(
       prismaFavoriteRepo,
     );
+    const userStateRepoImpl = new UserStateRepositoryImpl(prismaUserStateRepo);
     const leastFavoriteRepoImpl = new LeastFavoriteExerciseRepositoryImpl(
       prismaLeastFavoriteRepo,
     );
@@ -200,6 +210,7 @@ class Container {
     this.services[ServiceKeys.PLAN_REPO] = planRepoImpl;
     this.services[ServiceKeys.FAVORITE_REPO] = favoriteRepoImpl;
     this.services[ServiceKeys.LEAST_FAVORITE_REPO] = leastFavoriteRepoImpl;
+    this.services[ServiceKeys.USER_STATE_REPO] = userStateRepoImpl;
 
     this.services[ServiceKeys.WEEKLY_EXERCISE_REPO] = weeklyExerciseRepoImpl;
     this.services[ServiceKeys.TRAINING_DAY_EXECUTION_REPO] =
@@ -232,6 +243,10 @@ class Container {
       new LeastFavoriteExerciseService(
         this.get(ServiceKeys.LEAST_FAVORITE_REPO),
       );
+
+    this.services[ServiceKeys.USER_STATE_SERVICE] = new UserStateService(
+      this.get(ServiceKeys.USER_STATE_REPO),
+    );
 
     this.services[ServiceKeys.EXERCISE_PREFERENCE_SERVICE] =
       new ExercisePreferenceService(
@@ -277,6 +292,7 @@ class Container {
     this.services[ServiceKeys.TRAINING_PLAN_GENERATION_SERVICE] =
       new TrainingPlanGenerationService(
         this.get(ServiceKeys.PLAN_SERVICE),
+        this.get(ServiceKeys.USER_STATE_SERVICE),
         this.get(ServiceKeys.WEEKLY_EXERCISE_SERVICE),
 
         this.get(ServiceKeys.SPLIT_RECOMMENDER),

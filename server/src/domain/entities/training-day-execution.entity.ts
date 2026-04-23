@@ -12,14 +12,10 @@ export type TrainingDayExecutionEntity = {
   createdAt: Date;
 };
 
-export type CreateTrainingDayExecutionEntity = {
-  userId: string;
-  week: number;
-  dayOfWeek: number;
-  executionDate: Date;
-  wellbeingToday: Wellbeing;
-  notes: string | null;
-};
+export type CreateTrainingDayExecutionEntity = Omit<
+  TrainingDayExecutionEntity,
+  "id" | "createdAt"
+>;
 
 export type UpdateTrainingDayExecutionEntity = Partial<
   Omit<TrainingDayExecutionEntity, "id" | "createdAt">

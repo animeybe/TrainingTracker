@@ -54,7 +54,7 @@ export function DashboardPage() {
   const { profile, loadingProfile, reloadProfile } = useProfile();
   const { leastFavoriteExercises, favoriteExercises, loadingExercises } =
     useExercises();
-  const { weekPlan } = useTrainingPlan(1);
+  const { weekPlan, currentWeek } = useTrainingPlan();
   const navigate = useNavigate();
 
   // ==================== STATE ====================
@@ -181,7 +181,7 @@ export function DashboardPage() {
       macros: nutritionStats.macros,
 
       favorites: `${favoriteExercises?.length} / ${leastFavoriteExercises?.length}`,
-      currentPlan: weekPlan?.split.name,
+      currentPlan: `${weekPlan?.split.name} - Неделя №${currentWeek}`,
     }),
     [
       effectiveProfile.weight,
@@ -193,7 +193,8 @@ export function DashboardPage() {
       nutritionStats.macros,
       favoriteExercises?.length,
       leastFavoriteExercises?.length,
-      weekPlan?.split,
+      weekPlan?.split.name,
+      currentWeek,
     ],
   );
 

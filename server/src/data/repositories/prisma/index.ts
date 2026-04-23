@@ -6,5 +6,6 @@ export * from "./prisma-plan.repository";
 export * from "./prisma-training-day-execution.repository";
 export * from "./prisma-training-exercise-execution.repository";
 export * from "./prisma-user-profile.repository";
+export * from "./prisma-user-state.repository";
 export * from "./prisma-user.repository";
 export * from "./prisma-weekly-training-exercise.repository";

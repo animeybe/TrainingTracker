@@ -44,4 +44,10 @@ export const planApi = {
     apiRequest(`/plan/${userId}/${week}`, {
       method: "GET",
     }),
+
+  getMaxWeek(): Promise<{ maxWeek: number }> {
+    return apiRequest("/plan/max-week", {
+      method: "GET",
+    });
+  },
 };

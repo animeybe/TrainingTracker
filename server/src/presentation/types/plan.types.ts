@@ -73,7 +73,14 @@ export interface TodayPlanResponseDto {
   message: string;
 }
 
-export type PlanResponse = { data: LocalWeekPlan } | { error: string };
+export type PlanResponse =
+  | {
+      data: LocalWeekPlan | null;
+    }
+  | {
+      error: string;
+    };
+
 export type RecommendSplitResponse =
   | { data: RecommendSplitResponseDto }
   | { error: string };

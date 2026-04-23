@@ -39,6 +39,14 @@ export class PlanService {
     return await this.repo.findByUserIdAndWeek(userId, week);
   }
 
+  async getMaxWeekForUser(userId: string): Promise<number> {
+    const plans = await this.repo.findByUserId(userId);
+    if (!plans.length) return 0;
+
+    const weekNumbers = plans.map((p) => p.week);
+    return Math.max(...weekNumbers);
+  }
+
   async findAll(params?: any): Promise<WeeklyPlanEntity[]> {
     return await this.repo.findAll(params);
   }

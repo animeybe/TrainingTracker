@@ -19,7 +19,7 @@ export const getUserIdFromToken = (): string | null => {
 /**
  * Проверяет полноту профиля для генерации плана
  */
-export const checkProfileCompleteness = (
+export const checkProfileInCompleteness = (
   profile: ProfileData | null,
 ): boolean => {
   if (!profile) return true;

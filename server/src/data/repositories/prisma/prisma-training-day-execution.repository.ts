@@ -5,6 +5,7 @@ import type {
   TrainingDayExecutionDto,
   CreateTrainingDayExecutionDto,
 } from "../../dtos/training-day-execution.prisma-dto";
+import { Wellbeing } from "../../../common/types/enums.types";
 
 export class PrismaTrainingDayExecutionRepository {
   async create(
@@ -38,17 +39,36 @@ export class PrismaTrainingDayExecutionRepository {
     dayOfWeek: number,
     executionDate: Date,
   ): Promise<TrainingDayExecutionDto | null> {
-    const result = await prisma.trainingDayExecution.findUnique({
+    const startOfDay = new Date(executionDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setDate(endOfDay.getDate() + 1);
+
+    const result = await prisma.trainingDayExecution.findFirst({
       where: {
-        userId_week_dayOfWeek_executionDate: {
-          userId,
-          week,
-          dayOfWeek,
-          executionDate,
+        userId,
+        week,
+        dayOfWeek,
+        executionDate: {
+          gte: startOfDay,
+          lt: endOfDay,
         },
       },
     });
-    return result;
+
+    if (!result) return null;
+
+    return {
+      id: result.id,
+      userId: result.userId,
+      week: result.week,
+      dayOfWeek: result.dayOfWeek,
+      executionDate: new Date(result.executionDate),
+      wellbeingToday: result.wellbeingToday as Wellbeing,
+      notes: result.notes,
+      createdAt: new Date(result.createdAt),
+    };
   }
 
   async findAll(): Promise<TrainingDayExecutionDto[]> {

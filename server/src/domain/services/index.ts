@@ -8,5 +8,6 @@ export * from "./user-profile.service";
 export * from "./training-day-execution.service";
 export * from "./training-exercise-execution.service";
 export * from "./training-plan-generation.service";
+export * from "./user-state.service";
 export * from "./user.service";
 export * from "./weekly-training-exercise.service";

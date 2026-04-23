@@ -1,9 +1,9 @@
 // domain/repositories/i-training-day-execution.repository.ts
-import type { TrainingDayExecutionEntity } from "../entities/training-day-execution.entity";
+import type { CreateTrainingDayExecutionEntity, TrainingDayExecutionEntity } from "../entities/training-day-execution.entity";
 
 export interface ITrainingDayExecutionRepository {
   create(
-    entity: TrainingDayExecutionEntity,
+    entity: CreateTrainingDayExecutionEntity,
   ): Promise<TrainingDayExecutionEntity>;
   update(
     id: string,

@@ -22,9 +22,6 @@ export class ProfileController {
     req: AuthRequest,
     res: Response<ProfileResponse>,
   ): Promise<void> {
-    logger.info("👤 ProfileController.getProfile()", {
-      userId: req.userId?.slice(0, 8),
-    });
 
     try {
       const userId = UserId.create(req.userId!);
@@ -63,14 +60,6 @@ export class ProfileController {
         createdAt: profile.createdAt.toISOString(),
         updatedAt: profile.updatedAt.toISOString(),
       };
-
-      logger.info("✅ ProfileController getProfile success", {
-        weight: profile.weight,
-        height: profile.height,
-        age: profile.age,
-        lifestyle: profile.lifestyle,
-        goal: profile.goal,
-      });
 
       res.json({ data: response });
     } catch (error: unknown) {

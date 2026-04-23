@@ -14,14 +14,19 @@ export class TrainingDayExecutionService {
 
   async createDay(
     entity: CreateTrainingDayExecutionEntity,
-  ): Promise<TrainingDayExecutionEntity | null> {
-    const training: TrainingDayExecutionEntity = {
-      id: "", // Prisma сам назначит
-      ...entity,
-      createdAt: new Date(),
-    };
+  ): Promise<TrainingDayExecutionEntity> {
+    const exists = await this.repo.findByWeekDayAndUser(
+      entity.userId,
+      entity.week,
+      entity.dayOfWeek,
+      new Date(entity.executionDate),
+    );
 
-    return await this.repo.create(training);
+    if (exists) {
+      throw new Error("Дневное выполнение тренировки уже существует");
+    }
+
+    return await this.repo.create(entity);
   }
 
   async updateDay(
