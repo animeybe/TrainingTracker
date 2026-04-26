@@ -1,5 +1,4 @@
 // routes/plan.routes.ts
-
 import { Router } from "express";
 import { PlanController } from "../controllers/plan.controller";
 import { authenticateToken } from "../middleware/auth.middleware";
@@ -7,42 +6,28 @@ import { authenticateToken } from "../middleware/auth.middleware";
 const router = Router();
 const controller = new PlanController();
 
-// 1. Рекомендация сплита
-router.post(
-  "/recommend",
-  authenticateToken,
-  controller.recommendSplit.bind(controller),
+router.post("/recommend", authenticateToken, (req, res) =>
+  controller.recommendSplit(req as any, res),
 );
 
-// 2. Генерация полного плана на неделю
-router.post(
-  "/generate",
-  authenticateToken,
-  controller.generatePlan.bind(controller),
+router.post("/generate", authenticateToken, (req, res) =>
+  controller.generatePlan(req as any, res),
 );
 
-// 3. План на сегодня (с учётом wellbeing)
-router.post(
-  "/today",
-  authenticateToken,
-  controller.getTodayAdjusted.bind(controller),
+router.post("/today", authenticateToken, (req, res) =>
+  controller.getTodayAdjusted(req as any, res),
 );
 
-// 4. Список планов пользователя
-router.post(
-  "/user-plans",
-  authenticateToken,
-  controller.getUserPlans.bind(controller),
+router.post("/user-plans", authenticateToken, (req, res) =>
+  controller.getUserPlans(req as any, res),
 );
 
-// 5. Получить план на конкретную неделю
-router.get(
-  "/:userId/:week",
-  authenticateToken,
-  controller.getPlan.bind(controller),
+router.get("/:userId/:week", authenticateToken, (req, res) =>
+  controller.getPlan(req as any, res),
 );
 
-// 6. Получить номер недели у последнего сгенерированного плана пользователя (сможем узнать количество планов)
-router.get("/max-week", authenticateToken, PlanController.getMaxWeekForUser);
+router.get("/max-week", authenticateToken, (req, res) =>
+  controller.getMaxWeekForUser(req as any, res),
+);
 
 export default router;

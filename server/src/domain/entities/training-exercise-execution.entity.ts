@@ -1,22 +1,21 @@
 // domain/entities/training-exercise-execution.entity.ts
+import type { Prisma } from "@prisma/client";
 
 export type TrainingExerciseExecutionEntity = {
   id: string;
   executionId: string;
   exerciseId: string;
-  sets: number;
-  reps: number;
+  setsData: Prisma.JsonValue;
   orderInDay: number;
 };
 
 export type CreateTrainingExerciseExecutionEntity = {
   executionId: string;
   exerciseId: string;
-  sets: number;
-  reps: number;
+  setsData: Prisma.JsonValue;
   orderInDay: number;
 };
 
 export type UpdateTrainingExerciseExecutionEntity = Partial<
-  Omit<TrainingExerciseExecutionEntity, "id">
+  Omit<TrainingExerciseExecutionEntity, "id" | "executionId" | "exerciseId">
 >;

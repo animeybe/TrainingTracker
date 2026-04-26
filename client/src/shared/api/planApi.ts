@@ -1,53 +1,43 @@
-// api/planApi.ts - ПОЛНЫЙ ФАЙЛ
+// api/planApi.ts
 import { apiRequest } from "./index";
 import type {
   RecommendSplitResponse,
   GeneratePlanRequest,
   WeekPlanResponse,
   TodayPlanResponse,
-  GetUserPlansRequest,
   GetUserPlansResponse,
 } from "./types";
 
 export const planApi = {
-  recommendSplit: (data: {
-    goal: "GAIN_MUSCLE" | "LOSE_FAT";
-    experience: "NEWBIE" | "INTERMEDIATE" | "ADVANCED";
-    daysPerWeek?: number;
-  }): Promise<RecommendSplitResponse> =>
-    apiRequest("/plan/recommend", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+  // POST /api/plan/recommend — без параметров, профиль из токена
+  recommendSplit: (): Promise<{ data: RecommendSplitResponse }> =>
+    apiRequest("/plan/recommend", { method: "POST" }),
 
-  generatePlan: (data: GeneratePlanRequest): Promise<WeekPlanResponse> =>
+  // POST /api/plan/generate
+  generatePlan: (data?: GeneratePlanRequest): Promise<WeekPlanResponse> =>
     apiRequest("/plan/generate", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify(data || {}),
     }),
 
-  getTodayAdjusted: (
-    wellbeing: "BAD" | "NORMAL" | "GOOD",
+  // POST /api/plan/today
+  getTodayPlan: (
+    wellbeing?: "BAD" | "NORMAL" | "GOOD",
   ): Promise<TodayPlanResponse> =>
     apiRequest("/plan/today", {
       method: "POST",
-      body: JSON.stringify({ wellbeing }),
+      body: JSON.stringify({ wellbeing: wellbeing || "NORMAL" }),
     }),
 
-  getUserPlans: (data: GetUserPlansRequest): Promise<GetUserPlansResponse> =>
-    apiRequest("/plan/user-plans", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+  // GET /api/plan/max-week
+  getMaxWeek: (): Promise<{ maxWeek: number; currentWeek: number }> =>
+    apiRequest("/plan/max-week"),
 
+  // GET /api/plan/:userId/:week
   getPlan: (userId: string, week: number): Promise<WeekPlanResponse> =>
-    apiRequest(`/plan/${userId}/${week}`, {
-      method: "GET",
-    }),
+    apiRequest(`/plan/${userId}/${week}`),
 
-  getMaxWeek(): Promise<{ maxWeek: number }> {
-    return apiRequest("/plan/max-week", {
-      method: "GET",
-    });
-  },
+  // POST /api/plan/user-plans — без параметров
+  getUserPlans: (): Promise<GetUserPlansResponse> =>
+    apiRequest("/plan/user-plans", { method: "POST" }),
 };

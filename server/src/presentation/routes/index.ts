@@ -1,5 +1,4 @@
 // routes/index.ts
-
 import { Router } from "express";
 
 import authRoutes from "./auth.routes";
@@ -10,6 +9,7 @@ import leastFavoriteRoutes from "./least-favorite.routes";
 import planRoutes from "./plan.routes";
 import trainingExecutionsRoutes from "./training-executions.routes";
 import userStateRoutes from "./user-state.routes";
+import pushRoutes from "./push.routes";
 
 const apiRouter = Router();
 
@@ -21,5 +21,6 @@ apiRouter.use("/least-favorites", leastFavoriteRoutes);
 apiRouter.use("/plan", planRoutes);
 apiRouter.use("/training-executions", trainingExecutionsRoutes);
 apiRouter.use("/user-state", userStateRoutes);
+apiRouter.use("/push", pushRoutes);
 
 export default apiRouter;

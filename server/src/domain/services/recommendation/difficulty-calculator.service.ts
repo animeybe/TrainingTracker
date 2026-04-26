@@ -1,4 +1,9 @@
-import { Difficulty, Goal, Lifestyle } from "../../../common/types/enums.types";
+import {
+  Difficulty,
+  Gender,
+  Goal,
+  Lifestyle,
+} from "../../../common/types/enums.types";
 
 export class DifficultyCalculatorService {
   calculateOverallDifficulty(
@@ -6,6 +11,7 @@ export class DifficultyCalculatorService {
     age: number,
     goal: Goal,
     lifestyle: Lifestyle,
+    gender: Gender,
   ): Difficulty {
     let score = 0;
 
@@ -20,7 +26,10 @@ export class DifficultyCalculatorService {
     // Goal
     if (goal === "LOSE_FAT") score += 10;
 
-    // Lifestyle (из твоего config)
+    // Gender — женщины начинают легче
+    if (gender === "Female") score -= 5;
+
+    // Lifestyle
     const recoveryPenalty =
       {
         IMMOBILE: 20,
@@ -29,9 +38,6 @@ export class DifficultyCalculatorService {
         HARD: -10,
       }[lifestyle] || 0;
     score += recoveryPenalty;
-
-    // Дефолтный опыт = INTERMEDIATE
-    score += 0; // NEWBIE: -10, ADVANCED: +15 — просто убираем
 
     return score <= -15 ? "EASY" : score >= 20 ? "HARD" : "MEDIUM";
   }

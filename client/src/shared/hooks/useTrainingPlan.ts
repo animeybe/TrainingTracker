@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+// hooks/useTrainingPlan.ts
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { planApi, exerciseApi, userStateApi } from "@/shared/api";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { logger } from "@/lib/utils/logger";
@@ -11,49 +12,42 @@ import {
 import type {
   Exercise,
   TodayPlanResponse,
-  WeekPlanResponse,
+  WeekPlan,
   Wellbeing,
 } from "../api/types";
 
 interface UseTrainingPlanReturn {
-  weekPlan: WeekPlanResponse | null;
+  weekPlan: WeekPlan | null;
   todayPlan: TodayPlanResponse | null;
   exercises: Exercise[];
   today: { dayIndex: number; dayOfWeek: string };
-
   currentWeek: number | null;
   wellbeing: Wellbeing;
-
   loadingPlan: boolean;
   loadingTodayPlan: boolean;
   isProfileIncomplete: boolean;
-
   generatePlan: (params?: { forcingNewWeek?: boolean }) => Promise<void>;
   loadTodayPlan: (wellbeing: Wellbeing) => Promise<void>;
   setWellbeing: (wellbeing: Wellbeing) => void;
   selectDay: (dayIndex: number) => void;
-
   showWellbeingModal: boolean;
   showWellbeingWarning: boolean;
   wellbeingWarningAction: Wellbeing | null;
-
   handleWellbeingChange: (wellbeing: Wellbeing) => void;
   confirmWellbeingChange: () => void;
   openWellbeingModal: () => void;
-
   maxWeek: number | null;
-
-  // без isMonday
   isNextWeekPlanStale: boolean;
+  dismissWellbeingWarning: () => void;
 }
 
 export const useTrainingPlan = (): UseTrainingPlanReturn => {
   const userId = getUserIdFromToken();
   const { profile } = useProfile();
 
-  const [weekPlan, setWeekPlan] = useState<WeekPlanResponse | null>(null);
+  const [weekPlan, setWeekPlan] = useState<WeekPlan | null>(null);
   const [todayPlan, setTodayPlan] = useState<TodayPlanResponse | null>(null);
-  const [currentWeek, _setCurrentWeek] = useState<number | null>(null);
+  const [currentWeek, setCurrentWeek] = useState<number | null>(null);
   const [maxWeek, setMaxWeek] = useState<number | null>(null);
 
   const [loadingPlan, setLoadingPlan] = useState(false);
@@ -69,7 +63,7 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
 
   const [exercises, setExercises] = useState<Exercise[]>([]);
 
-  // ==================== COMPUTED ====================
+  const initialLoadDone = useRef(false);
 
   const today = useMemo(() => {
     const date = new Date();
@@ -89,25 +83,30 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
     };
   }, []);
 
-  // ==================== API ====================
+  const todayString = useMemo(() => getTodayString(), []);
 
-  const loadExercises = useCallback(async () => {
-    if (exercises.length > 0) return;
-    try {
-      const response = await exerciseApi.getAllExercises();
-      setExercises(Array.isArray(response) ? response : (response?.data ?? []));
-    } catch (error: unknown) {
-      logger.error("loadExercises failed", error as Error);
-    }
-  }, [exercises.length]);
+  const getStoredWellbeingToday = useCallback((): Wellbeing | null => {
+    const stored = JSON.parse(localStorage.getItem("wellbeingHistory") || "{}");
+    return stored[todayString] ?? null;
+  }, [todayString]);
+
+  const setStoredWellbeingToday = useCallback(
+    (w: Wellbeing) => {
+      const stored = JSON.parse(
+        localStorage.getItem("wellbeingHistory") || "{}",
+      );
+      stored[todayString] = w;
+      localStorage.setItem("wellbeingHistory", JSON.stringify(stored));
+    },
+    [todayString],
+  );
 
   const loadTodayPlan = useCallback(
     async (currentWellbeing: Wellbeing) => {
       if (!checkProfileInCompleteness(profile)) return;
-
       setLoadingTodayPlan(true);
       try {
-        const response = await planApi.getTodayAdjusted(currentWellbeing);
+        const response = await planApi.getTodayPlan(currentWellbeing);
         setTodayPlan(response);
       } catch (error: unknown) {
         if (error instanceof Error && error.message?.includes("400")) {
@@ -122,56 +121,83 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
     [profile],
   );
 
-  const loadMaxWeek = useCallback(async () => {
-    if (!userId) return;
+  // ── Главная загрузка (ВСЕ запросы последовательно) ──
+  useEffect(() => {
+    if (!userId || initialLoadDone.current) return;
+    initialLoadDone.current = true;
 
-    try {
-      const { maxWeek } = await planApi.getMaxWeek();
-      setMaxWeek(maxWeek);
-    } catch (error) {
-      logger.error("useTrainingPlan: failed to fetch maxWeek", error as Error);
-      setMaxWeek(0);
-    }
-  }, [userId]);
+    (async () => {
+      setLoadingPlan(true);
+      try {
+        // 1. Упражнения
+        const exResponse = await exerciseApi.getAllExercises();
+        setExercises(
+          Array.isArray(exResponse) ? exResponse : (exResponse?.data ?? []),
+        );
 
-  const loadUserState = useCallback(async () => {
-    if (!userId) return;
+        // 2. userState
+        let week = 1;
+        try {
+          const userState = await userStateApi.getCurrentWeek();
+          week = userState?.currentWeek ?? 1;
+          setCurrentWeek(week);
+        } catch {
+          setCurrentWeek(1);
+        }
 
-    try {
-      const userState = await userStateApi.getCurrentWeek();
-      _setCurrentWeek(userState.currentWeek);
-    } catch (error) {
-      logger.error(
-        "useTrainingPlan: failed to fetch userState",
-        error as Error,
-      );
-      _setCurrentWeek(1);
-    }
-  }, [userId]);
+        // 3. maxWeek
+        try {
+          const maxData = await planApi.getMaxWeek();
+          setMaxWeek(maxData.maxWeek);
+        } catch {
+          setMaxWeek(week);
+        }
 
-  // ==================== WELLBEING ====================
+        // 4. План
+        try {
+          const plan = (await planApi.getPlan(
+            userId,
+            week,
+          )) as unknown as WeekPlan | null;
+          console.log(
+            "✅ План загружен:",
+            plan
+              ? `week=${plan.week}, days=${plan.trainingDays?.length}`
+              : "НЕТ",
+          );
+          setWeekPlan(plan);
 
-  const setStoredWellbeingToday = useCallback((w: Wellbeing) => {
-    const today = getTodayString();
-    const stored = JSON.parse(localStorage.getItem("wellbeingHistory") || "{}");
-    stored[today] = w;
-    localStorage.setItem("wellbeingHistory", JSON.stringify(stored));
-  }, []);
+          if (plan?.trainingDays?.length) {
+            const todayDayPlan = plan.trainingDays.find(
+              (d) => d.dayOfWeek === today.dayIndex,
+            );
+            if (todayDayPlan) {
+              setTodayPlan({
+                data: {
+                  today: todayDayPlan,
+                  wellbeingAdjusted: false,
+                  message: `Сегодня: ${getDayTypeRu(todayDayPlan.dayType)}`,
+                },
+              });
+            }
+          }
+        } catch {
+          setWeekPlan(null);
+        }
 
-  const getStoredWellbeingToday = useCallback((): Wellbeing | null => {
-    const stored = JSON.parse(localStorage.getItem("wellbeingHistory") || "{}");
-    return stored[getTodayString()] ?? null;
-  }, []);
+        // 5. Wellbeing
+        const stored = getStoredWellbeingToday();
+        if (stored) setWellbeing(stored);
+        else setShowWellbeingModal(true);
 
-  const handleWellbeingChange = useCallback((w: Wellbeing) => {
-    if (w === "BAD" || w === "GOOD") {
-      setWellbeingWarningAction(w);
-      setShowWellbeingWarning(true);
-    } else {
-      handleWellbeingSubmit(w);
-    }
-  }, []);
+        setIsProfileIncomplete(!checkProfileInCompleteness(profile));
+      } finally {
+        setLoadingPlan(false);
+      }
+    })();
+  }, [userId]); // eslint-disable-line
 
+  // ── Wellbeing ────────────────────────────────────────
   const handleWellbeingSubmit = useCallback(
     async (newWellbeing: Wellbeing) => {
       setShowWellbeingModal(false);
@@ -184,6 +210,23 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
     [loadTodayPlan, setStoredWellbeingToday],
   );
 
+  const handleWellbeingChange = useCallback(
+    (w: Wellbeing) => {
+      if (w === "BAD" || w === "GOOD") {
+        setWellbeingWarningAction(w);
+        setShowWellbeingWarning(true);
+      } else {
+        handleWellbeingSubmit(w);
+      }
+    },
+    [handleWellbeingSubmit],
+  );
+
+  const dismissWellbeingWarning = useCallback(() => {
+    setShowWellbeingWarning(false);
+    setWellbeingWarningAction(null);
+  }, []);
+
   const confirmWellbeingChange = useCallback(() => {
     if (wellbeingWarningAction) handleWellbeingSubmit(wellbeingWarningAction);
   }, [wellbeingWarningAction, handleWellbeingSubmit]);
@@ -192,116 +235,39 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
     (dayIndex: number) => {
       if (!weekPlan?.trainingDays) return;
       const dayPlan = weekPlan.trainingDays.find(
-        (day) => day.dayOfWeek === dayIndex,
+        (d) => d.dayOfWeek === dayIndex,
       );
       setTodayPlan({
-        today: dayPlan || {
-          dayIndex,
-          dayOfWeek: dayIndex,
-          dayType: "rest",
-          exercises: [],
-          coverage: 0,
-          estimatedDuration: 0,
-          warnings: [],
+        data: {
+          today: dayPlan ?? null,
+          wellbeingAdjusted: false,
+          message: dayPlan
+            ? `День ${dayIndex + 1}: ${getDayTypeRu(dayPlan.dayType)}`
+            : "День отдыха",
         },
-        wellbeingAdjusted: false,
-        message: dayPlan ? `День ${dayIndex + 1}` : "Отдых",
       });
     },
     [weekPlan],
   );
 
-  // ==================== LOADING USER STATE & PLAN ====================
-
-  const loadInitialData = useCallback(async () => {
-    if (!userId) return;
-
-    await Promise.allSettled([loadExercises(), loadMaxWeek()]);
-
-    try {
-      const userState = await userStateApi.getCurrentWeek();
-      _setCurrentWeek(userState.currentWeek ?? 1);
-    } catch (error) {
-      logger.error(
-        "useTrainingPlan: failed to fetch userState.week",
-        error as Error,
-      );
-      _setCurrentWeek(1);
-    }
-
-    if (currentWeek) {
-      try {
-        const plan = await planApi.getPlan(
-          userId,
-          Math.min(currentWeek, maxWeek ?? 1),
-        );
-        setWeekPlan(plan);
-
-        const todayDayPlan = plan.trainingDays?.find(
-          (day) => day.dayOfWeek === today.dayIndex,
-        );
-        if (todayDayPlan) {
-          setTodayPlan({
-            today: todayDayPlan,
-            wellbeingAdjusted: false,
-            message: `Сегодня: ${getDayTypeRu(todayDayPlan.dayType)}`,
-          });
-        }
-      } catch (error) {
-        logger.error("loadPlan failed", error as Error);
-        setWeekPlan(null);
-      }
-    }
-
-    const todayWellbeing = getStoredWellbeingToday();
-    if (todayWellbeing) {
-      setWellbeing(todayWellbeing);
-    } else {
-      setShowWellbeingModal(true);
-    }
-
-    setIsProfileIncomplete(!checkProfileInCompleteness(profile));
-  }, [
-    userId,
-    currentWeek,
-    maxWeek,
-    today.dayIndex,
-    loadExercises,
-    profile,
-    getStoredWellbeingToday,
-    loadMaxWeek,
-  ]);
-
-  // ==================== LOGIKA: > 7 дней от generatedAt ====================
-
-  // у тебя есть только generatedAt, нет createdAt
+  // ── Проверка устаревания ────────────────────────────
   const lastPlanDate = useMemo(() => {
     if (!weekPlan?.generatedAt) return null;
     const date = new Date(weekPlan.generatedAt);
-    if (isNaN(date.getTime())) return null;
-    return date;
+    return isNaN(date.getTime()) ? null : date;
   }, [weekPlan]);
-
-  const now = useMemo(() => new Date(), []);
 
   const daysDiff = useMemo(() => {
     if (!lastPlanDate) return 0;
-    const diffMs = now.getTime() - lastPlanDate.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    return diffDays;
-  }, [lastPlanDate, now]);
+    return Math.floor((Date.now() - lastPlanDate.getTime()) / 86400000);
+  }, [lastPlanDate]);
 
-  // План устарел, если прошло более 7 дней от generatedAt
-  const isNextWeekPlanStale = useMemo(() => {
-    return daysDiff > 7;
-  }, [daysDiff]);
+  const isNextWeekPlanStale = useMemo(() => daysDiff > 7, [daysDiff]);
 
-  // ==================== GENERATE PLAN ====================
-
+  // ── Генерация плана ─────────────────────────────────
   const generatePlan = useCallback(
     async (params?: { forcingNewWeek?: boolean }) => {
       const forcingNewWeek = params?.forcingNewWeek ?? false;
-
       if (
         !userId ||
         !checkProfileInCompleteness(profile) ||
@@ -311,25 +277,37 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
         return;
 
       setLoadingPlan(true);
-
-      const weekToGenerate = forcingNewWeek ? currentWeek + 1 : currentWeek;
-
       try {
         const response = await planApi.generatePlan({
-          split: { name: "PPL" as const, days: [] },
           wellbeing,
-          week: weekToGenerate,
+          week: forcingNewWeek ? currentWeek + 1 : currentWeek,
         });
-        setWeekPlan(response);
-        await loadTodayPlan(wellbeing);
+
+        // apiRequest уже вернул data.data, поэтому response — это WeekPlan
+        const plan = response as unknown as WeekPlan;
+
+        setWeekPlan(plan);
+        setCurrentWeek(plan.week);
+        setMaxWeek((prev) => Math.max(prev ?? 0, plan.week));
+
+        // Установи todayPlan из нового плана
+        if (plan?.trainingDays?.length) {
+          const todayDayPlan = plan.trainingDays.find(
+            (d) => d.dayOfWeek === today.dayIndex,
+          );
+          if (todayDayPlan) {
+            setTodayPlan({
+              data: {
+                today: todayDayPlan,
+                wellbeingAdjusted: false,
+                message: `Сегодня: ${getDayTypeRu(todayDayPlan.dayType)}`,
+              },
+            });
+          }
+        }
 
         if (forcingNewWeek) {
-          await userStateApi.updateCurrentWeek(response.week);
-          _setCurrentWeek(response.week);
-
-          if (maxWeek == null || maxWeek < response.week) {
-            setMaxWeek(response.week);
-          }
+          await userStateApi.updateCurrentWeek(plan.week);
         }
       } catch (error: unknown) {
         logger.error("generatePlan failed", error as Error);
@@ -337,41 +315,14 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
         setLoadingPlan(false);
       }
     },
-    [
-      userId,
-      profile,
-      loadingPlan,
-      currentWeek,
-      wellbeing,
-      loadTodayPlan,
-      maxWeek,
-    ],
+    [userId, profile, loadingPlan, currentWeek, wellbeing, today.dayIndex],
   );
 
-  // ==================== WELLBEING MODAL HELPERS ====================
-
-  const openWellbeingModal = useCallback(() => {
-    setShowWellbeingModal(true);
-    console.log("weekPlan", weekPlan);
-    console.log("weekPlan.generatedAt", weekPlan?.generatedAt);
-    console.log("daysDiff", daysDiff);
-    console.log("isNextWeekPlanStale", isNextWeekPlanStale);
-  }, []);
-
-  // ==================== INITIAL LOAD ====================
-
-  useEffect(() => {
-    loadInitialData();
-  }, [userId, loadInitialData]);
+  const openWellbeingModal = useCallback(() => setShowWellbeingModal(true), []);
 
   useEffect(() => {
     setIsProfileIncomplete(!checkProfileInCompleteness(profile));
   }, [profile]);
-
-  useEffect(() => {
-    loadMaxWeek();
-    loadUserState();
-  }, [userId, loadMaxWeek, loadUserState]);
 
   return {
     weekPlan,
@@ -395,5 +346,6 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
     openWellbeingModal,
     maxWeek,
     isNextWeekPlanStale,
+    dismissWellbeingWarning,
   };
 };

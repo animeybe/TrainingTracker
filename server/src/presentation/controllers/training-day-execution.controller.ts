@@ -1,16 +1,13 @@
 // presentation/controllers/training-day-execution.controller.ts
-import { Request, Response } from "express";
+import { Response } from "express";
 import { container, ServiceKeys } from "../../infrastructure/di/container";
 import { TrainingDayExecutionService } from "../../domain/services/training-day-execution.service";
 import type {
-  TrainingDayExecutionEntity,
   CreateTrainingDayExecutionEntity,
+  UpdateTrainingDayExecutionEntity,
 } from "../../domain/entities/training-day-execution.entity";
-
-// Расширяем тип Request
-interface AuthRequest extends Request {
-  userId?: string;
-}
+import { AuthRequest } from "../types/auth.types";
+import { logger } from "../../common/utils";
 
 export class TrainingDayExecutionController {
   private service: TrainingDayExecutionService;
@@ -19,91 +16,146 @@ export class TrainingDayExecutionController {
     this.service = container.get(ServiceKeys.TRAINING_DAY_EXECUTION_SERVICE);
   }
 
-  async createDay(req: AuthRequest, res: Response): Promise<void> {
+  // POST /api/training-executions/days
+  async startTraining(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId!; // используем userId из middleware
-      const data: CreateTrainingDayExecutionEntity = {
-        userId,
-        ...req.body,
-      };
+      const userId = req.userId!;
+      const { week, dayOfWeek, wellbeingToday, notes, startTime } = req.body;
 
-      const result = await this.service.createDay(data);
-      if (!result) {
-        res.status(400).json({ error: "Не удалось создать выполнение дня" });
+      if (week == null || dayOfWeek == null) {
+        res.status(400).json({ error: "week и dayOfWeek обязательны" });
         return;
       }
 
+      const data: CreateTrainingDayExecutionEntity = {
+        userId,
+        week,
+        dayOfWeek,
+        startTime: startTime ? new Date(startTime) : new Date(),
+        wellbeingToday: wellbeingToday ?? "NORMAL",
+        notes: notes ?? null,
+      };
+
+      const result = await this.service.startTraining(data);
       res.status(201).json(result);
-    } catch (error) {
-      console.error("Create day execution error:", error);
+    } catch (error: any) {
+      logger.error("Start training error:", error);
       res.status(500).json({ error: "Внутренняя ошибка сервера" });
     }
   }
 
+  // PUT /api/training-executions/days/:id/finish
+  async finishTraining(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const result = await this.service.finishTraining(id);
+
+      if (!result) {
+        res.status(404).json({ error: "Тренировка не найдена" });
+        return;
+      }
+
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Finish training error:", error);
+      res.status(500).json({ error: "Внутренняя ошибка сервера" });
+    }
+  }
+
+  // PUT /api/training-executions/days/:id
   async updateDay(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const data: TrainingDayExecutionEntity = req.body;
+      const data: UpdateTrainingDayExecutionEntity = req.body;
 
-      const result = await this.service.updateDay(id, data);
+      const result = await this.service.update(id, data);
       if (!result) {
-        res.status(404).json({ error: "Выполнение дня не найдено" });
+        res.status(404).json({ error: "Тренировка не найдена" });
         return;
       }
 
       res.json(result);
-    } catch (error) {
-      console.error("Update day execution error:", error);
+    } catch (error: any) {
+      logger.error("Update day execution error:", error);
       res.status(500).json({ error: "Внутренняя ошибка сервера" });
     }
   }
 
-  async getDayByWeekDayDate(req: AuthRequest, res: Response): Promise<void> {
+  // GET /api/training-executions/days/:id
+  async getDayById(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const userId = req.userId!;
-      const week = req.query.week as string;
-      const dayOfWeekParam = req.query.dayOfWeek as string;
-      const executionDate = req.query.executionDate as string;
+      const { id } = req.params;
+      const result = await this.service.findById(id);
 
-      if (!week || !dayOfWeekParam || !executionDate) {
-        res.status(400).json({
-          error: "Missing params: week, dayOfWeek, executionDate",
-        });
+      if (!result) {
+        res.status(404).json({ error: "Тренировка не найдена" });
         return;
       }
 
-      const result = await this.service.findByWeekDayDateAndUser(
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Get day execution error:", error);
+      res.status(500).json({ error: "Внутренняя ошибка сервера" });
+    }
+  }
+
+  // GET /api/training-executions/days?week=1&dayOfWeek=2
+  async getDayByWeekDay(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.userId!;
+      const week = parseInt(req.query.week as string);
+      const dayOfWeek = parseInt(req.query.dayOfWeek as string);
+
+      if (isNaN(week) || isNaN(dayOfWeek)) {
+        res.status(400).json({ error: "week и dayOfWeek обязательны (числа)" });
+        return;
+      }
+
+      const result = await this.service.findByWeekDayAndUser(
         userId,
-        parseInt(week),
-        parseInt(dayOfWeekParam),
-        new Date(executionDate),
+        week,
+        dayOfWeek,
       );
 
       if (!result) {
-        res.status(404).json({ error: "Выполнение дня не найдено" });
+        res.status(404).json({ error: "Тренировка не найдена" });
         return;
       }
 
-      res.status(200).json(result);
-    } catch (error) {
-      console.error("Get day execution error:", error);
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Get day by week/day error:", error);
       res.status(500).json({ error: "Внутренняя ошибка сервера" });
     }
   }
 
+  // GET /api/training-executions/days/week/:week
   async getDaysByUserWeek(req: AuthRequest, res: Response): Promise<void> {
     try {
       const userId = req.userId!;
-      const { week } = req.params;
+      const week = parseInt(req.params.week);
 
-      const result = await this.service.findByUserAndWeek(
-        userId,
-        parseInt(week),
-      );
+      if (isNaN(week)) {
+        res.status(400).json({ error: "week должен быть числом" });
+        return;
+      }
 
+      const result = await this.service.findByUserAndWeek(userId, week);
       res.json(result);
-    } catch (error) {
-      console.error("Get week executions error:", error);
+    } catch (error: any) {
+      logger.error("Get week executions error:", error);
+      res.status(500).json({ error: "Внутренняя ошибка сервера" });
+    }
+  }
+
+  // GET /api/training-executions/days/user
+  async getAllUserDays(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.userId!;
+      const result = await this.service.findByUserId(userId);
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Get all user days error:", error);
       res.status(500).json({ error: "Внутренняя ошибка сервера" });
     }
   }

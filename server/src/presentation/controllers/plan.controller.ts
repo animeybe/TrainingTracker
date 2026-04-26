@@ -1,4 +1,4 @@
-// controllers/plan.controller.ts
+// presentation/controllers/plan.controller.ts
 import { Request, Response } from "express";
 import { container, ServiceKeys } from "../../infrastructure/di/container";
 import { logger } from "../../common/utils";
@@ -8,36 +8,55 @@ import {
   TodayPlanRequestDto,
   PlanResponse,
   RecommendSplitResponse,
-  TodayPlanResponseDto,
+  TodayPlanResponse,
   GetUserPlansResponse,
+  RecommendSplitResponseDto,
+  TodayPlanResponseDto,
+  UserPlanSummaryDto,
 } from "../types/plan.types";
 import { TrainingSplit, Wellbeing } from "../../common/types/enums.types";
 import { AuthRequest } from "../types/auth.types";
 import type {
   ExerciseService,
   FavoriteExerciseService,
+  LeastFavoriteExerciseService,
   TrainingPlanGenerationService,
   UserProfileService,
   PlanService,
   SplitRecommenderService,
   UserStateService,
+  WeeklyTrainingExerciseService,
 } from "../../domain/services";
+import type { PlanGeneratorService } from "../../domain/services/recommendation/plan-generator.service";
+import type { DifficultyCalculatorService } from "../../domain/services/recommendation/difficulty-calculator.service";
 import {
   DayType,
-  ExerciseSet,
   LocalTrainingPlan,
   LocalWeekPlan,
 } from "../../domain/types/training.types";
-import {
-  CreateWeeklyPlanEntity,
-  WeeklyPlanEntity,
-  WeeklyTrainingExerciseService,
-} from "../../domain";
 import { WeeklyTrainingExerciseEntity } from "../../domain/entities/weekly-training-exercise.entity";
+import { ExerciseEntity } from "../../domain/entities/exercise.entity";
 import { calculateBMI } from "../../common/utils/profile-utils";
 import { repsToJsonArray } from "../../common/utils/exercise-utils";
-import { TypedTrainingSplit } from "../../common/types/rec-sys.types.types";
 import { getWeekIndex } from "../../common/utils/getWeekIndex";
+import { UserProfileEntity } from "../../domain/entities/user-profile.entity";
+
+// ═══════════════════════════════════════════════════════
+// КОНСТАНТЫ
+// ═══════════════════════════════════════════════════════
+
+/** Среднее время отдыха между подходами (сек) */
+const REST_TIME_PER_SET_SEC = 90;
+
+/** Среднее время выполнения упражнения (сек) */
+const EXERCISE_TIME_SEC = 120;
+
+/** Секунд в минуте */
+const SECONDS_IN_MINUTE = 60;
+
+// ═══════════════════════════════════════════════════════
+// СЕРВИСЫ
+// ═══════════════════════════════════════════════════════
 
 const trainingPlanGenerationService = container.get(
   ServiceKeys.TRAINING_PLAN_GENERATION_SERVICE,
@@ -51,6 +70,10 @@ const favoriteService = container.get(
   ServiceKeys.FAVORITE_SERVICE,
 ) as FavoriteExerciseService;
 
+const leastFavoriteService = container.get(
+  ServiceKeys.LEAST_FAVORITE_SERVICE,
+) as LeastFavoriteExerciseService;
+
 const exerciseService = container.get(
   ServiceKeys.EXERCISE_SERVICE,
 ) as ExerciseService;
@@ -60,6 +83,7 @@ const userStateService = container.get(
 ) as UserStateService;
 
 const planService = container.get(ServiceKeys.PLAN_SERVICE) as PlanService;
+
 const weeklyExerciseService = container.get(
   ServiceKeys.WEEKLY_EXERCISE_SERVICE,
 ) as WeeklyTrainingExerciseService;
@@ -68,232 +92,269 @@ const splitRecommenderService = container.get(
   ServiceKeys.SPLIT_RECOMMENDER,
 ) as SplitRecommenderService;
 
+const difficultyCalc = container.get(
+  ServiceKeys.DIFFICULTY_CALCULATOR,
+) as DifficultyCalculatorService;
+
+const planGenerator = container.get(
+  ServiceKeys.PLAN_GENERATOR,
+) as PlanGeneratorService;
+
+// ═══════════════════════════════════════════════════════
+// КОНТРОЛЛЕР
+// ═══════════════════════════════════════════════════════
+
 export class PlanController {
+  // ═══════════════════════════════════════════════════
+  // POST /api/plan/recommend
+  // ═══════════════════════════════════════════════════
   async recommendSplit(
     req: AuthRequest & Request<{}, {}, RecommendSplitRequestDto>,
     res: Response<RecommendSplitResponse>,
-  ) {
+  ): Promise<void> {
     try {
-      const userId = req.userId;
-      if (!userId) {
-        return res.status(401).json({ error: "Не авторизован" });
-      }
+      const userId = req.userId!;
 
       const profile = await profileService.findByUserId(userId);
       if (!profile) {
-        return res.status(404).json({ error: "Профиль не найден" });
+        res.status(404).json({ error: "Профиль не найден" });
+        return;
+      }
+
+      const validationError = this.validateProfile(profile);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
       }
 
       const recommendation = splitRecommenderService.recommend(profile);
       if (!recommendation.isOk) {
-        return res.status(400).json({ error: recommendation.error.message });
+        res.status(400).json({ error: recommendation.error!.message });
+        return;
       }
 
-      const result = recommendation.value;
+      const result = recommendation.value!;
 
-      res.json({
-        data: {
-          split: result.split,
-          daysPerWeek: result.daysPerWeek,
-          description: result.description,
-          score: result.score,
-          message: result.description,
-        },
-      });
+      const data: RecommendSplitResponseDto = {
+        split: result.split as TrainingSplit,
+        daysPerWeek: result.daysPerWeek,
+        description: result.description,
+        score: result.score,
+        message: result.description,
+      };
+
+      res.json({ data });
     } catch (error: any) {
       logger.error("Plan recommend error", error);
       res.status(500).json({ error: "Ошибка рекомендации сплита" });
     }
   }
 
+  // ═══════════════════════════════════════════════════
+  // POST /api/plan/generate
+  // ═══════════════════════════════════════════════════
   async generatePlan(
     req: AuthRequest & Request<{}, {}, GeneratePlanRequestDto>,
     res: Response<PlanResponse>,
-  ) {
-    const userId = req.userId!;
-    const { week, wellbeing = "NORMAL" } = req.body;
+  ): Promise<void> {
+    try {
+      const userId = req.userId!;
+      const { wellbeing = "NORMAL" } = req.body;
 
-    const profile = await profileService.findByUserId(userId);
-    if (!profile) {
-      return res.status(404).json({ error: "Профиль не найден" });
-    }
+      // 1. Проверяем профиль
+      const profile = await profileService.findByUserId(userId);
+      if (!profile) {
+        res
+          .status(404)
+          .json({ error: "Профиль не найден. Заполните профиль." });
+        return;
+      }
 
-    const favorites = await favoriteService.findByUserId(userId);
-    const favoriteExercises = await exerciseService.findManyByIds(
-      favorites.map((f) => f.exerciseId),
-    );
-    const allExercises = await exerciseService.findAll();
+      const validationError = this.validateProfile(profile);
+      if (validationError) {
+        res.status(400).json({ error: validationError });
+        return;
+      }
 
-    // Вычисляем текущую неделю из даты
-    const today = new Date();
-    const weekIndex = getWeekIndex(today);
+      // 2. Загружаем реальные данные
+      const favorites = await favoriteService.findByUserId(userId);
+      const leastFavorites = await leastFavoriteService.findByUserId(userId);
+      const allExercises = await exerciseService.findAll();
 
-    // Проверяем, есть ли план на эту неделю
-    const plans = await planService.findByUserId(userId);
-    const planExists = plans.some((plan) => plan.week === weekIndex);
+      if (allExercises.length === 0) {
+        res.status(500).json({
+          error: "База упражнений пуста. Обратитесь к администратору.",
+        });
+        return;
+      }
 
-    if (planExists) {
-      const latestPlan = plans[plans.length - 1];
-      // Если план уже есть — просто возвращаем currentWeek + сохранение данных
-      await userStateService.updateCurrentWeek(userId, latestPlan.week);
-      res.json({ data: null });
-    } else {
-      const nextWeek = week;
+      const favoriteExercises = await exerciseService.findManyByIds(
+        favorites.map((f) => f.exerciseId),
+      );
+      const leastFavoriteExercises = await exerciseService.findManyByIds(
+        leastFavorites.map((lf) => lf.exerciseId),
+      );
 
+      // 3. Определяем неделю
+      const weekToUse = req.body.week ?? getWeekIndex(new Date());
+
+      // 4. Генерируем новый план (всегда, без проверки существующего)
       const planResult =
         await trainingPlanGenerationService.generatePlanForUser(
           userId,
           profile,
-          { favorites: favoriteExercises, allExercises },
-          { week: nextWeek, wellbeing },
+          {
+            favorites: favoriteExercises,
+            leastFavorites: leastFavoriteExercises,
+            allExercises,
+          },
+          { week: weekToUse, wellbeing },
         );
 
       if (!planResult.isOk) {
-        return res.status(500).json({ error: "Ошибка генерации плана" });
+        res.status(500).json({ error: planResult.error!.message });
+        return;
       }
 
-      await this.saveGeneratedPlan(userId, planResult.value, wellbeing);
+      // 5. Обновляем currentWeek
+      await userStateService.updateCurrentWeek(userId, weekToUse);
 
-      // Обновляем currentWeek только при создании нового плана
-      const updatedCurrentWeek = await userStateService.updateCurrentWeek(
-        userId,
-        nextWeek,
-      );
-
-      res.json({ data: planResult.value.originalPlan });
+      res.json({ data: planResult.value!.originalPlan });
+    } catch (error: any) {
+      logger.error("Plan generate error", error);
+      res.status(500).json({ error: "Ошибка генерации плана" });
     }
   }
 
+  // ═══════════════════════════════════════════════════
+  // POST /api/plan/today
+  // ═══════════════════════════════════════════════════
   async getTodayAdjusted(
     req: AuthRequest & Request<{}, {}, TodayPlanRequestDto>,
-    res: Response,
-  ) {
+    res: Response<TodayPlanResponse>,
+  ): Promise<void> {
     try {
       const userId = req.userId!;
-      const { week = 1, wellbeing = "NORMAL" } = req.body;
+      const { wellbeing = "NORMAL" } = req.body;
 
-      const latestPlan = await planService.findByUserIdAndWeek(userId, week);
+      // 1. Текущая неделя пользователя
+      const userState = await userStateService.findByUserId(userId);
+      const currentWeek = userState?.currentWeek ?? 1;
+
+      // 2. План на эту неделю
+      const latestPlan = await planService.findByUserIdAndWeek(
+        userId,
+        currentWeek,
+      );
       if (!latestPlan) {
-        return res
-          .status(400)
-          .json({ error: `План на неделю ${week} не найден` });
+        res.status(404).json({
+          error: `План на неделю ${currentWeek} не найден. Сгенерируйте план.`,
+        });
+        return;
       }
 
-      // ✅ Читаем упражнения из БД
-      const exercises = await weeklyExerciseService.findByPlanId(latestPlan.id);
+      // 3. Упражнения плана
+      const planExercises: WeeklyTrainingExerciseEntity[] =
+        await weeklyExerciseService.findByPlanId(latestPlan.id);
+      if (planExercises.length === 0) {
+        res.status(404).json({
+          error: "План пуст. Сгенерируйте план заново.",
+        });
+        return;
+      }
 
-      const todayDayOfWeek = (new Date().getDay() + 6) % 7; // 0=пн
-      const todayExercises = exercises.filter(
+      // 4. Сегодняшний день
+      const todayDayOfWeek = this.getTodayDayOfWeek();
+
+      // 5. Упражнения на сегодня
+      const todayExercises = planExercises.filter(
         (ex) => ex.dayOfWeek === todayDayOfWeek,
       );
 
+      // 6. День отдыха
       if (todayExercises.length === 0) {
-        return res.json({
-          data: {
-            today: null,
-            wellbeingAdjusted: false,
-            message: "Сегодня день отдыха",
-          },
-        });
+        const data: TodayPlanResponseDto = {
+          today: null,
+          wellbeingAdjusted: false,
+          message: "Сегодня день отдыха",
+        };
+        res.json({ data });
+        return;
       }
 
-      // ✅ LocalTrainingPlan со ВСЕМИ полями
-      const todayDay: LocalTrainingPlan = {
-        dayIndex: todayDayOfWeek,
-        dayOfWeek: todayDayOfWeek,
-        dayType: this.getDayTypeForIndex(
-          todayDayOfWeek,
-          trainingPlanGenerationService.convertSplitToTyped(
-            latestPlan.split as TrainingSplit,
-          ),
-        ),
+      // 7. Строим тренировочный день
+      const todayPlan = await this.buildTodayPlan(
+        todayExercises,
+        latestPlan.split as TrainingSplit,
+      );
 
-        // ✅ Обязательные поля
-        targetMuscles: [], // MuscleGroup[]
-        volumeLoad: 0, // number
+      // 8. Адаптируем под самочувствие
+      const adjustedToday =
+        wellbeing !== "NORMAL"
+          ? this.adaptDayForWellbeing(todayPlan, wellbeing)
+          : todayPlan;
 
-        exercises: todayExercises.map((ex) => ({
-          exerciseId: ex.exerciseId,
-          sets: ex.sets,
-          targetRepsRange: repsToJsonArray(ex.repsRange),
-          favorite: false,
-          warning: undefined,
-          muscleGroup: null,
-          progression: undefined,
-        })),
-
-        coverage: 0,
-        estimatedDuration: 45, // минуты
-        warnings: [],
+      const data: TodayPlanResponseDto = {
+        today: adjustedToday,
+        wellbeingAdjusted: wellbeing !== "NORMAL",
+        message:
+          wellbeing === "NORMAL"
+            ? "План на сегодня"
+            : `План адаптирован под самочувствие: ${wellbeing}`,
       };
 
-      const adjustedToday =
-        wellbeing === "NORMAL"
-          ? todayDay
-          : this.adaptDayForWellbeing(todayDay, wellbeing);
-
-      res.json({
-        data: {
-          today: adjustedToday,
-          wellbeingAdjusted: wellbeing !== "NORMAL",
-          message:
-            wellbeing === "NORMAL"
-              ? "План на сегодня"
-              : `Адаптировано: ${wellbeing}`,
-        },
-      });
+      res.json({ data });
     } catch (error: any) {
       logger.error("getTodayAdjusted ERROR", error);
       res.status(500).json({ error: "Ошибка получения плана на сегодня" });
     }
   }
 
-  async getUserPlans(
-    req: AuthRequest & Request<{}, {}, never>,
-    res: Response<GetUserPlansResponse>,
-  ) {
+  // ═══════════════════════════════════════════════════
+  // GET /api/plan/max-week
+  // ═══════════════════════════════════════════════════
+  async getMaxWeekForUser(
+    req: AuthRequest,
+    res: Response<{ maxWeek: number; currentWeek: number } | { error: string }>,
+  ): Promise<void> {
     try {
       const userId = req.userId!;
       const plans = await planService.findByUserId(userId);
+      const maxWeek =
+        plans.length > 0 ? Math.max(...plans.map((p) => p.week)) : 0;
+      const userState = await userStateService.findByUserId(userId);
+      const currentWeek = userState?.currentWeek ?? 1;
 
-      const response = {
-        plans: plans.map((p) => ({
-          id: p.id,
-          week: p.week,
-          split: p.split as TrainingSplit,
-          score: p.score,
-          createdAt: p.createdAt.toISOString(),
-        })),
-      };
-
-      res.json({ data: response });
+      res.json({ maxWeek, currentWeek });
     } catch (error: any) {
-      logger.error("Plan user plans error", error);
-      res.status(500).json({ error: "Ошибка загрузки планов" });
+      logger.error(`Get maxWeek failed: ${error.message}`);
+      res.status(500).json({ error: "Failed to get maxWeek" });
     }
   }
 
+  // ═══════════════════════════════════════════════════
+  // GET /api/plan/:userId/:week
+  // ═══════════════════════════════════════════════════
   async getPlan(
     req: AuthRequest & Request<{ userId: string; week: string }>,
     res: Response<PlanResponse>,
   ): Promise<void> {
     try {
-      const { userId } = req.params;
+      const userId = req.params.userId;
       const week = parseInt(req.params.week, 10);
 
       if (!userId) {
         res.status(401).json({ error: "Не авторизован" });
         return;
       }
-
-      if (isNaN(week)) {
+      if (isNaN(week) || week < 1) {
         res.status(400).json({ error: "Некорректный номер недели" });
         return;
       }
 
       const weeklyPlan = await planService.findByUserIdAndWeek(userId, week);
       if (!weeklyPlan) {
-        res.status(404).json({ error: "План на эту неделю не найден" });
+        res.status(404).json({ error: `План на неделю ${week} не найден` });
         return;
       }
 
@@ -303,97 +364,17 @@ export class PlanController {
         return;
       }
 
-      const bmi = calculateBMI(profile.weight, profile.height);
-      if (!bmi) {
-        res.status(400).json({ error: "Укажите корректные вес и рост" });
-        return;
-      }
-
       const exercises = await weeklyExerciseService.findByPlanId(weeklyPlan.id);
+      const allExercises = await exerciseService.findAll();
 
-      const typedSplit = trainingPlanGenerationService.convertSplitToTyped(
+      const weekPlan = await this.buildLocalWeekPlan(
         weeklyPlan.split as TrainingSplit,
+        weeklyPlan.week,
+        weeklyPlan.createdAt.toISOString(),
+        exercises,
+        profile,
+        allExercises,
       );
-
-      const dayObjs: LocalTrainingPlan[] = Array.from({ length: 7 }).map(
-        (_, dayIndex) => ({
-          dayIndex,
-          dayOfWeek: dayIndex,
-          dayType: "full" as DayType,
-          exercises: [],
-          targetMuscles: [],
-          coverage: 0,
-          estimatedDuration: 0,
-          volumeLoad: 0,
-          warnings: [],
-        }),
-      );
-
-      for (const ex of exercises) {
-        const dayIndex = ex.dayOfWeek;
-        if (dayIndex < 0 || dayIndex >= 7) continue;
-
-        const day = dayObjs[dayIndex];
-
-        const targetRepsRange: [number, number] = repsToJsonArray(ex.repsRange);
-
-        day.dayType = this.getDayTypeForIndex(dayIndex, typedSplit);
-
-        day.exercises.push({
-          exerciseId: ex.exerciseId,
-          sets: ex.sets,
-          targetRepsRange,
-          favorite: false,
-          warning: undefined,
-          muscleGroup: null,
-          progression: undefined,
-        } as ExerciseSet);
-      }
-
-      const difficulty = trainingPlanGenerationService
-        .getDifficultyCalculator()
-        .calculateOverallDifficulty(
-          bmi,
-          profile.age ?? 30,
-          profile.goal ?? "LOSE_FAT",
-          profile.lifestyle ?? "LIGHT",
-        );
-
-      const estimated1RM = trainingPlanGenerationService
-        .getPlanGenerator()
-        .estimate1RM(profile.weight ?? 0, "INTERMEDIATE");
-
-      const totalVolume = dayObjs.reduce(
-        (acc, day) =>
-          acc +
-          day.exercises.reduce(
-            (dayAcc, ex: ExerciseSet) =>
-              dayAcc +
-              ex.sets * ((ex.targetRepsRange[0] + ex.targetRepsRange[1]) / 2),
-            0,
-          ),
-        0,
-      );
-
-      const weekPlan: LocalWeekPlan = {
-        week: weeklyPlan.week,
-        split: typedSplit,
-        trainingDays: dayObjs.filter((day) => day.exercises.length > 0),
-        userData: {
-          bmi,
-          age: profile.age ?? 0,
-          goal: profile.goal ?? "LOSE_FAT",
-          lifestyle: profile.lifestyle ?? "LIGHT",
-          difficulty,
-          estimated1RM,
-          totalVolume,
-        },
-        progression: {
-          weekOffset: 0,
-          wellbeingAdjusted: false,
-        },
-        generatedAt: new Date().toISOString(),
-      };
 
       res.json({ data: weekPlan });
     } catch (error: any) {
@@ -402,100 +383,220 @@ export class PlanController {
     }
   }
 
-  static async getMaxWeekForUser(
+  // ═══════════════════════════════════════════════════
+  // POST /api/plan/user-plans
+  // ═══════════════════════════════════════════════════
+  async getUserPlans(
     req: AuthRequest,
-    res: Response<{ maxWeek: number; currentWeek: number } | { error: string }>,
-  ) {
+    res: Response<GetUserPlansResponse>,
+  ): Promise<void> {
     try {
       const userId = req.userId!;
-
       const plans = await planService.findByUserId(userId);
-      const latestPlan = plans[plans.length - 1];
-      const maxWeek = latestPlan ? latestPlan.week : 0;
 
-      // Это уже возвращает числовое значение
-      const userState = await userStateService.findByUserId(userId);
-      const currentWeek: number = userState ? userState.currentWeek : 1;
+      const response: UserPlanSummaryDto[] = plans.map((p) => ({
+        id: p.id,
+        week: p.week,
+        split: p.split as TrainingSplit,
+        createdAt: p.createdAt.toISOString(),
+      }));
 
-      res.json({ maxWeek, currentWeek });
+      res.json({ data: { plans: response } });
     } catch (error: any) {
-      logger.error(`Get maxWeek for user failed: ${error.message}`);
-      res.status(500).json({ error: "Failed to get maxWeek" });
+      logger.error("Plan user plans error", error);
+      res.status(500).json({ error: "Ошибка загрузки планов" });
     }
   }
 
-  private getDayTypeForIndex(
-    dayIndex: number,
-    split: TypedTrainingSplit,
-  ): DayType {
-    const dayMeta = split.days[dayIndex % split.days.length] ?? {
-      type: "full" as DayType,
+  // ═══════════════════════════════════════════════════
+  // PRIVATE HELPERS
+  // ═══════════════════════════════════════════════════
+
+  /**
+   * Валидация профиля. Возвращает сообщение об ошибке или null.
+   */
+  private validateProfile(profile: UserProfileEntity): string | null {
+    if (profile.weight == null || profile.weight <= 0) return "Укажите вес";
+    if (profile.height == null || profile.height <= 0) return "Укажите рост";
+    if (profile.age == null || profile.age <= 0) return "Укажите возраст";
+    if (!profile.goal) return "Укажите цель тренировок";
+    if (!profile.lifestyle) return "Укажите образ жизни";
+    if (!profile.gender) return "Укажите пол";
+    return null;
+  }
+
+  /** Сегодняшний день недели (0 = пн, 6 = вс). */
+  private getTodayDayOfWeek(): number {
+    return (new Date().getDay() + 6) % 7;
+  }
+
+  /**
+   * Определяет DayType для индекса дня в сплите.
+   * Защита от пустого split.days.
+   */
+  private getDayTypeForIndex(dayIndex: number, split: TrainingSplit): DayType {
+    const typedSplit = trainingPlanGenerationService.convertSplitToTyped(split);
+    if (!typedSplit.days.length) return "full";
+    const dayMeta = typedSplit.days[dayIndex % typedSplit.days.length];
+    return (dayMeta?.type as DayType) ?? "full";
+  }
+
+  /**
+   * Вычисляет объём нагрузки для списка упражнений.
+   */
+  private calculateVolumeLoad(
+    exercises: { sets: number; targetRepsRange: [number, number] }[],
+  ): number {
+    return exercises.reduce(
+      (sum, ex) =>
+        sum + ex.sets * ((ex.targetRepsRange[0] + ex.targetRepsRange[1]) / 2),
+      0,
+    );
+  }
+
+  /**
+   * Оценка длительности тренировки в минутах.
+   * Формула: (количество_подходов × время_отдыха + количество_упражнений × время_выполнения) / 60
+   */
+  private estimateDuration(exercises: { sets: number }[]): number {
+    const totalSets = exercises.reduce((sum, ex) => sum + ex.sets, 0);
+    const restTime = REST_TIME_PER_SET_SEC * totalSets;
+    const exerciseTime = exercises.length * EXERCISE_TIME_SEC;
+    return Math.round((restTime + exerciseTime) / SECONDS_IN_MINUTE);
+  }
+
+  /**
+   * Строит LocalTrainingPlan для today из данных БД.
+   */
+  private async buildTodayPlan(
+    todayExercises: WeeklyTrainingExerciseEntity[],
+    split: TrainingSplit,
+  ): Promise<LocalTrainingPlan> {
+    const todayDayOfWeek = this.getTodayDayOfWeek();
+    const exerciseIds = todayExercises.map((ex) => ex.exerciseId);
+    const exerciseEntities = await exerciseService.findManyByIds(exerciseIds);
+    const exerciseMap = new Map(exerciseEntities.map((e) => [e.id, e]));
+
+    const exerciseSets = todayExercises.map((planEx) => {
+      const entity = exerciseMap.get(planEx.exerciseId);
+      return {
+        exerciseId: planEx.exerciseId,
+        sets: planEx.sets,
+        targetRepsRange: repsToJsonArray(planEx.repsRange),
+        favorite: false,
+        warning: entity ? undefined : "Упражнение не найдено в базе",
+        muscleGroup: (entity?.primaryMuscleGroup as any) ?? "CHEST_MIDDLE",
+        progression: {
+          baseSets: planEx.sets,
+          baseReps: repsToJsonArray(planEx.repsRange),
+          weekOffset: 0,
+        },
+      };
+    });
+
+    return {
+      dayIndex: todayDayOfWeek,
+      dayOfWeek: todayDayOfWeek,
+      dayType: this.getDayTypeForIndex(todayDayOfWeek, split),
+      exercises: exerciseSets,
+      targetMuscles: [],
+      coverage: 100,
+      estimatedDuration: this.estimateDuration(exerciseSets),
+      volumeLoad: this.calculateVolumeLoad(exerciseSets),
+      warnings: [],
     };
-    return dayMeta.type;
   }
 
-  private async saveGeneratedPlan(
-    userId: string,
-    planResult: {
-      originalPlan: LocalWeekPlan;
-      weeklyExercises: WeeklyTrainingExerciseEntity[];
-    },
-    wellbeing: Wellbeing,
-  ) {
-    try {
-      const { originalPlan, weeklyExercises } = planResult;
+  /**
+   * Строит LocalWeekPlan из данных БД.
+   */
+  private async buildLocalWeekPlan(
+    split: TrainingSplit,
+    week: number,
+    generatedAt: string,
+    exercises: WeeklyTrainingExerciseEntity[],
+    profile: UserProfileEntity,
+    allExercises: ExerciseEntity[],
+  ): Promise<LocalWeekPlan> {
+    const bmi = calculateBMI(profile.weight!, profile.height!)!;
+    const difficulty = difficultyCalc.calculateOverallDifficulty(
+      bmi,
+      profile.age!,
+      profile.goal!,
+      profile.lifestyle!,
+      profile.gender!,
+    );
+    const estimated1RM = planGenerator.estimate1RM(
+      profile.weight!,
+      "INTERMEDIATE",
+    );
 
-      const planId = await this.savePlanMetadata(
-        userId,
-        originalPlan,
-        wellbeing,
-      );
+    const dayObjs: LocalTrainingPlan[] = Array.from(
+      { length: 7 },
+      (_, dayIndex) => {
+        const dayExercises = exercises.filter(
+          (ex) => ex.dayOfWeek === dayIndex,
+        );
+        const exerciseSets = dayExercises.map((planEx) => ({
+          exerciseId: planEx.exerciseId,
+          sets: planEx.sets,
+          targetRepsRange: repsToJsonArray(planEx.repsRange),
+          favorite: false,
+          warning: undefined,
+          muscleGroup: "CHEST_MIDDLE" as any, // будет переопределено ниже
+          progression: {
+            baseSets: planEx.sets,
+            baseReps: repsToJsonArray(planEx.repsRange),
+            weekOffset: 0,
+          },
+        }));
 
-      await weeklyExerciseService.deleteAllByPlanId(planId);
+        const volumeLoad = this.calculateVolumeLoad(exerciseSets);
 
-      for (const exData of weeklyExercises) {
-        await weeklyExerciseService.createExercise(exData);
-      }
+        return {
+          dayIndex,
+          dayOfWeek: dayIndex,
+          dayType: this.getDayTypeForIndex(dayIndex, split),
+          exercises: exerciseSets,
+          targetMuscles: [],
+          coverage: exerciseSets.length > 0 ? 100 : 0,
+          estimatedDuration: this.estimateDuration(exerciseSets),
+          volumeLoad,
+          warnings: [],
+        };
+      },
+    );
 
-      logger.info(
-        `✅ Saved ${weeklyExercises.length} exercises for plan ${planId}`,
-      );
-    } catch (error: any) {
-      logger.error("saveGeneratedPlan failed", error);
-    }
-  }
-
-  private async savePlanMetadata(
-    userId: string,
-    plan: LocalWeekPlan,
-    wellbeing: Wellbeing,
-  ): Promise<string> {
-    const daysPerWeek = plan.split.days.reduce(
-      (sum: number, day: { frequency: number }) => sum + day.frequency,
+    const trainingDays = dayObjs.filter((day) => day.exercises.length > 0);
+    const totalVolume = trainingDays.reduce(
+      (sum, day) => sum + day.volumeLoad,
       0,
     );
 
-    const createData: CreateWeeklyPlanEntity = {
-      userId,
-      week: plan.week,
-      split: plan.split.name as TrainingSplit,
-      score: 95,
-      daysPerWeek,
-      restDays: Array.from({ length: 7 - daysPerWeek }, (_, i) => 6 - i),
-      message: `Generated with ${wellbeing !== "NORMAL" ? "adjusted" : "normal"} wellbeing`,
+    return {
+      week,
+      split: trainingPlanGenerationService.convertSplitToTyped(split),
+      trainingDays,
+      userData: {
+        bmi,
+        age: profile.age!,
+        goal: profile.goal!,
+        lifestyle: profile.lifestyle!,
+        difficulty,
+        estimated1RM,
+        totalVolume,
+      },
+      progression: {
+        weekOffset: 0,
+        wellbeingAdjusted: false,
+      },
+      generatedAt,
     };
-
-    const existing = await planService.findByUserIdAndWeek(userId, plan.week);
-
-    if (existing) {
-      await planService.updatePlan(existing.id, createData);
-      return existing.id;
-    }
-
-    const newPlan: WeeklyPlanEntity = await planService.createPlan(createData);
-    return newPlan.id;
   }
 
+  /**
+   * Адаптация тренировочного дня под самочувствие.
+   */
   private adaptDayForWellbeing(
     day: LocalTrainingPlan,
     wellbeing: Wellbeing,
@@ -504,7 +605,7 @@ export class PlanController {
 
     for (const ex of cloneDay.exercises) {
       if (wellbeing === "BAD") {
-        ex.sets = Math.max(1, (ex.sets ?? 3) - 1);
+        ex.sets = Math.max(1, ex.sets - 1);
         if (ex.targetRepsRange) {
           const [min, max] = ex.targetRepsRange;
           ex.targetRepsRange = [min, Math.max(min, max - 2)];
@@ -518,8 +619,7 @@ export class PlanController {
       }
     }
 
-    cloneDay.warnings = [`День адаптирован под wellbeing: ${wellbeing}`];
-
+    cloneDay.warnings = [`День адаптирован под самочувствие: ${wellbeing}`];
     return cloneDay;
   }
 }

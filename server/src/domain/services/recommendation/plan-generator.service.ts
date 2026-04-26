@@ -1,5 +1,6 @@
 import {
   Difficulty,
+  Gender,
   Goal,
   Lifestyle,
   MuscleGroup,
@@ -29,6 +30,7 @@ export class PlanGeneratorService {
   async generateWeeklyPlan(
     split: TypedTrainingSplit,
     favorites: ExerciseEntity[],
+    leastFavorites: ExerciseEntity[],
     allExercises: ExerciseEntity[],
     userData: {
       bmi: number;
@@ -36,6 +38,7 @@ export class PlanGeneratorService {
       goal: Goal;
       lifestyle: Lifestyle;
       weight: number;
+      gender: Gender;
     },
     options: { week: number; wellbeing: "BAD" | "NORMAL" | "GOOD" } = {
       week: 1,
@@ -43,7 +46,7 @@ export class PlanGeneratorService {
     },
   ): Promise<Result<LocalWeekPlan>> {
     try {
-      const { bmi, age, goal, lifestyle, weight } = userData;
+      const { bmi, age, goal, lifestyle, weight, gender } = userData;
       const { week, wellbeing } = options;
 
       const experience: "NEWBIE" | "INTERMEDIATE" | "ADVANCED" = "INTERMEDIATE";
@@ -52,6 +55,7 @@ export class PlanGeneratorService {
         age,
         goal,
         lifestyle,
+        gender,
       );
 
       const expandedDays: Array<{ type: DayType; frequency: 1 }> = [];
@@ -75,10 +79,12 @@ export class PlanGeneratorService {
             dayConfig.type,
             dayOfWeek,
             favorites,
+            leastFavorites,
             allExercises,
             bmi,
             goal,
             age,
+            gender,
             lifestyle,
             week,
             wellbeing,
@@ -124,10 +130,12 @@ export class PlanGeneratorService {
     dayType: DayType,
     dayOfWeek: number,
     favorites: ExerciseEntity[],
+    leastFavorites: ExerciseEntity[],
     allExercises: ExerciseEntity[],
     bmi: number,
     goal: Goal,
     age: number,
+    gender: Gender,
     lifestyle: Lifestyle,
     week: number,
     wellbeing: "BAD" | "NORMAL" | "GOOD",
@@ -137,10 +145,12 @@ export class PlanGeneratorService {
     const dayExercisesResult = this.exerciseSelector.generateDay(
       dayType,
       favorites,
+      leastFavorites,
       allExercises,
       bmi,
       goal,
       age,
+      gender,
       lifestyle,
       week,
       wellbeing,

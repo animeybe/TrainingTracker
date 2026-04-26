@@ -6,59 +6,80 @@ import { useTrainingPlan } from "@/shared/hooks/useTrainingPlan";
 import { getSplitNameRu, getDayTypeRu } from "@/lib/utils";
 import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
 import type { ErrorType } from "@/shared/ui/components/ErrorUI/model/types";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
+import type { TrainingDay } from "@/shared/api/types";
 
-/**
- * Страница просмотра недельного плана и тренировок на сегодня.
- *
- * Поведение:
- * - Если план не сгенерирован → профиль и кнопка “Создать план”.
- * - Если план есть → календарь + “План на сегодня”.
- * - Если с момента создания плана прошло более 7 дней → кнопка
- *   “Создать план на следующую неделю”.
- */
 export function TrainingPage() {
   const {
-    // Текущий план и день
     weekPlan,
     todayPlan,
     exercises,
     today,
     wellbeing,
-    // Статусы загрузки
     loadingPlan,
     loadingTodayPlan,
-    // Логика формы
     isProfileIncomplete,
-    // Работа с планами
     generatePlan,
     selectDay,
-    // Wellbeing‑модалки
     showWellbeingModal,
     showWellbeingWarning,
     wellbeingWarningAction,
     handleWellbeingChange,
     confirmWellbeingChange,
     openWellbeingModal,
-    // Логика устаревания плана
     isNextWeekPlanStale,
+    dismissWellbeingWarning,
   } = useTrainingPlan();
 
   const { profile, loadingProfile } = useProfile();
 
-  // ==================== STATE: локальные ошибки ====================
+  const [planGenerationLoading, setPlanGenerationLoading] =
+    useState<boolean>(false);
+
   const [localError, setLocalError] = useState<{
     type: ErrorType;
     message?: string;
   } | null>(null);
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(
+    today.dayIndex,
+  );
 
-  // ==================== RETRY ====================
   const handleRetry = useCallback(() => {
     setLocalError(null);
     window.location.reload();
   }, []);
 
-  // ==================== ERROR VIEW ====================
+  // Извлекаем данные из обёрток
+  const todayData = todayPlan?.data?.today ?? null;
+
+  // Все тренировочные дни из плана
+  const allTrainingDays = useMemo(
+    () => weekPlan?.trainingDays ?? [],
+    [weekPlan],
+  );
+
+  // Выбранный день (из календаря или сегодня)
+  const selectedDay: TrainingDay | null = useMemo(() => {
+    if (selectedDayIndex === today.dayIndex && todayData) {
+      return todayData;
+    }
+    return (
+      allTrainingDays.find((d) => d.dayOfWeek === selectedDayIndex) ?? null
+    );
+  }, [selectedDayIndex, today.dayIndex, todayData, allTrainingDays]);
+
+  // Дни недели для календаря
+  const dayNames = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+  const dayFullNames = [
+    "Понедельник",
+    "Вторник",
+    "Среда",
+    "Четверг",
+    "Пятница",
+    "Суббота",
+    "Воскресенье",
+  ];
+
   if (localError) {
     return (
       <InfoPage
@@ -69,8 +90,7 @@ export function TrainingPage() {
     );
   }
 
-  // ==================== LOADING STATES ====================
-  if (loadingProfile || loadingPlan) {
+  if (loadingProfile || loadingPlan || planGenerationLoading) {
     return (
       <div className="training-page__loading">
         <InfoPage type="loading" />
@@ -78,12 +98,12 @@ export function TrainingPage() {
     );
   }
 
-  // ==================== RENDER: ПЛАН СГЕНЕРИРОВАН ====================
+  // ==================== ПЛАН СГЕНЕРИРОВАН ====================
   if (weekPlan) {
     return (
       <div className="training-page">
         <div className="training-page__plan">
-          {/* Заголовок плана */}
+          {/* Заголовок */}
           <div className="training-page__plan-header">
             <h1 className="training-page__plan-title">
               Недельный план: {getSplitNameRu(weekPlan.split.name)}
@@ -92,11 +112,14 @@ export function TrainingPage() {
               Неделя {weekPlan.week}
             </p>
 
-            {/* Кнопка: если прошло >7 дней от создания плана */}
             {isNextWeekPlanStale && (
               <button
                 className="training-page__generate-next-week-btn"
-                onClick={() => generatePlan({ forcingNewWeek: true })}
+                onClick={() => async () => {
+                  setPlanGenerationLoading(true);
+                  await generatePlan({ forcingNewWeek: false });
+                  setPlanGenerationLoading(false);
+                }}
                 disabled={loadingPlan}
                 type="button">
                 Создать план на следующую неделю
@@ -104,24 +127,43 @@ export function TrainingPage() {
             )}
           </div>
 
-          {/* Блок «План на сегодня» */}
+          {/* Календарь недели */}
+          <div className="training-page__calendar">
+            {dayNames.map((dayName, idx) => {
+              const dayPlan = allTrainingDays.find((d) => d.dayOfWeek === idx);
+              const isToday = idx === today.dayIndex;
+              const isSelected = idx === selectedDayIndex;
+
+              return (
+                <div
+                  key={idx}
+                  className={`training-page__day-cell ${isToday ? "training-page__day-cell--today" : ""} ${isSelected ? "training-page__day-cell--selected" : ""}`}
+                  onClick={() => {
+                    setSelectedDayIndex(idx);
+                    selectDay(idx);
+                  }}>
+                  <span className="training-page__day-name">{dayName}</span>
+                  {dayPlan ? (
+                    <span className="training-page__day-type">
+                      {getDayTypeRu(dayPlan.dayType)}
+                    </span>
+                  ) : (
+                    <span className="training-page__day-status">Отдых</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Выбранный день */}
           <div className="training-page__today">
             <h2 className="training-page__today-day">
-              {todayPlan?.today
-                ? [
-                    "Понедельник",
-                    "Вторник",
-                    "Среда",
-                    "Четверг",
-                    "Пятница",
-                    "Суббота",
-                    "Воскресенье",
-                  ][todayPlan.today.dayIndex]
-                : "Неизвестный день"}
+              {dayFullNames[selectedDayIndex]}
+              {selectedDayIndex === today.dayIndex && " (сегодня)"}
             </h2>
 
-            {/* Wellbeing — только если это сегодня */}
-            {todayPlan?.today?.dayIndex === today.dayIndex && (
+            {/* Wellbeing — только для сегодня */}
+            {selectedDayIndex === today.dayIndex && (
               <div className="training-page__today-controls">
                 <div className="training-page__current-wellbeing">
                   <span className="training-page__current-wellbeing-label">
@@ -145,114 +187,72 @@ export function TrainingPage() {
               </div>
             )}
 
-            {loadingTodayPlan ? (
+            {loadingTodayPlan && selectedDayIndex === today.dayIndex ? (
               <p className="training-page__today-message">
                 Загружаем план на сегодня...
               </p>
+            ) : selectedDay ? (
+              <>
+                <p className="training-page__today-message">
+                  {selectedDay.exercises.length > 0
+                    ? `План на день: ${getDayTypeRu(selectedDay.dayType)}`
+                    : "День отдыха"}
+                </p>
+
+                {/* Упражнения выбранного дня */}
+                {selectedDay.exercises.length > 0 && (
+                  <div className="training-page__today-exercises">
+                    {selectedDay.exercises.map((ex, idx) => {
+                      const exercise = exercises.find(
+                        (e) => e.id === ex.exerciseId,
+                      );
+                      return (
+                        <div
+                          key={idx}
+                          className="training-page__today-exercise">
+                          <span className="training-page__exercise-name">
+                            {exercise?.name || "Неизвестное упражнение"}
+                          </span>
+                          <span className="training-page__exercise-info">
+                            {ex.sets} подхода × {ex.targetRepsRange[0]}–
+                            {ex.targetRepsRange[1]} повторений
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             ) : (
-              <p className="training-page__today-message">
-                {todayPlan?.today?.exercises.length
-                  ? "План на сегодня:"
-                  : "Сегодня можете отдохнуть :)"}
+              <p className="training-page__today-rest">
+                Отдых — можно бег, прогулку или лёгкую растяжку 🌿
               </p>
             )}
-
-            {/* Упражнения на сегодня */}
-            <div className="training-page__today-exercises">
-              {todayPlan?.today?.exercises?.length ? (
-                todayPlan.today.exercises.map((ex, idx) => {
-                  const exercise = exercises.find(
-                    (e) => e.id === ex.exerciseId,
-                  );
-                  return (
-                    <div key={idx} className="training-page__today-exercise">
-                      <span className="training-page__exercise-name">
-                        {exercise?.name || "Неизвестное упражнение"}
-                      </span>
-                      <span className="training-page__exercise-info">
-                        {ex.sets} подхода × {ex.targetRepsRange[0]}–
-                        {ex.targetRepsRange[1]} повторений
-                      </span>
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="training-page__today-rest">
-                  Отдых — можно бег, прогулку или лёгкую растяжку 🌿
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Календарь недели */}
-          <div className="training-page__calendar">
-            {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((dayName, idx) => {
-              const dayIndex = idx;
-              const dayPlan = weekPlan.trainingDays?.find(
-                (day) => day.dayOfWeek === dayIndex,
-              );
-
-              return (
-                <div
-                  key={dayIndex}
-                  className={`training-page__day-cell ${
-                    todayPlan?.today?.dayIndex === dayIndex
-                      ? "training-page__day-cell--selected"
-                      : ""
-                  }`}
-                  onClick={() => selectDay(dayIndex)}>
-                  <span className="training-page__day-name">{dayName}</span>
-                  {dayPlan ? (
-                    <span className="training-page__day-type">
-                      {getDayTypeRu(dayPlan.dayType)}
-                    </span>
-                  ) : (
-                    <span className="training-page__day-status">Отдых</span>
-                  )}
-                </div>
-              );
-            })}
           </div>
         </div>
 
-        {/* Wellbeing модалки */}
+        {/* Wellbeing модалка */}
         {showWellbeingModal && (
-          <div
-            className="training-page__modal-overlay"
-            onClick={() => {
-              /* управление внутри хука */
-            }}>
+          <div className="training-page__modal-overlay">
             <div className="training-page__modal">
               <h2 className="training-page__modal-title">
                 Как самочувствие сегодня?
               </h2>
               <div className="training-page__modal-buttons">
                 <button
-                  className={`training-page__modal-btn ${
-                    wellbeing === "BAD"
-                      ? "training-page__modal-btn--selected"
-                      : ""
-                  }`}
+                  className={`training-page__modal-btn ${wellbeing === "BAD" ? "training-page__modal-btn--selected" : ""}`}
                   onClick={() => handleWellbeingChange("BAD")}
                   type="button">
                   😷 Плохо
                 </button>
                 <button
-                  className={`training-page__modal-btn ${
-                    wellbeing === "NORMAL"
-                      ? "training-page__modal-btn--selected"
-                      : ""
-                  }`}
+                  className={`training-page__modal-btn ${wellbeing === "NORMAL" ? "training-page__modal-btn--selected" : ""}`}
                   onClick={() => handleWellbeingChange("NORMAL")}
                   type="button">
                   🙂 Нормально
                 </button>
                 <button
-                  className={`training-page__modal-btn ${
-                    wellbeing === "GOOD"
-                      ? "training-page__modal-btn--selected"
-                      : ""
-                  }`}
+                  className={`training-page__modal-btn ${wellbeing === "GOOD" ? "training-page__modal-btn--selected" : ""}`}
                   onClick={() => handleWellbeingChange("GOOD")}
                   type="button">
                   💪 Отлично
@@ -262,30 +262,27 @@ export function TrainingPage() {
           </div>
         )}
 
+        {/* Wellbeing предупреждение */}
         {showWellbeingWarning && (
-          <div
-            className="training-page__warning-overlay"
-            onClick={() => {
-              /* управление внутри хука */
-            }}>
+          <div className="training-page__warning-overlay">
             <div className="training-page__warning-modal">
               <p className="training-page__warning-text">
                 {wellbeingWarningAction === "GOOD"
-                  ? "План станет сложнее?"
-                  : "План станет проще?"}
+                  ? "План станет сложнее. Продолжить?"
+                  : "План станет проще. Продолжить?"}
               </p>
-              <button
-                className="training-page__warning-btn"
-                onClick={confirmWellbeingChange}>
-                Да
-              </button>
-              <button
-                className="training-page__warning-btn"
-                onClick={() => {
-                  /* управление внутри хука */
-                }}>
-                Нет
-              </button>
+              <div className="training-page__warning-buttons">
+                <button
+                  className="training-page__warning-btn training-page__warning-btn--confirm"
+                  onClick={confirmWellbeingChange}>
+                  Да
+                </button>
+                <button
+                  className="training-page__warning-btn"
+                  onClick={dismissWellbeingWarning}>
+                  Нет
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -293,7 +290,7 @@ export function TrainingPage() {
     );
   }
 
-  // ==================== RENDER: ПЛАН НЕ СГЕНЕРИРОВАН ====================
+  // ==================== ПЛАН НЕ СГЕНЕРИРОВАН ====================
   return (
     <div className="training-page__no-plan">
       <div className="training-page__profile">
@@ -336,7 +333,11 @@ export function TrainingPage() {
       <div className="training-page__controls">
         <button
           className="training-page__generate-btn"
-          onClick={() => generatePlan({ forcingNewWeek: false })}
+          onClick={async () => {
+            setPlanGenerationLoading(true);
+            await generatePlan({ forcingNewWeek: false });
+            setPlanGenerationLoading(false);
+          }}
           disabled={loadingPlan || isProfileIncomplete}
           type="button">
           {loadingPlan

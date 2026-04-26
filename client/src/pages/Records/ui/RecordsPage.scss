@@ -5,38 +5,31 @@
   margin: 0 auto;
 
   &__no-plan {
+    min-height: 70vh;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 70vh;
-    padding: 0 1rem;
-  }
-
-  &__no-plan-content {
+    padding: 1rem;
     text-align: center;
-    padding: 2rem 1.5rem;
-    border-radius: 24px;
   }
 
-  &__no-plan-title {
+  &__no-plan h2 {
     font-size: 2rem;
     font-weight: 700;
     color: var(--text-secondary);
     margin: 0 0 0.8rem 0;
   }
 
-  &__no-plan-text {
-    font-size: 1.3rem;
+  &__no-plan p {
+    font-size: 1.1rem;
     color: var(--text-primary);
     margin: 0 0 1.5rem 0;
     line-height: 1.5;
+    max-width: 520px;
   }
 
-  &__no-plan-cta {
-    margin-top: 3rem;
-  }
-
-  &__no-plan-btn {
+  &__no-plan button {
     padding: 0.9rem 2.2rem;
     font-size: 1.1rem;
     font-weight: 700;
@@ -59,29 +52,13 @@
     }
   }
 
-  // адаптив
-  @media (max-width: 500px) {
-    &__no-plan-title {
-      font-size: 1.6rem;
-    }
-
-    &__no-plan-text {
-      font-size: 0.95rem;
-    }
-
-    &__no-plan-btn {
-      font-size: 1rem;
-      padding: 0.8rem 2rem;
-    }
-  }
-
   &__header {
     text-align: center;
-    margin-bottom: 2.5rem;
+    margin-bottom: 2rem;
   }
 
-  &__title {
-    font-size: 2.5rem;
+  &__header h1 {
+    font-size: 2.4rem;
     font-weight: 800;
     margin: 0 0 0.5rem 0;
     background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
@@ -90,62 +67,32 @@
     background-clip: text;
   }
 
-  &__subtitle {
-    font-size: 1.2rem;
+  &__header p {
+    font-size: 1.1rem;
     color: #666;
     margin: 0;
     font-weight: 500;
   }
 
-  // План на сегодня
-  &__today-plan {
-    background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
-    border-radius: 24px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-    border: 1px solid #c0d0ff;
-  }
-
-  &__today-title {
-    font-size: 2rem;
-    font-weight: 700;
-    margin: 0 0 1.5rem 0;
-    color: #2c3e50;
-  }
-
-  &__plan-exercise {
+  &__start {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: center;
-    padding: 1rem 1.5rem;
-    background: white;
-    border-radius: 16px;
-    margin-bottom: 0.8rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  }
-
-  &__exercise-name {
-    font-weight: 700;
-    font-size: 1.1rem;
-  }
-
-  &__rest-day {
-    text-align: center;
-    font-size: 1.1rem;
-    color: #999;
-    font-style: italic;
-  }
-
-  // Начать тренировку
-  &__start-section {
-    display: flex;
     justify-content: center;
-    margin: 3rem 0;
+    gap: 1rem;
+    min-height: 45vh;
+    text-align: center;
   }
 
-  &__start-btn {
-    padding: 1.2rem 3rem;
-    font-size: 1.3rem;
+  &__start p {
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  &__start button {
+    padding: 1.1rem 2.6rem;
+    font-size: 1.15rem;
     font-weight: 700;
     background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
     color: white;
@@ -166,46 +113,20 @@
     }
   }
 
-  // Инфо о дне
-  &__day-info {
+  &__info {
     background: white;
     border-radius: 20px;
-    padding: 1.8rem;
-    margin-bottom: 2rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
   }
 
-  &__wellbeing {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.2rem;
+  &__info > div {
     font-weight: 600;
+    margin-bottom: 1rem;
   }
 
-  &__wellbeing-badge {
-    padding: 0.5rem 1.2rem;
-    border-radius: 20px;
-    font-weight: 700;
-    font-size: 0.95rem;
-
-    &.wellbeing-bad {
-      background: #ffebee;
-      color: #e74c3c;
-    }
-
-    &.wellbeing-normal {
-      background: #fff3e0;
-      color: #f39c12;
-    }
-
-    &.wellbeing-good {
-      background: #e8f5e8;
-      color: #27ae60;
-    }
-  }
-
-  &__day-notes {
+  &__info textarea {
     width: 100%;
     padding: 1rem;
     border: 2px solid #e0e0e0;
@@ -220,15 +141,10 @@
     }
   }
 
-  // === Добавить упражнение ===
-  &__day-actions {
-    margin: 1.5rem 0;
-    text-align: center;
-  }
-
-  &__add-exercise-btn {
+  &__add-btn {
+    margin: 0.5rem 0 1.5rem;
     padding: 0.9rem 2rem;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 700;
     background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
     color: white;
@@ -249,172 +165,59 @@
     }
   }
 
-  // === Модалка "Сделать упражнение" ===
-  &__modal-backdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-
-  &__modal-content {
-    width: 90%;
-    max-width: 500px;
-    background: white;
-    border-radius: 20px;
-    padding: 1.8rem;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-  }
-
-  &__modal-title {
-    margin: 0 0 1rem 0;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #2c3e50;
-  }
-
-  &__modal-body {
-    display: flex;
-    flex-direction: column;
-    gap: 0.8rem;
-    max-height: 300px;
-    overflow-y: auto;
-  }
-
-  &__modal-exercise {
-    padding: 0.8rem 1.2rem;
-    text-align: left;
-    background: #f0f4ff;
-    border: 2px solid #c0d0ff;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
-
-    &:hover {
-      background: #e0e8ff;
-      border-color: #809fff;
-    }
-
-    &.selected {
-      background: #dbeeff;
-      border-color: #4facfe;
-      box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2);
-    }
-  }
-
-  &__modal-actions {
-    margin-top: 1.5rem;
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.8rem;
-  }
-
-  &__modal-btn-cancel,
-  &__modal-btn-add {
-    padding: 0.8rem 1.4rem;
-    border: none;
-    border-radius: 12px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  &__modal-btn-cancel {
-    background: #f5f5f5;
-    color: #555;
-  }
-
-  &__modal-btn-add {
-    background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-    color: white;
-    box-shadow: 0 6px 12px rgba(39, 174, 96, 0.3);
-
-    &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 20px rgba(39, 174, 96, 0.4);
-    }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-  }
-
-  &__no-exercises-in-modal {
-    text-align: center;
-    color: #666;
-    font-size: 0.95rem;
-    font-style: italic;
-    padding: 1.2rem 0.8rem;
-  }
-
-  // Упражнения
   &__exercises {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
-    margin-bottom: 3rem;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
   }
 
   &__exercise {
     background: white;
     border-radius: 24px;
-    padding: 2rem;
+    padding: 1.5rem;
     box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
     border: 1px solid #f0f0f0;
   }
 
-  &__exercise-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.8rem;
-    padding-bottom: 1rem;
-    border-bottom: 2px solid #f5f5f5;
-  }
-
-  &__exercise-header h3 {
-    margin: 0;
-    font-size: 1.4rem;
+  &__exercise h3 {
+    margin: 0 0 0.4rem 0;
+    font-size: 1.3rem;
     font-weight: 700;
     color: #2c3e50;
   }
 
-  &__sets {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+  &__exercise span {
+    display: inline-block;
+    margin-bottom: 1rem;
+    color: #666;
+    font-size: 0.95rem;
   }
 
   &__set {
-    display: flex;
+    display: grid;
+    grid-template-columns: 44px 1fr 1fr;
+    gap: 0.8rem;
     align-items: center;
-    gap: 1.2rem;
-    padding: 1rem 1.5rem;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.8rem;
     background: #f8f9ff;
     border-radius: 16px;
     border: 1px solid #e0e8ff;
   }
 
-  &__set-number {
+  &__set span {
     font-weight: 700;
     color: #667eea;
-    min-width: 30px;
+    text-align: center;
   }
 
-  &__set-input {
-    flex: 1;
-    padding: 0.9rem 1.2rem;
+  &__set input {
+    width: 100%;
+    padding: 0.8rem 1rem;
     border: 2px solid #e0e0e0;
     border-radius: 12px;
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 600;
     text-align: center;
 
@@ -425,15 +228,11 @@
     }
   }
 
-  // Сохранить
-  &__save-section {
-    display: flex;
-    justify-content: center;
-  }
-
-  &__save-btn {
-    padding: 1.4rem 4rem;
-    font-size: 1.4rem;
+  &__finish-btn {
+    display: block;
+    margin: 0 auto;
+    padding: 1.1rem 3rem;
+    font-size: 1.15rem;
     font-weight: 800;
     background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
     color: white;
@@ -454,34 +253,135 @@
     }
   }
 
-  // Нет плана
-  &__no-plan {
+  &__completed {
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 60vh;
+    min-height: 50vh;
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #27ae60;
+  }
+
+  &__modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+  }
+
+  &__modal {
+    width: 100%;
+    max-width: 560px;
+    max-height: 80vh;
+    overflow: auto;
+    background: white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  }
+
+  &__modal h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #2c3e50;
+  }
+
+  &__modal > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    margin-bottom: 1rem;
+  }
+
+  &__modal button {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  &__modal > div > button {
+    background: #f0f4ff;
+    border: 2px solid #c0d0ff;
+    text-align: left;
+
+    &:hover {
+      background: #e0e8ff;
+      border-color: #809fff;
+    }
+  }
+
+  &__modal p {
+    margin: 0;
+    color: #666;
+    line-height: 1.5;
+  }
+
+  &__modal > button:last-child {
+    background: #f5f5f5;
+    color: #555;
+    margin-top: 0.8rem;
+  }
+
+  &__modal > button:not(:last-child) {
+    margin-top: 0.8rem;
   }
 
   @media (max-width: 768px) {
-    padding: 1.5rem 1rem;
+    padding: 1.2rem 0.8rem;
 
-    &__exercise {
-      padding: 1.5rem;
-    }
-
-    &__sets {
-      gap: 0.8rem;
+    &__header h1 {
+      font-size: 2rem;
     }
 
     &__set {
-      padding: 0.8rem 1.2rem;
-      gap: 0.8rem;
+      grid-template-columns: 36px 1fr 1fr;
+      gap: 0.6rem;
+      padding: 0.75rem 0.85rem;
     }
 
-    &__modal-exercise {
-      padding: 0.6rem 1rem;
-      font-size: 0.9rem;
+    &__exercise {
+      padding: 1.2rem;
+    }
+
+    &__modal {
+      padding: 1.2rem;
+    }
+  }
+
+  @media (max-width: 500px) {
+    &__header h1 {
+      font-size: 1.7rem;
+    }
+
+    &__header p {
+      font-size: 0.95rem;
+    }
+
+    &__start button,
+    &__finish-btn {
+      width: 100%;
+      padding: 1rem 1.2rem;
+      font-size: 1rem;
+    }
+
+    &__set {
+      grid-template-columns: 30px 1fr;
+    }
+
+    &__set input:last-child {
+      grid-column: 2 / -1;
     }
   }
 }

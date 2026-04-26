@@ -6,7 +6,8 @@ export type TrainingDayExecutionDto = {
   userId: string;
   week: number;
   dayOfWeek: number;
-  executionDate: Date;
+  startTime: Date;
+  endTime: Date | null;
   wellbeingToday: Wellbeing;
   notes: string | null;
   createdAt: Date;
@@ -16,15 +17,16 @@ export type CreateTrainingDayExecutionDto = {
   userId: string;
   week: number;
   dayOfWeek: number;
-  executionDate: Date;
+  startTime?: Date; // по умолчанию now()
+  endTime?: Date | null;
   wellbeingToday: Wellbeing;
-  notes: string | null;
+  notes?: string | null;
 };
 
 export type UpdateTrainingDayExecutionDto = {
   week?: number;
   dayOfWeek?: number;
-  executionDate?: Date;
+  endTime?: Date | null;
   wellbeingToday?: Wellbeing;
   notes?: string | null;
 };

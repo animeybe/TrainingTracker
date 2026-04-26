@@ -8,26 +8,29 @@ import { DayType } from "../types/training.types";
 // 🔥 БАЗОВЫЕ КОНСТАНТЫ ДЛЯ ПОДБОРА УПРАЖНЕНИЙ (с полным покрытием MuscleGroup)
 export const SELECTOR_CONFIG = {
   // BIG 5 по дням (ExerciseId[])
-  bigFive: {
-    push: ["BENCH_PRESS", "OVERHEAD_PRESS"] as const,
-    pull: ["DEADLIFT", "PULLUP"] as const,
-    legs: ["SQUAT", "DEADLIFT"] as const,
-    full: ["SQUAT", "BENCH_PRESS"] as const,
-    upper: ["BENCH_PRESS", "PULLUP"] as const,
-    lower: ["SQUAT", "DEADLIFT"] as const,
-    chest: ["BENCH_PRESS"] as const,
-    back: ["DEADLIFT", "PULLUP"] as const,
-    shoulders: ["OVERHEAD_PRESS"] as const,
-    arms: ["CURL", "TRICEP_EXT"] as const,
-    core: ["PLANK"] as const,
-  } as Record<DayType, readonly string[]>,
+  bigFiveNames: {
+    push: ["Жим штанги лёжа", "Жим штанги стоя", "Отжимания на брусьях"],
+    pull: ["Становая тяга", "Подтягивания", "Тяга штанги в наклоне"],
+    legs: ["Приседания со штангой", "Становая тяга", "Жим ногами"],
+    full: ["Приседания со штангой", "Жим штанги лёжа", "Становая тяга"],
+    upper: ["Жим штанги лёжа", "Тяга штанги в наклоне", "Подтягивания"],
+    lower: ["Приседания со штангой", "Становая тяга", "Выпады со штангой"],
+    chest: ["Жим штанги лёжа", "Жим гантелей лёжа"],
+    back: ["Становая тяга", "Подтягивания", "Тяга штанги в наклоне"],
+    shoulders: ["Жим штанги стоя", "Жим гантелей сидя"],
+    arms: ["Подъём штанги на бицепс", "Французский жим"],
+    core: ["Планка", "Скручивания"],
+  } as Record<DayType, string[]>,
 
   // Muscle fatigue по циклу (3 дня) — дефолт 1.0 для всех MuscleGroup
   fatigue: {
     QUADS_RECTUS_FEMORIS: [1.0, 0.85, 0.95] as const,
-    DELTOIDS_ANTERIOR: [0.9, 0.8, 1.0] as const,
+    GLUTES_MAXIMUS: [1.0, 0.9, 0.95] as const,
     LATS: [0.95, 0.9, 1.0] as const,
-    // ... добавь остальные или используй fallback
+    CHEST_MIDDLE: [0.95, 0.85, 1.0] as const,
+    DELTOIDS_ANTERIOR: [0.9, 0.8, 1.0] as const,
+    ERECTOR_SPINAE_LOWER: [0.85, 0.8, 0.9] as const,
+    HAMSTRINGS: [0.95, 0.85, 1.0] as const,
   } as Partial<Record<MuscleGroup, readonly number[]>>,
 
   // Базовый volume по мышцам — дефолт 3 для остальных
@@ -36,8 +39,9 @@ export const SELECTOR_CONFIG = {
     GLUTES_MAXIMUS: 4,
     LATS: 3,
     CHEST_MIDDLE: 3,
+    DELTOIDS_ANTERIOR: 2,
     ERECTOR_SPINAE_LOWER: 2,
-    // дефолт для остальных MuscleGroup = 3
+    HAMSTRINGS: 3,
   } as Partial<Record<MuscleGroup, number>>,
 
   // Сложность дней
@@ -60,6 +64,7 @@ export const SELECTOR_CONFIG = {
     ABS_UPPER: 1,
     ABS_LOWER: 1,
     OBLIQUES: 1,
+    GLUTES_MEDIAS: 2,
     CALVES_GASTROCNEMIUS: 2,
     CALVES_SOLEUS: 2,
     FOREARMS_FLEXORS: 3,
@@ -84,5 +89,5 @@ export const SELECTOR_CONFIG = {
 } as const;
 
 // 🛡️ TYPES
-export type SelectorBigFive = typeof SELECTOR_CONFIG.bigFive;
+export type SelectorBigFive = typeof SELECTOR_CONFIG.bigFiveNames;
 export type SelectorConfig = typeof SELECTOR_CONFIG;

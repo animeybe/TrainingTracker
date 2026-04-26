@@ -1,0 +1,33 @@
+.animated-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.animated-bg-circle {
+  position: absolute;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  will-change: transform;
+
+  animation: floatShape var(--duration, 10s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes floatShape {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(-50%, -50%) translate(30px, -25px) scale(1.08);
+  }
+  50% {
+    transform: translate(-50%, -50%) translate(-20px, 35px) scale(0.92);
+  }
+  75% {
+    transform: translate(-50%, -50%) translate(-35px, -15px) scale(1.05);
+  }
+}

@@ -18,7 +18,6 @@ export class PrismaPlanRepository {
           split: data.split,
           daysPerWeek: data.daysPerWeek,
           restDays: data.restDays,
-          score: data.score ?? 0,
           message: data.message ?? null,
           exercises: exercises.length > 0 ? { create: exercises } : undefined,
         },

@@ -1,62 +1,71 @@
-import { Router, Request, Response, NextFunction } from "express";
+// routes/training-executions.routes.ts
+import { Router } from "express";
 import { TrainingDayExecutionController } from "../controllers/training-day-execution.controller";
 import { TrainingExerciseExecutionController } from "../controllers/training-exercise-execution.controller";
 import { authenticateToken } from "../middleware/auth.middleware";
 
 const router = Router();
 
-console.log("🚀 Training routes file LOADED");
-
 const dayController = new TrainingDayExecutionController();
 const exerciseController = new TrainingExerciseExecutionController();
 
-// 1. GET /days с query‑параметрами
-router.get(
-  "/days",
-  authenticateToken,
-  dayController.getDayByWeekDayDate.bind(dayController),
+// ─── Дни тренировок ─────────────────────────────────
+
+// Получить все дни пользователя
+router.get("/days/user", authenticateToken, (req, res) =>
+  dayController.getAllUserDays(req as any, res),
 );
 
-// 2. GET /days/week/:week
-router.get(
-  "/days/week/:week",
-  authenticateToken,
-  dayController.getDaysByUserWeek.bind(dayController),
+// Получить день по week + dayOfWeek
+router.get("/days", authenticateToken, (req, res) =>
+  dayController.getDayByWeekDay(req as any, res),
 );
 
-// 3. POST /days
-router.post(
-  "/days",
-  authenticateToken,
-  dayController.createDay.bind(dayController),
+// Получить все дни за неделю
+router.get("/days/week/:week", authenticateToken, (req, res) =>
+  dayController.getDaysByUserWeek(req as any, res),
 );
 
-// 4. PUT /days/:id
-router.put(
-  "/days/:id",
-  authenticateToken,
-  dayController.updateDay.bind(dayController),
+// Получить день по ID
+router.get("/days/:id", authenticateToken, (req, res) =>
+  dayController.getDayById(req as any, res),
 );
 
-// 5. Упражнения
-router.post(
-  "/exercises",
-  authenticateToken,
-  exerciseController.createExec.bind(exerciseController),
+// Начать тренировку
+router.post("/days", authenticateToken, (req, res) =>
+  dayController.startTraining(req as any, res),
 );
 
-router.put(
-  "/exercises/:id",
-  authenticateToken,
-  exerciseController.updateExec.bind(exerciseController),
+// Обновить день
+router.put("/days/:id", authenticateToken, (req, res) =>
+  dayController.updateDay(req as any, res),
 );
 
-router.get(
-  "/exercises/day/:executionId",
-  authenticateToken,
-  exerciseController.getExecsByDay.bind(exerciseController),
+// Завершить тренировку
+router.put("/days/:id/finish", authenticateToken, (req, res) =>
+  dayController.finishTraining(req as any, res),
 );
 
-console.log("✅ ALL training routes REGISTERED");
+// ─── Упражнения ─────────────────────────────────────
+
+// Добавить упражнения (одно или массив)
+router.post("/exercises", authenticateToken, (req, res) =>
+  exerciseController.addExercises(req as any, res),
+);
+
+// Обновить упражнение
+router.put("/exercises/:id", authenticateToken, (req, res) =>
+  exerciseController.updateExercise(req as any, res),
+);
+
+// Получить упражнение по ID
+router.get("/exercises/:id", authenticateToken, (req, res) =>
+  exerciseController.getExerciseById(req as any, res),
+);
+
+// Получить упражнения за день
+router.get("/exercises/day/:executionId", authenticateToken, (req, res) =>
+  exerciseController.getExercisesByDay(req as any, res),
+);
 
 export default router;

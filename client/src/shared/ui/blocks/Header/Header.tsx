@@ -12,9 +12,9 @@ export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // 📱 Detect mobile (ширина < 1023px)
+  // 📱 Detect mobile (ширина < 1024px)
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1023);
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);

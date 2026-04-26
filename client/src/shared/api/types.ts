@@ -1,3 +1,8 @@
+// api/types.ts
+// ═══════════════════════════════════════
+// ENUM-типы (синхронизированы с сервером)
+// ═══════════════════════════════════════
+
 export type Wellbeing = "BAD" | "NORMAL" | "GOOD";
 export type Gender = "Male" | "Female";
 export type Goal =
@@ -10,11 +15,8 @@ export type Goal =
   | "POWER"
   | "HEALTH"
   | "REHABILITATION";
-
 export type Lifestyle = "IMMOBILE" | "LIGHT" | "AVERAGE" | "HARD";
-
 export type Difficulty = "EASY" | "MEDIUM" | "HARD";
-
 export type MovementPattern =
   | "PUSH"
   | "PULL"
@@ -26,7 +28,6 @@ export type MovementPattern =
   | "CARDIO"
   | "MOBILITY"
   | "ISOMETRIC";
-
 export type TrainingFocus =
   | "STRENGTH"
   | "HYPERTROPHY"
@@ -34,7 +35,6 @@ export type TrainingFocus =
   | "POWER"
   | "MAINTENANCE"
   | "REHABILITATION";
-
 export type PrimaryMuscleGroup =
   | "LEGS"
   | "BACK"
@@ -42,7 +42,6 @@ export type PrimaryMuscleGroup =
   | "SHOULDERS"
   | "ARMS"
   | "CORE";
-
 export type MuscleGroup =
   | "NECK"
   | "TRAPEZIUS_UPPER"
@@ -80,7 +79,6 @@ export type MuscleGroup =
   | "HAMSTRINGS"
   | "CALVES_GASTROCNEMIUS"
   | "CALVES_SOLEUS";
-
 export type TrainingSplit =
   | "PPL"
   | "FULL_BODY"
@@ -89,10 +87,9 @@ export type TrainingSplit =
   | "STRENGTH_FOCUS"
   | "HYPERTROPHY_FOCUS";
 
-export interface TypedTrainingSplit {
-  name: TrainingSplit;
-  days: Array<{ type: string; frequency: number }>;
-}
+// ═══════════════════════════════════════
+// ТРЕНИРОВОЧНЫЕ ТИПЫ
+// ═══════════════════════════════════════
 
 export type DayType =
   | "push"
@@ -105,33 +102,38 @@ export type DayType =
   | "arms"
   | "upper"
   | "lower"
-  | "core"
-  | "rest";
+  | "core";
 
-export interface PlanDay {
+export interface ExerciseSet {
+  exerciseId: string;
+  sets: number;
+  targetRepsRange: [number, number];
+  favorite?: boolean;
+  warning?: string;
+  muscleGroup: MuscleGroup;
+}
+
+export interface TypedTrainingSplit {
+  name: TrainingSplit;
+  days: Array<{ type: DayType; frequency: number }>;
+}
+
+export interface TrainingDay {
   dayType: DayType;
   dayIndex: number;
   dayOfWeek: number;
-  exercises: Array<{
-    exerciseId: string;
-    sets: number;
-    targetRepsRange: [number, number];
-    progression: {
-      wellbeingAdjusted: boolean;
-      currentSets: number;
-    };
-    warning?: string;
-  }>;
+  exercises: ExerciseSet[];
+  targetMuscles: MuscleGroup[];
   coverage: number;
   estimatedDuration: number;
-  warnings?: string[];
+  volumeLoad: number;
+  warnings: string[];
 }
 
-export interface WeekPlanResponse {
+export interface WeekPlan {
   week: number;
   split: TypedTrainingSplit;
-  days: PlanDay[];
-  trainingDays: PlanDay[];
+  trainingDays: TrainingDay[];
   userData: {
     bmi: number;
     age: number;
@@ -148,22 +150,51 @@ export interface WeekPlanResponse {
   generatedAt: string;
 }
 
-export interface RecommendSplitResponse {
-  split: TypedTrainingSplit;
-  message: string;
-}
+// ═══════════════════════════════════════
+// API-ОТВЕТЫ
+// ═══════════════════════════════════════
 
-export interface TodayPlanResponse {
-  today: PlanDay | null;
-  wellbeingAdjusted: boolean;
+export interface RecommendSplitResponse {
+  split: TrainingSplit;
+  daysPerWeek: number;
+  description: string;
+  score: number;
   message: string;
 }
 
 export interface GeneratePlanRequest {
-  split: TypedTrainingSplit;
   week?: number;
   wellbeing?: Wellbeing;
 }
+
+export interface WeekPlanResponse {
+  data: WeekPlan | null;
+}
+
+export interface TodayPlanResponse {
+  data: {
+    today: TrainingDay | null;
+    wellbeingAdjusted: boolean;
+    message: string;
+  };
+}
+
+export interface UserPlanSummary {
+  id: string;
+  week: number;
+  split: TrainingSplit;
+  createdAt: string;
+}
+
+export interface GetUserPlansResponse {
+  data: {
+    plans: UserPlanSummary[];
+  };
+}
+
+// ═══════════════════════════════════════
+// ПРОФИЛЬ
+// ═══════════════════════════════════════
 
 export interface ProfileData {
   id: string;
@@ -185,6 +216,10 @@ export interface ProfileData {
   updatedAt: string;
 }
 
+// ═══════════════════════════════════════
+// УПРАЖНЕНИЯ
+// ═══════════════════════════════════════
+
 export interface Exercise {
   id: string;
   name: string;
@@ -198,28 +233,14 @@ export interface Exercise {
   videoUrl: string | null;
 }
 
-export type ExerciseData = ExerciseListResponse["data"][number];
-
 export interface ExerciseListResponse {
   data: Exercise[];
   total: number;
 }
 
-export interface GetUserPlansRequest {
-  userId: string;
-}
-
-export interface UserPlanSummary {
-  id: string;
-  week: number;
-  split: TrainingSplit;
-  score: number;
-  createdAt: string;
-}
-
-export interface GetUserPlansResponse {
-  plans: UserPlanSummary[];
-}
+// ═══════════════════════════════════════
+// FAVORITES / LEAST FAVORITES
+// ═══════════════════════════════════════
 
 export interface ToggleFavoriteRequest {
   exerciseId: string;
@@ -230,7 +251,71 @@ export interface ToggleFavoriteResponse {
   message?: string;
 }
 
+// ═══════════════════════════════════════
+// ВЫПОЛНЕНИЕ ТРЕНИРОВОК
+// ═══════════════════════════════════════
+
+export interface TrainingDayExecution {
+  id: string;
+  userId: string;
+  week: number;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string | null;
+  wellbeingToday: Wellbeing;
+  notes: string | null;
+  createdAt: string;
+  exercises?: TrainingExerciseExecution[];
+}
+
+export interface CreateTrainingDayExecution {
+  week: number;
+  dayOfWeek: number;
+  startTime?: string;
+  wellbeingToday?: Wellbeing;
+  notes?: string | null;
+}
+
+export interface TrainingExerciseExecution {
+  id: string;
+  executionId: string;
+  exerciseId: string;
+  setsData: Array<{ set: number; weight: number; reps: number }>;
+  orderInDay: number;
+}
+
+export interface CreateTrainingExerciseExecution {
+  executionId: string;
+  exerciseId: string;
+  setsData: Array<{ set: number; weight: number; reps: number }>;
+  orderInDay: number;
+}
+
+// ═══════════════════════════════════════
+// USER STATE
+// ═══════════════════════════════════════
+
 export interface UserStateResponse {
   currentWeek: number;
 }
-export type UserStateResponseDto = UserStateResponse;
+
+// ═══════════════════════════════════════
+// PUSH-УВЕДОМЛЕНИЯ
+// ═══════════════════════════════════════
+
+export interface PushSubscriptionData {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+}
+
+export interface PushSubscribeResponse {
+  success: boolean;
+  id?: number;
+}
+
+export interface PushDeviceCountResponse {
+  count: number;
+}

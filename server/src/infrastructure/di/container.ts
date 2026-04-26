@@ -10,6 +10,7 @@ import {
   PrismaUserProfileRepository,
   PrismaWeeklyTrainingExerciseRepository,
   PrismaUserStateRepository,
+  PrismaPushSubscriptionRepository,
 } from "../../data/repositories";
 import {
   ExerciseRepositoryImpl,
@@ -22,6 +23,7 @@ import {
   UserProfileRepositoryImpl,
   WeeklyTrainingExerciseRepositoryImpl,
   UserStateRepositoryImpl,
+  PushSubscriptionRepositoryImpl,
 } from "../../data/repositories";
 import {
   IExerciseRepository,
@@ -34,6 +36,7 @@ import {
   IUserProfileRepository,
   IWeeklyTrainingExerciseRepository,
   IUserStateRepository,
+  IPushSubscriptionRepository,
 } from "../../domain/repositories";
 import {
   ExerciseService,
@@ -57,6 +60,7 @@ import {
 import {
   ExercisePreferenceService,
   TrainingPlanGenerationService,
+  PushService,
 } from "../../domain/services";
 
 // ==============================================================================
@@ -75,6 +79,7 @@ export enum ServiceKeys {
   TRAINING_DAY_EXECUTION_REPO = "trainingDayExecutionRepo",
   TRAINING_EXERCISE_EXECUTION_REPO = "trainingExerciseExecutionRepo",
   USER_STATE_REPO = "userStateRepo",
+  PUSH_SUBSCRIPTION_REPO = "pushSubscriptionRepo",
 
   USER_SERVICE = "userService",
   PROFILE_SERVICE = "profileService",
@@ -96,6 +101,7 @@ export enum ServiceKeys {
 
   TRAINING_PLAN_GENERATION_SERVICE = "trainingPlanGenerationService",
   EXERCISE_PREFERENCE_SERVICE = "exercisePreferenceService",
+  PUSH_SERVICE = "pushService",
 }
 
 // ==============================================================================
@@ -111,6 +117,7 @@ interface ServiceRegistry {
   [ServiceKeys.FAVORITE_REPO]: IFavoriteExerciseRepository;
   [ServiceKeys.LEAST_FAVORITE_REPO]: ILeastFavoriteExerciseRepository;
   [ServiceKeys.USER_STATE_REPO]: IUserStateRepository;
+  [ServiceKeys.PUSH_SUBSCRIPTION_REPO]: IPushSubscriptionRepository;
 
   [ServiceKeys.WEEKLY_EXERCISE_REPO]: IWeeklyTrainingExerciseRepository;
   [ServiceKeys.TRAINING_DAY_EXECUTION_REPO]: ITrainingDayExecutionRepository;
@@ -141,6 +148,9 @@ interface ServiceRegistry {
 
   // Оркестратор препдпочтениями пользователя
   [ServiceKeys.EXERCISE_PREFERENCE_SERVICE]: ExercisePreferenceService;
+
+  // Уведомления
+  [ServiceKeys.PUSH_SERVICE]: PushService;
 }
 
 // ==============================================================================
@@ -169,6 +179,7 @@ class Container {
     const prismaFavoriteRepo = new PrismaFavoriteExerciseRepository();
     const prismaLeastFavoriteRepo = new PrismaLeastFavoriteExerciseRepository();
     const prismaUserStateRepo = new PrismaUserStateRepository();
+    const prismaPushSubscriptionRepo = new PrismaPushSubscriptionRepository();
 
     const prismaWeeklyExerciseRepo =
       new PrismaWeeklyTrainingExerciseRepository();
@@ -188,6 +199,9 @@ class Container {
     const userStateRepoImpl = new UserStateRepositoryImpl(prismaUserStateRepo);
     const leastFavoriteRepoImpl = new LeastFavoriteExerciseRepositoryImpl(
       prismaLeastFavoriteRepo,
+    );
+    const pushSubscriptionRepoImpl = new PushSubscriptionRepositoryImpl(
+      prismaPushSubscriptionRepo,
     );
 
     const weeklyExerciseRepoImpl = new WeeklyTrainingExerciseRepositoryImpl(
@@ -211,6 +225,8 @@ class Container {
     this.services[ServiceKeys.FAVORITE_REPO] = favoriteRepoImpl;
     this.services[ServiceKeys.LEAST_FAVORITE_REPO] = leastFavoriteRepoImpl;
     this.services[ServiceKeys.USER_STATE_REPO] = userStateRepoImpl;
+    this.services[ServiceKeys.PUSH_SUBSCRIPTION_REPO] =
+      pushSubscriptionRepoImpl;
 
     this.services[ServiceKeys.WEEKLY_EXERCISE_REPO] = weeklyExerciseRepoImpl;
     this.services[ServiceKeys.TRAINING_DAY_EXECUTION_REPO] =
@@ -248,6 +264,12 @@ class Container {
       this.get(ServiceKeys.USER_STATE_REPO),
     );
 
+    // Сервис Push
+    this.services[ServiceKeys.PUSH_SERVICE] = new PushService(
+      this.get(ServiceKeys.PUSH_SUBSCRIPTION_REPO),
+    );
+
+    // Сервисы генерации плана
     this.services[ServiceKeys.EXERCISE_PREFERENCE_SERVICE] =
       new ExercisePreferenceService(
         this.get(ServiceKeys.FAVORITE_SERVICE),
@@ -269,7 +291,6 @@ class Container {
         this.get(ServiceKeys.TRAINING_EXERCISE_EXECUTION_REPO),
       );
 
-    // 5. Сервисы рекомендаций
     this.services[ServiceKeys.EXERCISE_SELECTOR] =
       new ExerciseSelectorService();
 
@@ -288,7 +309,6 @@ class Container {
       this.get(ServiceKeys.VOLUME_CALCULATOR),
     );
 
-    // 6. Сервис рекомендаций: генерация недельного плана
     this.services[ServiceKeys.TRAINING_PLAN_GENERATION_SERVICE] =
       new TrainingPlanGenerationService(
         this.get(ServiceKeys.PLAN_SERVICE),

@@ -2,11 +2,12 @@
 import { Response } from "express";
 import { TrainingExerciseExecutionService } from "../../domain/services/training-exercise-execution.service";
 import type {
-  TrainingExerciseExecutionEntity,
   CreateTrainingExerciseExecutionEntity,
+  UpdateTrainingExerciseExecutionEntity,
 } from "../../domain/entities/training-exercise-execution.entity";
 import { container, ServiceKeys } from "../../infrastructure/di/container";
-import { AuthRequest } from "../types";
+import { AuthRequest } from "../types/auth.types";
+import { logger } from "../../common/utils";
 
 export class TrainingExerciseExecutionController {
   private service: TrainingExerciseExecutionService;
@@ -17,49 +18,77 @@ export class TrainingExerciseExecutionController {
     );
   }
 
-  async createExec(req: AuthRequest, res: Response): Promise<void> {
+  // POST /api/training-executions/exercises
+  // Принимает как одиночный объект, так и массив
+  async addExercises(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const data: CreateTrainingExerciseExecutionEntity[] = req.body;
+      const data = req.body;
 
-      const results = await Promise.all(
-        data.map(async (item) => {
-          return await this.service.createExec(item);
-        }),
-      );
+      // Если массив — создаём несколько
+      if (Array.isArray(data)) {
+        const results = await Promise.all(
+          data.map((item: CreateTrainingExerciseExecutionEntity) =>
+            this.service.addExercise(item),
+          ),
+        );
+        res.status(201).json(results.filter(Boolean));
+        return;
+      }
 
-      res.status(201).json(results.filter(Boolean));
-    } catch (error) {
-      console.error("Create exercise executions error:", error);
+      // Одиночный объект
+      const result = await this.service.addExercise(data);
+      res.status(201).json(result);
+    } catch (error: any) {
+      logger.error("Create exercise executions error:", error);
       res.status(500).json({ error: "Внутренняя ошибка сервера" });
     }
   }
 
-  async updateExec(req: AuthRequest, res: Response): Promise<void> {
+  // PUT /api/training-executions/exercises/:id
+  async updateExercise(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const data: TrainingExerciseExecutionEntity = req.body;
+      const data: UpdateTrainingExerciseExecutionEntity = req.body;
 
-      const result = await this.service.updateExec(id, data);
+      const result = await this.service.update(id, data);
       if (!result) {
         res.status(404).json({ error: "Выполнение упражнения не найдено" });
         return;
       }
 
       res.json(result);
-    } catch (error) {
-      console.error("Update exercise execution error:", error);
+    } catch (error: any) {
+      logger.error("Update exercise execution error:", error);
       res.status(500).json({ error: "Внутренняя ошибка сервера" });
     }
   }
 
-  async getExecsByDay(req: AuthRequest, res: Response): Promise<void> {
+  // GET /api/training-executions/exercises/:id
+  async getExerciseById(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const result = await this.service.findById(id);
+
+      if (!result) {
+        res.status(404).json({ error: "Выполнение упражнения не найдено" });
+        return;
+      }
+
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Get exercise execution error:", error);
+      res.status(500).json({ error: "Внутренняя ошибка сервера" });
+    }
+  }
+
+  // GET /api/training-executions/exercises/day/:executionId
+  async getExercisesByDay(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { executionId } = req.params;
-
       const result = await this.service.findByExecutionId(executionId);
       res.json(result);
-    } catch (error) {
-      console.error("Get exercise executions error:", error);
+    } catch (error: any) {
+      logger.error("Get exercises by day error:", error);
       res.status(500).json({ error: "Внутренняя ошибка сервера" });
     }
   }

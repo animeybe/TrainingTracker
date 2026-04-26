@@ -1,5 +1,6 @@
+// RecordsPage.tsx
 import "./RecordsPage.scss";
-import { useCallback, useState, useEffect, useMemo } from "react";
+import { useCallback, useState, useEffect, useMemo, useRef } from "react";
 import { useTrainingPlan } from "@/shared/hooks/useTrainingPlan";
 import { useTrainingExecution } from "@/shared/hooks/useTrainingExecution";
 import { useExercises } from "@/shared/hooks/useExercises";
@@ -7,495 +8,443 @@ import { useError } from "@/shared/hooks/useError";
 import type {
   CreateTrainingDayExecution,
   CreateTrainingExerciseExecution,
-} from "@/shared/api/trainingExecutionApi";
+} from "@/shared/api/types";
 import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
 import { useNavigate } from "react-router-dom";
 
-// Локальное состояние = один список упражнений с кол‑вом подходов и повторов
 type ExerciseRecord = {
   exerciseId: string;
   exerciseName: string;
-  sets: number; // план: сколько подходов
-  targetReps: [number, number]; // диапазон повторов по плану, например [8, 10]
-  actualSets: number; // сколько реально сделано подходов
-  actualReps: number[]; // массив повторов по каждому подходу
+  planSets: number;
+  planReps: [number, number];
+  sets: { weight: number; reps: number }[];
   orderInDay: number;
-  notes?: string;
 };
 
-type RecordsPageState = "loading" | "no-plan" | "no-day" | "existing-day";
+type PageState =
+  | "loading"
+  | "no-plan"
+  | "not-started"
+  | "in-progress"
+  | "completed";
 
 export function RecordsPage() {
   const { setError } = useError();
   const navigate = useNavigate();
 
-  const { weekPlan, todayPlan, today, loadingPlan, loadingTodayPlan } =
-    useTrainingPlan();
+  const { weekPlan, todayPlan, today, loadingPlan } = useTrainingPlan();
+  const todayData = todayPlan?.data?.today ?? null;
 
   const {
     dayExecution,
     exerciseExecutions,
     loadingDay,
-    loadingExercises,
     savingExercises,
-    saveDayExecution,
-    saveExerciseExecutions,
+    startTraining,
+    finishTraining,
+    addExercises,
     updateDayExecution,
     loadExercisesByDay,
   } = useTrainingExecution(today.dayIndex);
 
   const { allExercises } = useExercises();
 
-  // 1. Локальное состояние
+  // ─── Состояние ─────────────────────────────────────
   const [exerciseRecords, setExerciseRecords] = useState<ExerciseRecord[]>([]);
   const [dayNotes, setDayNotes] = useState("");
   const [trainingCompleted, setTrainingCompleted] = useState(false);
-  const [isAddExerciseModalOpen, setIsAddExerciseModalOpen] = useState(false);
-  const [exerciseToAdd, setExerciseToAdd] = useState<{
-    exerciseId: string;
-    name: string;
-    sets: number;
-    targetReps: [number, number];
-  } | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showFinishWarning, setShowFinishWarning] = useState(false);
 
-  const addedExerciseIds = useMemo(
+  // Ref для отслеживания уже загруженных данных с сервера
+  const prevExecutionsRef = useRef<string | null>(null);
+
+  // Уже добавленные упражнения (по ID)
+  const addedIds = useMemo(
     () => new Set(exerciseRecords.map((r) => r.exerciseId)),
     [exerciseRecords],
   );
 
-  // 2. Состояние UI
-  const pageState: RecordsPageState = useMemo(() => {
-    if (loadingPlan || loadingDay || loadingExercises || loadingTodayPlan) {
-      return "loading";
-    }
-    if (!weekPlan) {
-      return "no-plan";
-    }
-    if (!dayExecution) {
-      return "no-day";
-    }
-    return "existing-day";
-  }, [
-    weekPlan,
-    dayExecution,
-    loadingPlan,
-    loadingDay,
-    loadingExercises,
-    loadingTodayPlan,
-  ]);
+  // ─── Состояние страницы ────────────────────────────
+  const pageState: PageState = useMemo(() => {
+    if (loadingPlan || loadingDay) return "loading";
+    if (!weekPlan) return "no-plan";
+    if (trainingCompleted || dayExecution?.endTime) return "completed";
+    if (!dayExecution) return "not-started";
+    return "in-progress";
+  }, [loadingPlan, loadingDay, weekPlan, dayExecution, trainingCompleted]);
 
-  // 3. Начать тренировку → создать `dayExecution`
-  const handleStartTraining = useCallback(async () => {
-    if (!todayPlan?.today || !weekPlan) return;
+  // ─── Синхронизация с сервером ──────────────────────
+  useEffect(() => {
+    if (!exerciseExecutions?.length || !dayExecution?.id) return;
 
-    const dayData: CreateTrainingDayExecution = {
-      week: weekPlan.week,
-      dayOfWeek: today.dayIndex,
-      executionDate: new Date().toISOString(),
-      wellbeingToday: "NORMAL",
-      notes: "",
-    };
+    const currentKey = `${dayExecution.id}-${exerciseExecutions.length}`;
+    if (prevExecutionsRef.current === currentKey) return;
+    prevExecutionsRef.current = currentKey;
 
+    const records: ExerciseRecord[] = exerciseExecutions.map((ee) => {
+      const name =
+        allExercises?.find((e) => e.id === ee.exerciseId)?.name || "Упражнение";
+      const setsData = ee.setsData as Array<{
+        set?: number;
+        weight?: number;
+        reps?: number;
+      }>;
+      const sets = (setsData || []).map((s) => ({
+        weight: s.weight ?? 0,
+        reps: s.reps ?? 0,
+      }));
+
+      return {
+        exerciseId: ee.exerciseId,
+        exerciseName: name,
+        planSets: sets.length,
+        planReps: [0, 0] as [number, number],
+        sets,
+        orderInDay: ee.orderInDay,
+      };
+    });
+
+    setExerciseRecords(records);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exerciseExecutions?.length, dayExecution?.id]);
+
+  // ─── Начать тренировку ─────────────────────────────
+  const handleStart = useCallback(async () => {
+    if (!weekPlan) return;
     try {
-      const newDay = await saveDayExecution(dayData);
-      if (!newDay) {
-        throw new Error("Сервер вернул пустой dayExecution");
-      }
-
-      setDayNotes(newDay.notes ?? "");
-      setTrainingCompleted(false);
-
-      if (newDay.id) {
+      const data: CreateTrainingDayExecution = {
+        week: weekPlan.week,
+        dayOfWeek: today.dayIndex,
+        wellbeingToday: "NORMAL",
+        notes: null,
+      };
+      const newDay = await startTraining(data);
+      if (newDay?.id) {
         await loadExercisesByDay(newDay.id);
       }
-    } catch (error) {
-      setError(
-        "network",
-        error instanceof Error ? error.message : "Не удалось начать тренировку",
-      );
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Не удалось начать тренировку";
+      setError("network", message);
     }
-  }, [
-    todayPlan?.today,
-    weekPlan,
-    today.dayIndex,
-    saveDayExecution,
-    loadExercisesByDay,
-    setError,
-  ]);
+  }, [weekPlan, today.dayIndex, startTraining, loadExercisesByDay, setError]);
 
-  // 4. Обновить `notes` дня
-  const handleUpdateNotes = useCallback((notes: string) => {
-    setDayNotes(notes);
-  }, []);
+  // ─── Добавить упражнение из модалки ────────────────
+  const handleAddExercise = useCallback(
+    (planExercise: {
+      exerciseId: string;
+      sets: number;
+      targetRepsRange: [number, number];
+    }) => {
+      const name =
+        allExercises?.find((e) => e.id === planExercise.exerciseId)?.name ||
+        "Упражнение";
 
-  // 5. Обновить число повторов в одном подходе
-  const updateSetReps = useCallback(
-    (exerciseIndex: number, setIndex: number, reps: number) => {
+      setExerciseRecords((prev) => {
+        if (prev.some((r) => r.exerciseId === planExercise.exerciseId))
+          return prev;
+
+        const emptySets = Array.from({ length: planExercise.sets }, () => ({
+          weight: 0,
+          reps: 0,
+        }));
+
+        return [
+          ...prev,
+          {
+            exerciseId: planExercise.exerciseId,
+            exerciseName: name,
+            planSets: planExercise.sets,
+            planReps: planExercise.targetRepsRange,
+            sets: emptySets,
+            orderInDay: prev.length,
+          },
+        ];
+      });
+
+      setShowAddModal(false);
+    },
+    [allExercises],
+  );
+
+  // ─── Обновить подход ───────────────────────────────
+  const updateSet = useCallback(
+    (
+      exerciseIdx: number,
+      setIdx: number,
+      field: "weight" | "reps",
+      value: number,
+    ) => {
       setExerciseRecords((prev) =>
-        prev.map((record, idx) =>
-          idx === exerciseIndex
+        prev.map((rec, i) =>
+          i === exerciseIdx
             ? {
-                ...record,
-                actualSets: Math.max(record.actualSets, setIndex + 1),
-                actualReps: record.actualReps.map((r, i) =>
-                  i === setIndex ? reps : r,
+                ...rec,
+                sets: rec.sets.map((s, j) =>
+                  j === setIdx ? { ...s, [field]: value } : s,
                 ),
               }
-            : record,
+            : rec,
         ),
       );
     },
     [],
   );
 
-  // 6. Добавить упражнение из модалки
-  const handleAddExercise = useCallback(() => {
-    if (!exerciseToAdd) return;
+  // ─── Проверить, все ли упражнения плана выполнены ──
+  const isPlanCompleted = useMemo(() => {
+    if (!todayData?.exercises) return true;
+    return todayData.exercises.every((pe) => addedIds.has(pe.exerciseId));
+  }, [todayData, addedIds]);
 
-    const targetReps = exerciseToAdd.targetReps;
-    const actualReps = Array(exerciseToAdd.sets || 3).fill(0);
-
-    setExerciseRecords((prev) => {
-      if (prev.some((r) => r.exerciseId === exerciseToAdd.exerciseId)) {
-        return prev;
-      }
-
-      return [
-        ...prev,
-        {
-          exerciseId: exerciseToAdd.exerciseId,
-          exerciseName: exerciseToAdd.name,
-          sets: exerciseToAdd.sets,
-          targetReps,
-          actualSets: exerciseToAdd.sets,
-          actualReps,
-          orderInDay: prev.length,
-          notes: "",
-        },
-      ];
-    });
-
-    setIsAddExerciseModalOpen(false);
-    setExerciseToAdd(null);
-  }, [exerciseToAdd]);
-
-  // 7. Сохранить тренировку
-  const handleSaveTraining = useCallback(async () => {
-    console.log("📝 Saving notes:", dayNotes);
-    console.log(
-      "📝 actualReps:",
-      exerciseRecords.map((r) => r.actualReps),
-    );
-
-    if (!dayExecution || exerciseRecords.length === 0) return;
+  // ─── Завершить тренировку ──────────────────────────
+  const handleFinish = useCallback(async () => {
+    if (!dayExecution) return;
 
     try {
-      // 1. Обновить notes дня
-      await updateDayExecution(dayExecution.id, { notes: dayNotes });
-      console.log("✅ Day notes updated");
+      await updateDayExecution(dayExecution.id, { notes: dayNotes || null });
 
-      // 2. Создать/обновить выполнения упражнений
-      const exerciseData: CreateTrainingExerciseExecution[] = exerciseRecords
-        .map((record) => {
-          const totalReps = record.actualReps.reduce(
-            (sum, reps) => sum + reps,
-            0,
-          );
-          return {
+      if (exerciseRecords.length > 0) {
+        const data: CreateTrainingExerciseExecution[] = exerciseRecords.map(
+          (rec) => ({
             executionId: dayExecution.id,
-            exerciseId: record.exerciseId,
-            sets: record.actualSets,
-            reps: totalReps, // Int – сумма повторов по всем сетам
-            orderInDay: record.orderInDay,
-            notes: record.notes ?? "",
-          };
-        })
-        .filter((item) => item.sets > 0);
+            exerciseId: rec.exerciseId,
+            setsData: rec.sets
+              .map((s, i) => ({ set: i + 1, weight: s.weight, reps: s.reps }))
+              .filter((s) => s.reps > 0),
+            orderInDay: rec.orderInDay,
+          }),
+        );
 
-      if (exerciseData.length > 0) {
-        await saveExerciseExecutions(exerciseData);
-        console.log("✅ Exercises saved");
+        if (data.length > 0) {
+          await addExercises(data);
+        }
       }
 
+      await finishTraining(dayExecution.id);
+
       setTrainingCompleted(true);
+      setShowFinishWarning(false);
       setError("empty", "✅ Тренировка на сегодня окончена!");
-    } catch (error) {
-      setError(
-        "network",
-        error instanceof Error
-          ? error.message
-          : "Не удалось сохранить тренировку",
-      );
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Не удалось завершить тренировку";
+      setError("network", message);
     }
   }, [
     dayExecution,
     exerciseRecords,
     dayNotes,
     updateDayExecution,
-    saveExerciseExecutions,
+    addExercises,
+    finishTraining,
     setError,
   ]);
 
-  // 8. Мердж с уже сохранёнными `exerciseExecutions`
-  useEffect(() => {
-    if (!dayExecution || exerciseExecutions.length === 0) return;
+  // ═══════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════
 
-    const recordMap = new Map(exerciseRecords.map((r) => [r.exerciseId, r]));
-
-    const merged = exerciseExecutions.map((ee) => {
-      const local = recordMap.get(ee.exerciseId) || {
-        exerciseId: ee.exerciseId,
-        exerciseName: "",
-        sets: 0,
-        targetReps: [0, 0] as [number, number],
-        actualSets: 0,
-        actualReps: [] as number[],
-        orderInDay: 0,
-        notes: "",
-      };
-
-      const exName =
-        allExercises?.find((e) => e.id === ee.exerciseId)?.name ||
-        local.exerciseName;
-
-      return {
-        ...local,
-        exerciseName: exName,
-        actualSets: ee.sets,
-        orderInDay: ee.orderInDay,
-        notes: ee.notes,
-      };
-    });
-
-    setExerciseRecords(merged);
-  }, [exerciseExecutions, dayExecution, exerciseRecords, allExercises]);
-
-  // 9. Подготовка записей с актуальными именами упражнений
-  const exerciseRecordsWithNames = useMemo(
-    () =>
-      exerciseRecords.map((record) => ({
-        ...record,
-        exerciseName:
-          allExercises?.find((e) => e.id === record.exerciseId)?.name ||
-          "Неизвестное упражнение",
-      })),
-    [exerciseRecords, allExercises],
-  );
-
-  // 10. БЭМ‑префикс
-  const bem = "records-page";
-
-  // =============== RENDER ===============
-
-  if (pageState === "loading") {
-    return <InfoPage type="loading" />;
-  }
+  if (pageState === "loading") return <InfoPage type="loading" />;
 
   if (pageState === "no-plan") {
     return (
-      <div className={`${bem}__no-plan`}>
-        <div className={`${bem}__no-plan-content`}>
-          <h2 className={`${bem}__no-plan-title`}>Нет плана на сегодня</h2>
-          <p className={`${bem}__no-plan-text`}>
-            Создайте план тренировок, чтобы отслеживать выполнение и прогресс.
-          </p>
-          <div className={`${bem}__no-plan-cta`}>
-            <button
-              className={`${bem}__no-plan-btn`}
-              onClick={() => navigate("/training", { replace: true })}>
-              🚀 Создать план
-            </button>
-          </div>
-        </div>
+      <div className="records-page__no-plan">
+        <h2>Нет плана на сегодня</h2>
+        <p>
+          Создайте план тренировок, чтобы отслеживать выполнение и прогресс.
+        </p>
+        <button onClick={() => navigate("/training")}>🚀 Создать план</button>
       </div>
     );
   }
 
   return (
-    <div className={bem}>
-      {/* Заголовок */}
-      <div className={`${bem}__header`}>
-        <h1 className={`${bem}__title`}>Записи тренировок</h1>
-        <p className={`${bem}__subtitle`}>
+    <div className="records-page">
+      <div className="records-page__header">
+        <h1>Записи тренировок</h1>
+        <p>
           {today.dayOfWeek} • Неделя {weekPlan?.week}
         </p>
       </div>
 
-      {/* Нет записи дня → показать кнопку "Начать тренировку" */}
-      {pageState === "no-day" && (
-        <div className={`${bem}__start-section`}>
-          <p className={`${bem}__info-text`}>
-            У вас ещё нет записи тренировки за сегодня.
-          </p>
-          <button
-            className={`${bem}__start-btn`}
-            onClick={handleStartTraining}
-            disabled={!todayPlan?.today?.exercises.length}>
-            🚀 Начать тренировку
-          </button>
+      {/* ── Не начата ─────────────────────────────── */}
+      {pageState === "not-started" && (
+        <div className="records-page__start">
+          {!todayData || todayData.exercises.length === 0 ? (
+            <>
+              <p>Сегодня день отдыха — восстанавливайтесь! 🌿</p>
+              <button
+                className="records-page__start-btn records-page__start-btn--disabled"
+                disabled
+                title="Сегодня отдых">
+                🚀 Начать тренировку
+              </button>
+            </>
+          ) : (
+            <>
+              <p>У вас ещё нет записи тренировки за сегодня.</p>
+              <button className="records-page__start-btn" onClick={handleStart}>
+                🚀 Начать тренировку
+              </button>
+            </>
+          )}
         </div>
       )}
 
-      {/* Есть запись дня, тренировка ещё не завершена */}
-      {pageState === "existing-day" && dayExecution && !trainingCompleted && (
+      {/* ── В процессе ────────────────────────────── */}
+      {pageState === "in-progress" && (
         <>
-          {/* Информация о дне и заметки */}
-          <div className={`${bem}__day-info`}>
-            <div className={`${bem}__wellbeing`}>
-              <span>Самочувствие:</span>
-              <span
-                className={`${bem}__wellbeing-badge wellbeing-${dayExecution.wellbeingToday.toLowerCase()}`}>
-                {dayExecution.wellbeingToday === "BAD"
-                  ? "😷 Плохо"
-                  : dayExecution.wellbeingToday === "NORMAL"
-                    ? "🙂 Нормально"
-                    : "💪 Отлично"}
-              </span>
+          <div className="records-page__info">
+            <div>
+              Самочувствие:{" "}
+              {dayExecution?.wellbeingToday === "BAD"
+                ? "😷 Плохо"
+                : dayExecution?.wellbeingToday === "GOOD"
+                  ? "💪 Отлично"
+                  : "🙂 Нормально"}
             </div>
             <textarea
-              className={`${bem}__day-notes`}
               placeholder="Заметки о тренировке..."
               value={dayNotes}
-              onChange={(e) => handleUpdateNotes(e.target.value)}
-              rows={3}
+              onChange={(e) => setDayNotes(e.target.value)}
+              rows={2}
             />
           </div>
 
-          {/* Кнопка "Сделать упражнение" и модалка */}
-          <div className={`${bem}__day-actions`}>
-            <button
-              className={`${bem}__add-exercise-btn`}
-              onClick={() => setIsAddExerciseModalOpen(true)}
-              disabled={savingExercises}>
-              ➕ Сделать упражнение
-            </button>
-          </div>
+          <button
+            className="records-page__add-btn"
+            onClick={() => setShowAddModal(true)}
+            disabled={savingExercises}>
+            ➕ Добавить упражнение
+          </button>
 
-          {/* Список упражнений с полями повторений */}
-          <div className={`${bem}__exercises`}>
-            {exerciseRecordsWithNames.length === 0 && (
-              <p className={`${bem}__no-exercise-records`}>
-                Нет упражнений для записи.
-              </p>
-            )}
-
-            {exerciseRecordsWithNames.map((record, exerciseIdx) => (
-              <div key={record.exerciseId} className={`${bem}__exercise`}>
-                <div className={`${bem}__exercise-header`}>
-                  <h3>{record.exerciseName}</h3>
-                  <span>
-                    По плану: {record.sets} × {record.targetReps[0]}–
-                    {record.targetReps[1]}
-                  </span>
-                </div>
-
-                <div className={`${bem}__sets`}>
-                  {record.actualReps.map((_, setIdx) => (
-                    <div key={setIdx} className={`${bem}__set`}>
-                      <span className={`${bem}__set-number`}>{setIdx + 1}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="50"
-                        value={record.actualReps[setIdx] || ""}
-                        onChange={(e) =>
-                          updateSetReps(
-                            exerciseIdx,
-                            setIdx,
-                            parseInt(e.target.value) || 0,
-                          )
-                        }
-                        className={`${bem}__set-input`}
-                        placeholder="повт"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Кнопка сохранения */}
+          {/* Список выполненных упражнений */}
           {exerciseRecords.length > 0 && (
-            <div className={`${bem}__save-section`}>
-              <button
-                className={`${bem}__save-btn`}
-                onClick={handleSaveTraining}
-                disabled={savingExercises}>
-                {savingExercises ? "Сохраняем..." : "💾 Записать тренировку"}
-              </button>
+            <div className="records-page__exercises">
+              {exerciseRecords.map((rec, ei) => {
+                const plan = todayData?.exercises?.find(
+                  (e) => e.exerciseId === rec.exerciseId,
+                );
+                return (
+                  <div key={rec.exerciseId} className="records-page__exercise">
+                    <h3>{rec.exerciseName}</h3>
+                    <span>
+                      План: {plan?.sets ?? rec.planSets} ×{" "}
+                      {plan?.targetRepsRange?.[0] ?? rec.planReps[0]}–
+                      {plan?.targetRepsRange?.[1] ?? rec.planReps[1]}
+                    </span>
+
+                    {rec.sets.map((s, si) => (
+                      <div key={si} className="records-page__set">
+                        <span>{si + 1}</span>
+                        <input
+                          type="number"
+                          placeholder="Вес"
+                          value={s.weight || ""}
+                          onChange={(e) =>
+                            updateSet(
+                              ei,
+                              si,
+                              "weight",
+                              parseFloat(e.target.value) || 0,
+                            )
+                          }
+                        />
+                        <input
+                          type="number"
+                          placeholder="Повт"
+                          value={s.reps || ""}
+                          onChange={(e) =>
+                            updateSet(
+                              ei,
+                              si,
+                              "reps",
+                              parseInt(e.target.value) || 0,
+                            )
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
             </div>
+          )}
+
+          {/* Кнопка "Закончить" */}
+          {exerciseRecords.length > 0 && (
+            <button
+              className="records-page__finish-btn"
+              onClick={() => {
+                if (!isPlanCompleted) {
+                  setShowFinishWarning(true);
+                } else {
+                  handleFinish();
+                }
+              }}
+              disabled={savingExercises}>
+              {savingExercises ? "Сохраняем..." : "💾 Закончить тренировку"}
+            </button>
           )}
         </>
       )}
 
-      {/* Тренировка завершена */}
-      {trainingCompleted && (
-        <div className={`${bem}__completed`}>
-          <p className={`${bem}__completed-message`}>
-            ✅ Тренировка на сегодня окончена.
-          </p>
+      {/* ── Завершена ─────────────────────────────── */}
+      {pageState === "completed" && (
+        <div className="records-page__completed">
+          <p>✅ Тренировка на сегодня окончена.</p>
         </div>
       )}
 
-      {/* Модалка "Сделать упражнение" */}
-      {isAddExerciseModalOpen && (
-        <div className={`${bem}__modal-backdrop`}>
-          <div className={`${bem}__modal-content`}>
-            <h3 className={`${bem}__modal-title`}>Выберите упражнение</h3>
-            <div className={`${bem}__modal-body`}>
-              {(() => {
-                const availableExercises = todayPlan?.today?.exercises.filter(
-                  (ex) => !addedExerciseIds.has(ex.exerciseId),
-                );
-
-                if (!availableExercises || availableExercises.length === 0) {
-                  return (
-                    <p className={`${bem}__no-exercises-in-modal`}>
-                      Все упражнения уже добавлены в тренировку
-                    </p>
-                  );
-                }
-
-                return availableExercises.map((ex) => {
-                  const exData = allExercises?.find(
-                    (e) => e.id === ex.exerciseId,
-                  );
-                  const targetReps = ex.targetRepsRange ?? [10, 12];
+      {/* ── Модалка: выбрать упражнение ───────────── */}
+      {showAddModal && (
+        <div
+          className="records-page__modal-backdrop"
+          onClick={() => setShowAddModal(false)}>
+          <div
+            className="records-page__modal"
+            onClick={(e) => e.stopPropagation()}>
+            <h3>Выберите упражнение</h3>
+            <div>
+              {todayData?.exercises
+                ?.filter((ex) => !addedIds.has(ex.exerciseId))
+                .map((ex) => {
+                  const name =
+                    allExercises?.find((e) => e.id === ex.exerciseId)?.name ||
+                    "Упражнение";
                   return (
                     <button
                       key={ex.exerciseId}
-                      className={`${bem}__modal-exercise`}
-                      onClick={() => {
-                        setExerciseToAdd({
-                          exerciseId: ex.exerciseId,
-                          name: exData?.name || "Неизвестное",
-                          sets: ex.sets,
-                          targetReps,
-                        });
-                      }}>
-                      {`${exData?.name || "Неизвестное"} × ${targetReps[0]}–${targetReps[1]}`}
+                      onClick={() => handleAddExercise(ex)}>
+                      {name} — {ex.sets}×{ex.targetRepsRange[0]}–
+                      {ex.targetRepsRange[1]}
                     </button>
                   );
-                });
-              })()}
+                })}
+              {todayData?.exercises?.filter(
+                (ex) => !addedIds.has(ex.exerciseId),
+              ).length === 0 && <p>Все упражнения уже добавлены</p>}
             </div>
-            <div className={`${bem}__modal-actions`}>
-              <button
-                className={`${bem}__modal-btn-cancel`}
-                onClick={() => {
-                  setIsAddExerciseModalOpen(false);
-                  setExerciseToAdd(null);
-                }}>
-                Отмена
-              </button>
-              <button
-                className={`${bem}__modal-btn-add`}
-                disabled={!exerciseToAdd}
-                onClick={handleAddExercise}>
-                Добавить
-              </button>
-            </div>
+            <button onClick={() => setShowAddModal(false)}>Отмена</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Предупреждение: не все упражнения ──────── */}
+      {showFinishWarning && (
+        <div
+          className="records-page__modal-backdrop"
+          onClick={() => setShowFinishWarning(false)}>
+          <div
+            className="records-page__modal"
+            onClick={(e) => e.stopPropagation()}>
+            <p>
+              ⚠️ Вы выполнили не все упражнения плана. Завершить тренировку?
+            </p>
+            <button onClick={handleFinish}>Да, завершить</button>
+            <button onClick={() => setShowFinishWarning(false)}>Отмена</button>
           </div>
         </div>
       )}

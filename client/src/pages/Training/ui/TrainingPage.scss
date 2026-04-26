@@ -192,7 +192,7 @@ $border: 1px solid #d0e0ff;
     display: grid;
     grid-template-columns: repeat(7, 1fr);
     gap: 0.8rem;
-    margin-top: 2rem;
+    margin-bottom: clamp(2rem, 10vh, 4rem);
   }
 
   // Отдельная ячейка дня

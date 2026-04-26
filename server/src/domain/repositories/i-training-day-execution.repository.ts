@@ -1,21 +1,25 @@
 // domain/repositories/i-training-day-execution.repository.ts
-import type { CreateTrainingDayExecutionEntity, TrainingDayExecutionEntity } from "../entities/training-day-execution.entity";
+import type {
+  TrainingDayExecutionEntity,
+  CreateTrainingDayExecutionEntity,
+  UpdateTrainingDayExecutionEntity,
+} from "../entities/training-day-execution.entity";
 
 export interface ITrainingDayExecutionRepository {
   create(
     entity: CreateTrainingDayExecutionEntity,
   ): Promise<TrainingDayExecutionEntity>;
-  update(
-    id: string,
-    entity: TrainingDayExecutionEntity,
-  ): Promise<TrainingDayExecutionEntity | null>;
   findById(id: string): Promise<TrainingDayExecutionEntity | null>;
-  findByWeekDayAndUser(
+  findByUserId(userId: string): Promise<TrainingDayExecutionEntity[]>;
+  findByWeekAndDay(
     userId: string,
     week: number,
     dayOfWeek: number,
-    executionDate: Date,
+  ): Promise<TrainingDayExecutionEntity[]>;
+  update(
+    id: string,
+    entity: UpdateTrainingDayExecutionEntity,
   ): Promise<TrainingDayExecutionEntity | null>;
-  findAll(): Promise<TrainingDayExecutionEntity[]>;
+  finishTraining(id: string): Promise<TrainingDayExecutionEntity | null>;
   delete(id: string): Promise<boolean>;
 }

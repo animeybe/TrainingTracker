@@ -6,7 +6,6 @@ export type WeeklyPlanDto = {
   userId: string;
   week: number;
   split: TrainingSplit;
-  score: number;
   daysPerWeek: number;
   restDays: number[];
   message: string | null;
@@ -18,7 +17,6 @@ export type CreateWeeklyPlanDto = {
   userId: string;
   week: number;
   split: TrainingSplit;
-  score: number;
   daysPerWeek: number;
   restDays: number[];
   message: string | null;
@@ -27,7 +25,6 @@ export type CreateWeeklyPlanDto = {
 export type UpdateWeeklyPlanDto = {
   week?: number;
   split?: TrainingSplit;
-  score?: number;
   daysPerWeek?: number;
   restDays?: number[];
   message?: string | null;

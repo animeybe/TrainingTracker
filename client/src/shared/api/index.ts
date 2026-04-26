@@ -1,4 +1,22 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const getApiBase = (): string => {
+  // Если переменная задана явно — используем её
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+
+  // Если мы на продакшене (Tunyl) — используем тот же домен
+  if (import.meta.env.PROD) {
+    const origin = window.location.origin;
+    // https://trainingtk.tunyl.com → https://api-trainingtk.tunyl.com/api
+    const parts = origin.split("://");
+    return `${parts[0]}://api-${parts[1]}/api`;
+  }
+
+  // Локальная разработка
+  return "http://192.168.1.151:3001/api";
+};
+
+const API_BASE = getApiBase();
 
 export const apiRequest = async <T = unknown>(
   url: string,
@@ -49,3 +67,4 @@ export { planApi } from "./planApi";
 export { profileApi } from "./profileApi";
 export { trainingExecutionApi } from "./trainingExecutionApi";
 export { userStateApi } from "./userStateApi";
+export { pushApi } from "./pushApi";

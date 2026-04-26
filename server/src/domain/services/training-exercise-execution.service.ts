@@ -1,47 +1,48 @@
 // domain/services/training-exercise-execution.service.ts
-import {
+import type {
   TrainingExerciseExecutionEntity,
   CreateTrainingExerciseExecutionEntity,
+  UpdateTrainingExerciseExecutionEntity,
 } from "../entities/training-exercise-execution.entity";
-import { ITrainingExerciseExecutionRepository } from "../repositories/i-training-exercise-execution.repository";
+import type { ITrainingExerciseExecutionRepository } from "../repositories/i-training-exercise-execution.repository";
 
 export class TrainingExerciseExecutionService {
-  private repo: ITrainingExerciseExecutionRepository;
+  constructor(private readonly repo: ITrainingExerciseExecutionRepository) {}
 
-  constructor(repo: ITrainingExerciseExecutionRepository) {
-    this.repo = repo;
-  }
-
-  async createExec(
+  // Добавить выполненное упражнение
+  async addExercise(
     entity: CreateTrainingExerciseExecutionEntity,
-  ): Promise<TrainingExerciseExecutionEntity | null> {
-    const training: TrainingExerciseExecutionEntity = {
-      id: "", // Prisma сам назначит
-      ...entity,
-    };
-
-    return await this.repo.create(training);
+  ): Promise<TrainingExerciseExecutionEntity> {
+    return await this.repo.create(entity);
   }
 
-  async updateExec(
+  // Обновить данные выполнения упражнения
+  async update(
     id: string,
-    entity: TrainingExerciseExecutionEntity,
+    entity: UpdateTrainingExerciseExecutionEntity,
   ): Promise<TrainingExerciseExecutionEntity | null> {
     return await this.repo.update(id, entity);
   }
 
+  // Найти по ID
   async findById(id: string): Promise<TrainingExerciseExecutionEntity | null> {
     return await this.repo.findById(id);
   }
 
-  // основной метод: все выполнения для дня тренировки
+  // Найти все упражнения в тренировке
   async findByExecutionId(
     executionId: string,
   ): Promise<TrainingExerciseExecutionEntity[]> {
     return await this.repo.findByExecutionId(executionId);
   }
 
-  async deleteExec(id: string): Promise<boolean> {
+  // Найти все выполнения
+  async findAll(): Promise<TrainingExerciseExecutionEntity[]> {
+    return await this.repo.findAll();
+  }
+
+  // Удалить упражнение из тренировки
+  async delete(id: string): Promise<boolean> {
     return await this.repo.delete(id);
   }
 }

@@ -86,7 +86,7 @@ export interface ExerciseSet {
   targetRepsRange: [number, number];
   favorite?: boolean;
   warning?: string;
-  muscleGroup: MuscleGroup | null;
+  muscleGroup: MuscleGroup;
   progression?: {
     baseSets: number;
     baseReps: [number, number];

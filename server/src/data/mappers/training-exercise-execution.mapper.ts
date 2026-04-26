@@ -1,3 +1,4 @@
+// data/mappers/training-exercise-execution.mapper.ts
 import type {
   TrainingExerciseExecutionDto,
   CreateTrainingExerciseExecutionDto,
@@ -17,8 +18,7 @@ export class TrainingExerciseExecutionMapper {
       id: dto.id,
       executionId: dto.executionId,
       exerciseId: dto.exerciseId,
-      sets: dto.sets,
-      reps: dto.reps,
+      setsData: dto.setsData,
       orderInDay: dto.orderInDay,
     };
   }
@@ -30,8 +30,7 @@ export class TrainingExerciseExecutionMapper {
       id: entity.id,
       executionId: entity.executionId,
       exerciseId: entity.exerciseId,
-      sets: entity.sets,
-      reps: entity.reps,
+      setsData: entity.setsData,
       orderInDay: entity.orderInDay,
     };
   }
@@ -42,8 +41,7 @@ export class TrainingExerciseExecutionMapper {
     return {
       executionId: entity.executionId,
       exerciseId: entity.exerciseId,
-      sets: entity.sets,
-      reps: entity.reps,
+      setsData: entity.setsData,
       orderInDay: entity.orderInDay,
     };
   }
@@ -52,8 +50,7 @@ export class TrainingExerciseExecutionMapper {
     entity: UpdateTrainingExerciseExecutionEntity,
   ): UpdateTrainingExerciseExecutionDto {
     return {
-      sets: entity.sets,
-      reps: entity.reps,
+      setsData: entity.setsData,
       orderInDay: entity.orderInDay,
     };
   }

@@ -3,6 +3,7 @@ export * from "./exercise.repository";
 export * from "./favorite-exercise.repository";
 export * from "./least-favorite-exercise.repository";
 export * from "./plan.repository";
+export * from "./push-subscription.repository";
 export * from "./training-day-execution.repository";
 export * from "./training-exercise-execution.repository";
 export * from "./user-profile.repository";

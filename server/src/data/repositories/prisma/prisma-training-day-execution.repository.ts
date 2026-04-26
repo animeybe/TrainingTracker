@@ -1,98 +1,79 @@
 // data/repositories/prisma/prisma-training-day-execution.repository.ts
-import { Prisma } from "@prisma/client";
 import { prisma } from "../../../infrastructure/prisma/client";
 import type {
   TrainingDayExecutionDto,
   CreateTrainingDayExecutionDto,
 } from "../../dtos/training-day-execution.prisma-dto";
-import { Wellbeing } from "../../../common/types/enums.types";
 
 export class PrismaTrainingDayExecutionRepository {
   async create(
     data: CreateTrainingDayExecutionDto,
   ): Promise<TrainingDayExecutionDto> {
-    const result = await prisma.trainingDayExecution.create({
+    return await prisma.trainingDayExecution.create({
       data: {
-        user: {
-          connect: { id: data.userId },
-        },
+        user: { connect: { id: data.userId } },
         week: data.week,
         dayOfWeek: data.dayOfWeek,
-        executionDate: data.executionDate,
+        startTime: data.startTime ?? new Date(),
+        endTime: data.endTime ?? null,
         wellbeingToday: data.wellbeingToday,
-        notes: data.notes,
-      } satisfies Prisma.trainingDayExecutionCreateInput,
+        notes: data.notes ?? null,
+      },
     });
-    return result;
   }
 
   async findById(id: string): Promise<TrainingDayExecutionDto | null> {
-    const result = await prisma.trainingDayExecution.findUnique({
+    return await prisma.trainingDayExecution.findUnique({
       where: { id },
+      include: { exercises: true },
     });
-    return result;
   }
 
-  async findByWeekDayAndUser(
+  async findByUserId(userId: string): Promise<TrainingDayExecutionDto[]> {
+    return await prisma.trainingDayExecution.findMany({
+      where: { userId },
+      orderBy: { startTime: "desc" },
+      include: { exercises: true },
+    });
+  }
+
+  async findByWeekAndDay(
     userId: string,
     week: number,
     dayOfWeek: number,
-    executionDate: Date,
-  ): Promise<TrainingDayExecutionDto | null> {
-    const startOfDay = new Date(executionDate);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(startOfDay);
-    endOfDay.setDate(endOfDay.getDate() + 1);
-
-    const result = await prisma.trainingDayExecution.findFirst({
-      where: {
-        userId,
-        week,
-        dayOfWeek,
-        executionDate: {
-          gte: startOfDay,
-          lt: endOfDay,
-        },
-      },
+  ): Promise<TrainingDayExecutionDto[]> {
+    return await prisma.trainingDayExecution.findMany({
+      where: { userId, week, dayOfWeek },
+      orderBy: { startTime: "desc" },
+      include: { exercises: true },
     });
-
-    if (!result) return null;
-
-    return {
-      id: result.id,
-      userId: result.userId,
-      week: result.week,
-      dayOfWeek: result.dayOfWeek,
-      executionDate: new Date(result.executionDate),
-      wellbeingToday: result.wellbeingToday as Wellbeing,
-      notes: result.notes,
-      createdAt: new Date(result.createdAt),
-    };
-  }
-
-  async findAll(): Promise<TrainingDayExecutionDto[]> {
-    const results = await prisma.trainingDayExecution.findMany();
-    return results;
   }
 
   async update(
     id: string,
-    dto: TrainingDayExecutionDto,
+    dto: Partial<TrainingDayExecutionDto>,
   ): Promise<TrainingDayExecutionDto | null> {
     try {
-      const result = await prisma.trainingDayExecution.update({
+      return await prisma.trainingDayExecution.update({
         where: { id },
         data: {
-          week: dto.week,
-          dayOfWeek: dto.dayOfWeek,
-          executionDate: dto.executionDate,
+          endTime: dto.endTime,
           wellbeingToday: dto.wellbeingToday,
           notes: dto.notes,
-        } satisfies Prisma.trainingDayExecutionUpdateInput,
+        },
       });
-      return result;
-    } catch (_error) {
+    } catch {
+      return null;
+    }
+  }
+
+  async finishTraining(id: string): Promise<TrainingDayExecutionDto | null> {
+    try {
+      return await prisma.trainingDayExecution.update({
+        where: { id },
+        data: { endTime: new Date() },
+      });
+    } catch {
       return null;
     }
   }
@@ -101,7 +82,7 @@ export class PrismaTrainingDayExecutionRepository {
     try {
       await prisma.trainingDayExecution.delete({ where: { id } });
       return true;
-    } catch (_error) {
+    } catch {
       return false;
     }
   }

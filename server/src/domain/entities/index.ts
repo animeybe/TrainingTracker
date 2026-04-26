@@ -3,6 +3,7 @@ export * from "./exercise.entity";
 export * from "./favorite-exercise.entity";
 export * from "./least-favorite-exercise.entity";
 export * from "./plan.entity";
+export * from "./push-subscription.entity";
 export * from "./training-day-execution.entity";
 export * from "./training-exercise-execution.entity";
 export * from "./user-profile.entity";

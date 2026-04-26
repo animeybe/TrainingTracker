@@ -6,7 +6,6 @@ export type WeeklyPlanEntity = {
   userId: string;
   week: number;
   split: TrainingSplit;
-  score: number;
   daysPerWeek: number;
   restDays: number[];
   message: string | null;
@@ -18,7 +17,6 @@ export type CreateWeeklyPlanEntity = {
   userId: string;
   week: number;
   split: TrainingSplit;
-  score: number;
   daysPerWeek: number;
   restDays: number[];
   message: string | null;

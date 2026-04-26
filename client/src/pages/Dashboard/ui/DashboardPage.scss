@@ -333,7 +333,7 @@
     flex-wrap: wrap;
     gap: clamp(12px, 3vw, 20px);
 
-    @media (min-width: 1023px) {
+    @media (min-width: 1024px) {
       flex-direction: row;
       gap: clamp(16px, 4vw, 24px);
     }

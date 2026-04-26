@@ -1,5 +1,5 @@
 // data/repositories/prisma/prisma-training-exercise-execution.repository.ts
-
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../../infrastructure/prisma/client";
 import type {
   TrainingExerciseExecutionDto,
@@ -12,14 +12,9 @@ export class PrismaTrainingExerciseExecutionRepository {
   ): Promise<TrainingExerciseExecutionDto> {
     const result = await prisma.trainingExerciseExecution.create({
       data: {
-        execution: {
-          connect: { id: data.executionId },
-        },
-        exercise: {
-          connect: { id: data.exerciseId },
-        },
-        sets: data.sets,
-        reps: data.reps,
+        execution: { connect: { id: data.executionId } },
+        exercise: { connect: { id: data.exerciseId } },
+        setsData: data.setsData ?? Prisma.JsonNull,
         orderInDay: data.orderInDay,
       },
     });
@@ -27,25 +22,22 @@ export class PrismaTrainingExerciseExecutionRepository {
   }
 
   async findById(id: string): Promise<TrainingExerciseExecutionDto | null> {
-    const result = await prisma.trainingExerciseExecution.findUnique({
+    return await prisma.trainingExerciseExecution.findUnique({
       where: { id },
     });
-    return result;
   }
 
   async findByExecutionId(
     executionId: string,
   ): Promise<TrainingExerciseExecutionDto[]> {
-    const results = await prisma.trainingExerciseExecution.findMany({
+    return await prisma.trainingExerciseExecution.findMany({
       where: { executionId },
       orderBy: { orderInDay: "asc" },
     });
-    return results;
   }
 
   async findAll(): Promise<TrainingExerciseExecutionDto[]> {
-    const results = await prisma.trainingExerciseExecution.findMany();
-    return results;
+    return await prisma.trainingExerciseExecution.findMany();
   }
 
   async update(
@@ -53,16 +45,14 @@ export class PrismaTrainingExerciseExecutionRepository {
     dto: TrainingExerciseExecutionDto,
   ): Promise<TrainingExerciseExecutionDto | null> {
     try {
-      const result = await prisma.trainingExerciseExecution.update({
+      return await prisma.trainingExerciseExecution.update({
         where: { id },
         data: {
-          sets: dto.sets,
-          reps: dto.reps, // теперь просто number, не JSON
+          setsData: dto.setsData ?? Prisma.JsonNull,
           orderInDay: dto.orderInDay,
         },
       });
-      return result;
-    } catch (_error) {
+    } catch {
       return null;
     }
   }
@@ -71,7 +61,7 @@ export class PrismaTrainingExerciseExecutionRepository {
     try {
       await prisma.trainingExerciseExecution.delete({ where: { id } });
       return true;
-    } catch (_error) {
+    } catch {
       return false;
     }
   }

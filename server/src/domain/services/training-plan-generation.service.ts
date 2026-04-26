@@ -44,12 +44,10 @@ export class TrainingPlanGenerationService {
     profile: UserProfileEntity,
     exercises: {
       favorites: ExerciseEntity[];
+      leastFavorites: ExerciseEntity[];
       allExercises: ExerciseEntity[];
     },
-    options: {
-      week?: number;
-      wellbeing: Wellbeing;
-    },
+    options: { week?: number; wellbeing: Wellbeing },
   ): Promise<
     Result<{
       plan: WeeklyPlanEntity;
@@ -98,6 +96,7 @@ export class TrainingPlanGenerationService {
       const weekPlanResult = await this.planGenerator.generateWeeklyPlan(
         typedSplit,
         exercises.favorites,
+        exercises.leastFavorites,
         exercises.allExercises,
         {
           bmi,
@@ -105,6 +104,7 @@ export class TrainingPlanGenerationService {
           goal: profile.goal,
           lifestyle: profile.lifestyle,
           weight: profile.weight,
+          gender: profile.gender!,
         },
         { week: weekToUse, wellbeing },
       );
@@ -129,9 +129,8 @@ export class TrainingPlanGenerationService {
         userId,
         week: weekPlan.week,
         split: weekPlan.split.name,
-        score: recommendation.score,
         daysPerWeek: recommendation.daysPerWeek,
-        restDays: [],
+        restDays: this.calculateRestDays(recommendation.daysPerWeek),
         message: null,
       };
 
@@ -219,27 +218,29 @@ export class TrainingPlanGenerationService {
 
       case "BRO_SPLIT":
         days.push(
-          { type: "chest" as DayType, frequency: 1 },
-          { type: "back" as DayType, frequency: 1 },
-          { type: "shoulders" as DayType, frequency: 1 },
-          { type: "arms" as DayType, frequency: 1 },
-          { type: "legs" as DayType, frequency: 1 },
+          { type: "chest", frequency: 1 },
+          { type: "back", frequency: 1 },
+          { type: "shoulders", frequency: 1 },
+          { type: "legs", frequency: 1 },
+          { type: "arms", frequency: 1 },
         );
         break;
 
       case "STRENGTH_FOCUS":
         days.push(
-          { type: "full" as DayType, frequency: 1 },
-          { type: "upper" as DayType, frequency: 1 },
-          { type: "lower" as DayType, frequency: 1 },
-          { type: "full" as DayType, frequency: 1 },
+          { type: "lower", frequency: 1 },
+          { type: "push", frequency: 1 },
+          { type: "pull", frequency: 1 },
+          { type: "upper", frequency: 1 },
         );
         break;
 
       case "HYPERTROPHY_FOCUS":
         days.push(
-          { type: "push" as DayType, frequency: 2 },
-          { type: "pull" as DayType, frequency: 2 },
+          { type: "chest" as DayType, frequency: 1 },
+          { type: "back" as DayType, frequency: 1 },
+          { type: "shoulders" as DayType, frequency: 1 },
+          { type: "arms" as DayType, frequency: 1 },
           { type: "legs" as DayType, frequency: 1 },
         );
         break;
@@ -260,5 +261,11 @@ export class TrainingPlanGenerationService {
 
   getPlanGenerator(): PlanGeneratorService {
     return this.planGenerator;
+  }
+
+  private calculateRestDays(trainingDays: number): number[] {
+    const allDays = [0, 1, 2, 3, 4, 5, 6]; // вс-сб
+    const trainingDayNumbers = [0, 1, 2, 3, 4, 5, 6].slice(0, trainingDays);
+    return allDays.filter((d) => !trainingDayNumbers.includes(d));
   }
 }

@@ -1,0 +1,20 @@
+# Правила для всех роботов
+User-agent: *
+Allow: /
+
+# Запрещаем индексировать API (если открыто)
+Disallow: /api/
+
+# Запрещаем индексировать служебные файлы
+Disallow: /manifest.webmanifest
+Disallow: /service-worker.js
+Disallow: /workbox-*.js
+
+# Указываем путь к Sitemap (если есть)
+# Sitemap: https://trainingtk.tunyl.com/sitemap.xml
+
+# Для Яндекса отдельно
+User-agent: Yandex
+Allow: /
+Disallow: /api/
+Clean-param: utm_source&utm_medium&utm_campaign

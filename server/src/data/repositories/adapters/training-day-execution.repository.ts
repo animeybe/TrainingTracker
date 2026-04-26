@@ -1,11 +1,11 @@
 // data/repositories/adapters/training-day-execution.repository.ts
 import { PrismaTrainingDayExecutionRepository } from "../prisma/prisma-training-day-execution.repository";
+import { TrainingDayExecutionMapper } from "../../mappers/training-day-execution.mapper";
 import type {
   TrainingDayExecutionEntity,
   CreateTrainingDayExecutionEntity,
   UpdateTrainingDayExecutionEntity,
 } from "../../../domain/entities/training-day-execution.entity";
-import { TrainingDayExecutionMapper } from "../../mappers/training-day-execution.mapper";
 import type { ITrainingDayExecutionRepository } from "../../../domain/repositories/i-training-day-execution.repository";
 
 export class TrainingDayExecutionRepositoryImpl implements ITrainingDayExecutionRepository {
@@ -14,21 +14,11 @@ export class TrainingDayExecutionRepositoryImpl implements ITrainingDayExecution
   ) {}
 
   async create(
-    entity: TrainingDayExecutionEntity,
+    entity: CreateTrainingDayExecutionEntity,
   ): Promise<TrainingDayExecutionEntity> {
     const dto = TrainingDayExecutionMapper.fromCreateEntity(entity);
-    const dtoResult = await this.prismaRepo.create(dto);
-    return TrainingDayExecutionMapper.toEntity(dtoResult);
-  }
-
-  async update(
-    id: string,
-    entity: TrainingDayExecutionEntity,
-  ): Promise<TrainingDayExecutionEntity | null> {
-    const dto = TrainingDayExecutionMapper.toDto(entity);
-    const dtoResult = await this.prismaRepo.update(id, dto);
-    if (!dtoResult) return null;
-    return TrainingDayExecutionMapper.toEntity(dtoResult);
+    const result = await this.prismaRepo.create(dto);
+    return TrainingDayExecutionMapper.toEntity(result);
   }
 
   async findById(id: string): Promise<TrainingDayExecutionEntity | null> {
@@ -37,25 +27,38 @@ export class TrainingDayExecutionRepositoryImpl implements ITrainingDayExecution
     return TrainingDayExecutionMapper.toEntity(dto);
   }
 
-  async findByWeekDayAndUser(
+  async findByUserId(userId: string): Promise<TrainingDayExecutionEntity[]> {
+    const dtos = await this.prismaRepo.findByUserId(userId);
+    return dtos.map(TrainingDayExecutionMapper.toEntity);
+  }
+
+  async findByWeekAndDay(
     userId: string,
     week: number,
     dayOfWeek: number,
-    executionDate: Date,
-  ): Promise<TrainingDayExecutionEntity | null> {
-    const dto = await this.prismaRepo.findByWeekDayAndUser(
+  ): Promise<TrainingDayExecutionEntity[]> {
+    const dtos = await this.prismaRepo.findByWeekAndDay(
       userId,
       week,
       dayOfWeek,
-      executionDate,
     );
-    if (!dto) return null;
-    return TrainingDayExecutionMapper.toEntity(dto);
+    return dtos.map(TrainingDayExecutionMapper.toEntity);
   }
 
-  async findAll(): Promise<TrainingDayExecutionEntity[]> {
-    const dtoList = await this.prismaRepo.findAll();
-    return dtoList.map(TrainingDayExecutionMapper.toEntity);
+  async update(
+    id: string,
+    entity: UpdateTrainingDayExecutionEntity,
+  ): Promise<TrainingDayExecutionEntity | null> {
+    const dto = TrainingDayExecutionMapper.fromUpdateEntity(entity);
+    const result = await this.prismaRepo.update(id, dto);
+    if (!result) return null;
+    return TrainingDayExecutionMapper.toEntity(result);
+  }
+
+  async finishTraining(id: string): Promise<TrainingDayExecutionEntity | null> {
+    const result = await this.prismaRepo.finishTraining(id);
+    if (!result) return null;
+    return TrainingDayExecutionMapper.toEntity(result);
   }
 
   async delete(id: string): Promise<boolean> {

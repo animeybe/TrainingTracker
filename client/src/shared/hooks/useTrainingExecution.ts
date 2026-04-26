@@ -1,46 +1,34 @@
 // hooks/useTrainingExecution.ts
 import { useState, useEffect, useCallback } from "react";
-import {
-  type TrainingDayExecution,
-  type TrainingExerciseExecution,
-  type CreateTrainingDayExecution,
-  type CreateTrainingExerciseExecution,
-  trainingExecutionApi,
-} from "@/shared/api/trainingExecutionApi";
 import { useError } from "./useError";
 import { useTrainingPlan } from "./useTrainingPlan";
-
-function normalizeExecutionDate(date: Date): string {
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-  return startOfDay.toISOString();
-}
+import type {
+  CreateTrainingDayExecution,
+  CreateTrainingExerciseExecution,
+  TrainingDayExecution,
+  TrainingExerciseExecution,
+} from "../api/types";
+import { trainingExecutionApi } from "../api";
 
 interface UseTrainingExecutionReturn {
-  // День тренировки
   dayExecution: TrainingDayExecution | null;
   weekExecutions: TrainingDayExecution[];
   loadingDay: boolean;
   savingDay: boolean;
 
-  // Упражнения
   exerciseExecutions: TrainingExerciseExecution[];
   loadingExercises: boolean;
   savingExercises: boolean;
 
-  // Actions
-  loadDayExecution: (
-    week: number,
-    dayOfWeek: number,
-    executionDate?: string,
-  ) => Promise<void>;
+  loadDayExecution: (week: number, dayOfWeek: number) => Promise<void>;
   loadWeekExecutions: (week: number) => Promise<void>;
-  saveDayExecution: (
+  startTraining: (
     data: CreateTrainingDayExecution,
   ) => Promise<TrainingDayExecution>;
+  finishTraining: (id: string) => Promise<TrainingDayExecution>;
   loadExercisesByDay: (executionId: string) => Promise<void>;
-  saveExerciseExecutions: (
-    data: CreateTrainingExerciseExecution[],
+  addExercises: (
+    data: CreateTrainingExerciseExecution | CreateTrainingExerciseExecution[],
   ) => Promise<void>;
   updateDayExecution: (
     id: string,
@@ -54,9 +42,8 @@ export const useTrainingExecution = (
 ): UseTrainingExecutionReturn => {
   const { setError, clearError } = useError();
   const { weekPlan } = useTrainingPlan();
-  const currentWeek = weekPlan?.week ?? 1;
+  const [currentWeek, setCurrentWeek] = useState<number>(1);
 
-  // States
   const [dayExecution, setDayExecution] = useState<TrainingDayExecution | null>(
     null,
   );
@@ -72,29 +59,23 @@ export const useTrainingExecution = (
   const [loadingExercises, setLoadingExercises] = useState(false);
   const [savingExercises, setSavingExercises] = useState(false);
 
-  // ==================== LOAD DAY EXECUTION ====================
+  // Загрузить выполнение дня по неделе и дню
   const loadDayExecution = useCallback(
-    async (week: number, dayOfWeek: number, executionDate?: string) => {
+    async (week: number, dayOfWeek: number) => {
       setLoadingDay(true);
       clearError();
 
       try {
-        const isoDate = executionDate
-          ? normalizeExecutionDate(new Date(executionDate))
-          : normalizeExecutionDate(new Date());
-
-        const response = await trainingExecutionApi.getDayByWeekDayDate({
+        const data = await trainingExecutionApi.getDayByWeekDay(
           week,
           dayOfWeek,
-          executionDate: isoDate,
-        });
-        setDayExecution(response);
+        );
+        setDayExecution(data);
       } catch (error) {
-        console.error("❌ loadDayExecution ERROR:", error);
         if (error instanceof Error && error.message.includes("404")) {
           setDayExecution(null);
         } else {
-          setError("network", "Не удалось загрузить выполнение дня тренировки");
+          setError("network", "Не удалось загрузить выполнение дня");
           setDayExecution(null);
         }
       } finally {
@@ -104,19 +85,16 @@ export const useTrainingExecution = (
     [clearError, setError],
   );
 
-  // ==================== LOAD WEEK EXECUTIONS ====================
+  // Загрузить все выполнения за неделю
   const loadWeekExecutions = useCallback(
     async (week: number) => {
-      console.log("🔥 loadWeekExecutions CALLED!", week);
       setLoadingDay(true);
       clearError();
 
       try {
-        const response = await trainingExecutionApi.getDaysByWeek(week);
-        console.log("✅ loadWeekExecutions SUCCESS", response.length);
-        setWeekExecutions(response);
-      } catch (error) {
-        console.error("❌ loadWeekExecutions ERROR:", error);
+        const data = await trainingExecutionApi.getDaysByWeek(week);
+        setWeekExecutions(data);
+      } catch {
         setError("network", "Не удалось загрузить выполнения недели");
       } finally {
         setLoadingDay(false);
@@ -125,25 +103,18 @@ export const useTrainingExecution = (
     [clearError, setError],
   );
 
-  // ==================== SAVE DAY EXECUTION ====================
-  const saveDayExecution = useCallback(
+  // Начать тренировку
+  const startTraining = useCallback(
     async (data: CreateTrainingDayExecution): Promise<TrainingDayExecution> => {
       setSavingDay(true);
       clearError();
 
       try {
-        // Normalize executionDate before save
-        const normalizedData = {
-          ...data,
-          executionDate: normalizeExecutionDate(new Date(data.executionDate)),
-        };
-
-        const result = await trainingExecutionApi.createDay(normalizedData);
+        const result = await trainingExecutionApi.startTraining(data);
         setDayExecution(result);
         return result;
       } catch (error) {
-        console.error("❌ saveDayExecution ERROR:", error);
-        setError("network", "Не удалось сохранить день тренировки");
+        setError("network", "Не удалось начать тренировку");
         throw error;
       } finally {
         setSavingDay(false);
@@ -152,24 +123,38 @@ export const useTrainingExecution = (
     [clearError, setError],
   );
 
-  // ==================== LOAD EXERCISES BY DAY ====================
+  // Завершить тренировку
+  const finishTraining = useCallback(
+    async (id: string): Promise<TrainingDayExecution> => {
+      setSavingDay(true);
+      clearError();
+
+      try {
+        const result = await trainingExecutionApi.finishTraining(id);
+        setDayExecution(result);
+        return result;
+      } catch (error) {
+        setError("network", "Не удалось завершить тренировку");
+        throw error;
+      } finally {
+        setSavingDay(false);
+      }
+    },
+    [clearError, setError],
+  );
+
+  // Загрузить упражнения дня
   const loadExercisesByDay = useCallback(
     async (executionId: string) => {
-      if (!executionId) {
-        console.log("⚠️ loadExercisesByDay: no executionId");
-        return;
-      }
-      console.log("🔥 loadExercisesByDay CALLED!", executionId);
+      if (!executionId) return;
+
       setLoadingExercises(true);
       clearError();
 
       try {
-        const response =
-          await trainingExecutionApi.getExercisesByDay(executionId);
-        console.log("✅ loadExercisesByDay SUCCESS", response.length);
-        setExerciseExecutions(response);
-      } catch (error) {
-        console.error("❌ loadExercisesByDay ERROR:", error);
+        const data = await trainingExecutionApi.getExercisesByDay(executionId);
+        setExerciseExecutions(data);
+      } catch {
         setError("network", "Не удалось загрузить упражнения");
       } finally {
         setLoadingExercises(false);
@@ -178,19 +163,18 @@ export const useTrainingExecution = (
     [clearError, setError],
   );
 
-  // ==================== SAVE EXERCISES ====================
-  const saveExerciseExecutions = useCallback(
-    async (data: CreateTrainingExerciseExecution[]) => {
-      console.log("🔥 saveExerciseExecutions CALLED!", data.length);
+  // Добавить упражнения (одно или массив)
+  const addExercises = useCallback(
+    async (
+      data: CreateTrainingExerciseExecution | CreateTrainingExerciseExecution[],
+    ) => {
       setSavingExercises(true);
       clearError();
 
       try {
-        const results = await trainingExecutionApi.createExercises(data);
-        console.log("✅ saveExerciseExecutions SUCCESS", results.length);
+        const results = await trainingExecutionApi.addExercises(data);
         setExerciseExecutions((prev) => [...prev, ...results]);
       } catch (error) {
-        console.error("❌ saveExerciseExecutions ERROR:", error);
         setError("network", "Не удалось сохранить упражнения");
         throw error;
       } finally {
@@ -200,18 +184,17 @@ export const useTrainingExecution = (
     [clearError, setError],
   );
 
-  // ==================== UPDATE DATE EXECUTION ====================
+  // Обновить заметки дня
   const updateDayExecution = useCallback(
     async (id: string, data: { notes?: string | null }) => {
       setSavingDay(true);
       clearError();
 
       try {
-        const response = await trainingExecutionApi.updateDay(id, data);
-        setDayExecution(response);
-        return response;
+        const result = await trainingExecutionApi.updateDay(id, data);
+        setDayExecution(result);
+        return result;
       } catch (error) {
-        console.error("❌ updateDayExecution ERROR:", error);
         setError("network", "Не удалось обновить день тренировки");
         throw error;
       } finally {
@@ -221,20 +204,15 @@ export const useTrainingExecution = (
     [clearError, setError],
   );
 
-  // ==================== REFETCH ALL ====================
+  // Перезагрузить все данные
   const refetchAll = useCallback(async () => {
-    console.log("🔥 refetchAll CALLED!");
     if (dayExecution) {
-      await loadDayExecution(
-        dayExecution.week,
-        dayExecution.dayOfWeek,
-        dayExecution.executionDate,
-      );
+      await loadDayExecution(dayExecution.week, dayExecution.dayOfWeek);
     }
     await loadWeekExecutions(currentWeek);
     if (dayExecution?.id) {
       await loadExercisesByDay(dayExecution.id);
-    } 
+    }
   }, [
     dayExecution,
     currentWeek,
@@ -243,19 +221,14 @@ export const useTrainingExecution = (
     loadExercisesByDay,
   ]);
 
-  // ==================== INITIAL LOAD ====================
+  // Первичная загрузка
   useEffect(() => {
-    console.log("🚀 useTrainingExecution useEffect TRIGGERED!", {
-      currentWeek,
-      initialDayIndex,
-    });
     loadDayExecution(currentWeek, initialDayIndex);
     loadWeekExecutions(currentWeek);
   }, [currentWeek, initialDayIndex, loadDayExecution, loadWeekExecutions]);
 
-  // ==================== LOAD EXERCISES WHEN DAY CHANGES ====================
+  // Загрузка упражнений при изменении дня
   useEffect(() => {
-    console.log("🔄 dayExecution changed:", dayExecution?.id || "null");
     if (dayExecution?.id) {
       loadExercisesByDay(dayExecution.id);
     } else {
@@ -263,24 +236,26 @@ export const useTrainingExecution = (
     }
   }, [dayExecution?.id, loadExercisesByDay]);
 
+  useEffect(() => {
+    if (weekPlan?.week) {
+      setCurrentWeek(weekPlan.week);
+    }
+  }, [weekPlan?.week]);
+
   return {
-    // Data
     dayExecution,
     weekExecutions,
     exerciseExecutions,
-
-    // Loading states
     loadingDay,
     savingDay,
     loadingExercises,
     savingExercises,
-
-    // Actions
     loadDayExecution,
     loadWeekExecutions,
-    saveDayExecution,
+    startTraining,
+    finishTraining,
     loadExercisesByDay,
-    saveExerciseExecutions,
+    addExercises,
     updateDayExecution,
     refetchAll,
   };

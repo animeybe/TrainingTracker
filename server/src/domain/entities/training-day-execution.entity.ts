@@ -6,17 +6,23 @@ export type TrainingDayExecutionEntity = {
   userId: string;
   week: number;
   dayOfWeek: number;
-  executionDate: Date;
+  startTime: Date;
+  endTime: Date | null;
   wellbeingToday: Wellbeing;
   notes: string | null;
   createdAt: Date;
 };
 
-export type CreateTrainingDayExecutionEntity = Omit<
-  TrainingDayExecutionEntity,
-  "id" | "createdAt"
->;
+export type CreateTrainingDayExecutionEntity = {
+  userId: string;
+  week: number;
+  dayOfWeek: number;
+  startTime?: Date;
+  endTime?: Date | null;
+  wellbeingToday: Wellbeing;
+  notes?: string | null;
+};
 
 export type UpdateTrainingDayExecutionEntity = Partial<
-  Omit<TrainingDayExecutionEntity, "id" | "createdAt">
+  Omit<TrainingDayExecutionEntity, "id" | "userId" | "createdAt">
 >;

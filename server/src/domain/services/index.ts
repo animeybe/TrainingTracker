@@ -4,6 +4,7 @@ export * from "./exercise.service";
 export * from "./favorite.service";
 export * from "./least-favorite.service";
 export * from "./plan.service";
+export * from "./push.service";
 export * from "./user-profile.service";
 export * from "./training-day-execution.service";
 export * from "./training-exercise-execution.service";

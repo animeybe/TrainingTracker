@@ -1,87 +1,67 @@
 // domain/services/training-day-execution.service.ts
-import {
+import type {
   TrainingDayExecutionEntity,
   CreateTrainingDayExecutionEntity,
+  UpdateTrainingDayExecutionEntity,
 } from "../entities/training-day-execution.entity";
-import { ITrainingDayExecutionRepository } from "../repositories/i-training-day-execution.repository";
+import type { ITrainingDayExecutionRepository } from "../repositories/i-training-day-execution.repository";
 
 export class TrainingDayExecutionService {
-  private repo: ITrainingDayExecutionRepository;
+  constructor(private readonly repo: ITrainingDayExecutionRepository) {}
 
-  constructor(repo: ITrainingDayExecutionRepository) {
-    this.repo = repo;
-  }
-
-  async createDay(
+  // Начать тренировку
+  async startTraining(
     entity: CreateTrainingDayExecutionEntity,
   ): Promise<TrainingDayExecutionEntity> {
-    const exists = await this.repo.findByWeekDayAndUser(
-      entity.userId,
-      entity.week,
-      entity.dayOfWeek,
-      new Date(entity.executionDate),
-    );
-
-    if (exists) {
-      throw new Error("Дневное выполнение тренировки уже существует");
-    }
-
     return await this.repo.create(entity);
   }
 
-  async updateDay(
+  // Завершить тренировку
+  async finishTraining(id: string): Promise<TrainingDayExecutionEntity | null> {
+    return await this.repo.finishTraining(id);
+  }
+
+  // Обновить данные тренировки
+  async update(
     id: string,
-    entity: TrainingDayExecutionEntity,
+    entity: UpdateTrainingDayExecutionEntity,
   ): Promise<TrainingDayExecutionEntity | null> {
     return await this.repo.update(id, entity);
   }
 
+  // Найти тренировку по ID
   async findById(id: string): Promise<TrainingDayExecutionEntity | null> {
     return await this.repo.findById(id);
   }
 
-  // 💡 Основной метод: найти день тренировки по юзеру, неделе, дню, дате
-  async findByWeekDayDateAndUser(
-    userId: string,
-    week: number,
-    dayOfWeek: number,
-    executionDate: Date,
-  ): Promise<TrainingDayExecutionEntity | null> {
-    return await this.repo.findByWeekDayAndUser(
-      userId,
-      week,
-      dayOfWeek,
-      executionDate,
-    );
+  // Найти все тренировки пользователя
+  async findByUserId(userId: string): Promise<TrainingDayExecutionEntity[]> {
+    return await this.repo.findByUserId(userId);
   }
 
-  // игнорировать executionDate, если хочется быстро посмотреть «день недели»
-  async findByWeekDayAndUserDateless(
+  // Найти тренировку по пользователю, неделе и дню
+  async findByWeekDayAndUser(
     userId: string,
     week: number,
     dayOfWeek: number,
   ): Promise<TrainingDayExecutionEntity | null> {
-    const all = await this.repo.findAll();
-    const found = all.find(
-      (d) =>
-        d.userId === userId && d.week === week && d.dayOfWeek === dayOfWeek,
-    );
-    return found ?? null;
+    const results = await this.repo.findByWeekAndDay(userId, week, dayOfWeek);
+    return results[0] ?? null;
   }
 
-  async deleteDay(id: string): Promise<boolean> {
-    return await this.repo.delete(id);
-  }
-
-  // полезные утилиты
-
+  // Найти все тренировки за неделю
   async findByUserAndWeek(
     userId: string,
     week: number,
   ): Promise<TrainingDayExecutionEntity[]> {
-    const all = await this.repo.findAll();
+    const all = await this.repo.findByUserId(userId);
     return all
-      .filter((d) => d.userId === userId && d.week === week)
+      .filter((d) => d.week === week)
       .sort((a, b) => a.dayOfWeek - b.dayOfWeek);
+  }
+
+  // Удалить тренировку
+  async delete(id: string): Promise<boolean> {
+    return await this.repo.delete(id);
   }
 }

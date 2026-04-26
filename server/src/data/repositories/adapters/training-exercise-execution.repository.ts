@@ -1,9 +1,11 @@
 // data/repositories/adapters/training-exercise-execution.repository.ts
 import { PrismaTrainingExerciseExecutionRepository } from "../prisma/prisma-training-exercise-execution.repository";
+import { TrainingExerciseExecutionMapper } from "../../mappers/training-exercise-execution.mapper";
 import type {
   TrainingExerciseExecutionEntity,
+  CreateTrainingExerciseExecutionEntity,
+  UpdateTrainingExerciseExecutionEntity,
 } from "../../../domain/entities/training-exercise-execution.entity";
-import { TrainingExerciseExecutionMapper } from "../../mappers/training-exercise-execution.mapper";
 import type { ITrainingExerciseExecutionRepository } from "../../../domain/repositories/i-training-exercise-execution.repository";
 
 export class TrainingExerciseExecutionRepositoryImpl implements ITrainingExerciseExecutionRepository {
@@ -12,21 +14,11 @@ export class TrainingExerciseExecutionRepositoryImpl implements ITrainingExercis
   ) {}
 
   async create(
-    entity: TrainingExerciseExecutionEntity,
+    entity: CreateTrainingExerciseExecutionEntity,
   ): Promise<TrainingExerciseExecutionEntity> {
     const dto = TrainingExerciseExecutionMapper.fromCreateEntity(entity);
-    const dtoResult = await this.prismaRepo.create(dto);
-    return TrainingExerciseExecutionMapper.toEntity(dtoResult);
-  }
-
-  async update(
-    id: string,
-    entity: TrainingExerciseExecutionEntity,
-  ): Promise<TrainingExerciseExecutionEntity | null> {
-    const dto = TrainingExerciseExecutionMapper.toDto(entity);
-    const dtoResult = await this.prismaRepo.update(id, dto);
-    if (!dtoResult) return null;
-    return TrainingExerciseExecutionMapper.toEntity(dtoResult);
+    const result = await this.prismaRepo.create(dto);
+    return TrainingExerciseExecutionMapper.toEntity(result);
   }
 
   async findById(id: string): Promise<TrainingExerciseExecutionEntity | null> {
@@ -38,13 +30,23 @@ export class TrainingExerciseExecutionRepositoryImpl implements ITrainingExercis
   async findByExecutionId(
     executionId: string,
   ): Promise<TrainingExerciseExecutionEntity[]> {
-    const dtoList = await this.prismaRepo.findByExecutionId(executionId);
-    return dtoList.map(TrainingExerciseExecutionMapper.toEntity);
+    const dtos = await this.prismaRepo.findByExecutionId(executionId);
+    return dtos.map(TrainingExerciseExecutionMapper.toEntity);
   }
 
   async findAll(): Promise<TrainingExerciseExecutionEntity[]> {
-    const dtoList = await this.prismaRepo.findAll();
-    return dtoList.map(TrainingExerciseExecutionMapper.toEntity);
+    const dtos = await this.prismaRepo.findAll();
+    return dtos.map(TrainingExerciseExecutionMapper.toEntity);
+  }
+
+  async update(
+    id: string,
+    entity: UpdateTrainingExerciseExecutionEntity,
+  ): Promise<TrainingExerciseExecutionEntity | null> {
+    const dto = TrainingExerciseExecutionMapper.fromUpdateEntity(entity);
+    const result = await this.prismaRepo.update(id, dto as any);
+    if (!result) return null;
+    return TrainingExerciseExecutionMapper.toEntity(result);
   }
 
   async delete(id: string): Promise<boolean> {

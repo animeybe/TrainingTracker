@@ -7,6 +7,15 @@ import { logger } from "./common/utils";
 import apiRouter from "./presentation/routes"; // /api/**, включая /api/profile
 import { authenticateToken } from "./presentation/middleware/auth.middleware";
 
+const ALLOWED_ORIGINS = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://192.168.1.151:5173",
+  "https://localhost:5173",
+  "https://trainingtk.tunyl.com",
+  "https://api-trainingtk.tunyl.com",
+];
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -51,7 +60,17 @@ app.use(express.json({ limit: "10mb" }));
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Разрешить запросы без origin (Postman, curl, мобильные приложения)
+      if (!origin) return callback(null, true);
+
+      if (ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, true);
+      } else {
+        logger.warn(`CORS blocked origin: ${origin}`);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   }),
 );

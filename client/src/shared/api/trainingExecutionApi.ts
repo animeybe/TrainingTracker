@@ -1,48 +1,17 @@
-// shared/api/trainingExecutionApi.ts
+// api/trainingExecutionApi.ts
 import { apiRequest } from "./index";
-
-export interface TrainingDayExecution {
-  id: string;
-  userId: string;
-  week: number;
-  dayOfWeek: number;
-  executionDate: string;
-  wellbeingToday: string;
-  notes: string | null;
-  createdAt: string;
-}
-
-export interface CreateTrainingExerciseExecution {
-  executionId: string;
-  exerciseId: string;
-  sets: number;
-  reps: number;
-  orderInDay: number;
-  notes?: string;
-}
-
-export interface TrainingExerciseExecution extends CreateTrainingExerciseExecution {
-  id: string;
-}
-
-export interface CreateTrainingDayExecution {
-  week: number;
-  dayOfWeek: number;
-  executionDate: string;
-  wellbeingToday: string;
-  notes?: string | null;
-}
-
-// Тип для query параметров GET /days
-interface GetDayByWeekDayDateParams {
-  week: number;
-  dayOfWeek: number;
-  executionDate: string;
-}
+import type {
+  TrainingDayExecution,
+  CreateTrainingDayExecution,
+  TrainingExerciseExecution,
+  CreateTrainingExerciseExecution,
+} from "./types";
 
 export const trainingExecutionApi = {
-  // День тренировки
-  createDay: (
+  // ═══════════════ ДНИ ТРЕНИРОВОК ═══════════════
+
+  // POST /api/training-executions/days — начать тренировку
+  startTraining: (
     data: CreateTrainingDayExecution,
   ): Promise<TrainingDayExecution> =>
     apiRequest("/training-executions/days", {
@@ -50,49 +19,72 @@ export const trainingExecutionApi = {
       body: JSON.stringify(data),
     }),
 
+  // PUT /api/training-executions/days/:id/finish — завершить тренировку
+  finishTraining: (id: string): Promise<TrainingDayExecution> =>
+    apiRequest(`/training-executions/days/${id}/finish`, {
+      method: "PUT",
+    }),
+
+  // PUT /api/training-executions/days/:id — обновить день
   updateDay: (
     id: string,
-    data: Partial<TrainingDayExecution>,
+    data: Partial<CreateTrainingDayExecution>,
   ): Promise<TrainingDayExecution> =>
     apiRequest(`/training-executions/days/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
-  // ✅ Query string строим вручную (строго типизировано)
-  getDayByWeekDayDate: (
-    params: GetDayByWeekDayDateParams,
+  // GET /api/training-executions/days/:id
+  getDayById: (id: string): Promise<TrainingDayExecution> =>
+    apiRequest(`/training-executions/days/${id}`),
+
+  // GET /api/training-executions/days?week=&dayOfWeek=
+  getDayByWeekDay: (
+    week: number,
+    dayOfWeek: number,
   ): Promise<TrainingDayExecution> => {
     const query = new URLSearchParams({
-      week: params.week.toString(),
-      dayOfWeek: params.dayOfWeek.toString(),
-      executionDate: params.executionDate,
-    }).toString();
-
+      week: String(week),
+      dayOfWeek: String(dayOfWeek),
+    });
     return apiRequest(`/training-executions/days?${query}`);
   },
 
+  // GET /api/training-executions/days/week/:week
   getDaysByWeek: (week: number): Promise<TrainingDayExecution[]> =>
     apiRequest(`/training-executions/days/week/${week}`),
 
-  // Упражнения
-  createExercises: (
-    data: CreateTrainingExerciseExecution[],
+  // GET /api/training-executions/days/user — все дни пользователя
+  getAllDays: (): Promise<TrainingDayExecution[]> =>
+    apiRequest("/training-executions/days/user"),
+
+  // ═══════════════ УПРАЖНЕНИЯ ═══════════════
+
+  // POST /api/training-executions/exercises — добавить (одно или массив)
+  addExercises: (
+    data: CreateTrainingExerciseExecution | CreateTrainingExerciseExecution[],
   ): Promise<TrainingExerciseExecution[]> =>
     apiRequest("/training-executions/exercises", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
+  // PUT /api/training-executions/exercises/:id
   updateExercise: (
     id: string,
-    data: Partial<TrainingExerciseExecution>,
+    data: Partial<CreateTrainingExerciseExecution>,
   ): Promise<TrainingExerciseExecution> =>
     apiRequest(`/training-executions/exercises/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
 
+  // GET /api/training-executions/exercises/:id
+  getExerciseById: (id: string): Promise<TrainingExerciseExecution> =>
+    apiRequest(`/training-executions/exercises/${id}`),
+
+  // GET /api/training-executions/exercises/day/:executionId
   getExercisesByDay: (
     executionId: string,
   ): Promise<TrainingExerciseExecution[]> =>
