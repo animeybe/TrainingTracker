@@ -109,8 +109,6 @@ export const getDayTypeRu = (dayType: DayType): string => {
       return "Руки";
     case "core":
       return "Мышцы кора";
-    case "rest":
-      return "Отдых";
   }
 };
 

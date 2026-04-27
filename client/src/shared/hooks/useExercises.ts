@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { exerciseApi, favoriteApi, leastFavoriteApi } from "@/shared/api";
+import { exerciseApi } from "@/shared/api/exerciseApi";
+import { favoriteApi } from "@/shared/api/favoriteApi";
+import { leastFavoriteApi } from "@/shared/api/leastFavoriteApi";
 import type { Exercise } from "@/shared/api/types";
 import { useError } from "./useError";
 

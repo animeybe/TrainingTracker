@@ -1,10 +1,11 @@
+// shared/lib/notifications.ts
+import { pushApi } from "@/shared/api";
+
 // Запрос разрешения
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
   if (!("Notification" in window)) return "denied";
-
   if (Notification.permission === "granted") return "granted";
   if (Notification.permission === "denied") return "denied";
-
   return Notification.requestPermission();
 }
 
@@ -27,7 +28,6 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
   }
 
   const registration = await navigator.serviceWorker.ready;
-
   const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
   try {
@@ -40,17 +40,18 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
       });
     }
 
-    // Отправить подписку на сервер
-    const token = localStorage.getItem("token");
-    await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(subscription.toJSON()),
-    });
+    const json = subscription.toJSON();
+    if (!json.endpoint) {
+      throw new Error("Push subscription has no endpoint");
+    }
 
+    await pushApi.subscribe({
+      endpoint: json.endpoint,
+      keys: {
+        p256dh: json.keys?.p256dh || "",
+        auth: json.keys?.auth || "",
+      },
+    });
     return subscription;
   } catch (error) {
     console.error("Ошибка подписки:", error);
@@ -64,12 +65,6 @@ export async function unsubscribeFromPush(): Promise<void> {
   const subscription = await registration.pushManager.getSubscription();
   if (subscription) {
     await subscription.unsubscribe();
-    await fetch("/api/push/unsubscribe", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
+    await pushApi.unsubscribe(subscription.endpoint);
   }
 }

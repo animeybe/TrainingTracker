@@ -15,6 +15,8 @@ import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
 import type { ErrorType } from "@/shared/ui/components/ErrorUI/model/types";
 import { useExercises } from "@/shared/hooks/useExercises";
 import { useTrainingPlan } from "@/shared/hooks/useTrainingPlan";
+import { usePushNotifications } from "@/shared/hooks/usePushNotifications";
+import { pushApi } from "@/shared/api";
 
 // ======================================================================
 // 🔧 УТИЛИТЫ
@@ -52,6 +54,8 @@ export function DashboardPage() {
   const { theme, toggleTheme } = useTheme();
   const { user, refreshUser } = useSafeAuthContext();
   const { profile, loadingProfile, reloadProfile } = useProfile();
+  const { isSupported, isSubscribed, isLoading, toggle } =
+    usePushNotifications();
   const { leastFavoriteExercises, favoriteExercises, loadingExercises } =
     useExercises();
   const { weekPlan, currentWeek } = useTrainingPlan();
@@ -133,7 +137,7 @@ export function DashboardPage() {
       HARD: 1.725,
     };
     const multiplier =
-      multipliers[effectiveProfile.lifestyle ?? "IMOBILE"] || 1.2;
+      multipliers[effectiveProfile.lifestyle ?? "IMMOBILE"] || 1.2;
 
     const tdee = Math.round(bmr * multiplier);
 
@@ -426,11 +430,42 @@ export function DashboardPage() {
             <span className="dashboard-content-block-right-settings__notifications-subtitle dashboard-content-block-right__subtitles">
               Уведомления:
             </span>
-            <label className="dashboard-content-block-right-settings__notifications-switch">
-              <input type="checkbox" title="В разработке" />
-              <span className="notifications-switch__slider"></span>
-            </label>
+            {isSupported ? (
+              <label className="dashboard-content-block-right-settings__notifications-switch">
+                <input
+                  type="checkbox"
+                  checked={isSubscribed}
+                  onChange={toggle}
+                  disabled={isLoading}
+                />
+                <span className="notifications-switch__slider"></span>
+              </label>
+            ) : (
+              <span className="dashboard-content-block-right-settings__notifications-unsupported">
+                Не поддерживаются браузером
+              </span>
+            )}
           </div>
+
+          {pushApi.sendTest && (
+            <button
+              onClick={async () => {
+                try {
+                  await pushApi.sendTest();
+                  // Не показываем alert — уведомление придёт само через push
+                  // Закрываем страницу или ждём 3 секунды
+                  setTimeout(() => {
+                    // Ничего не делаем — уведомление уже должно прийти
+                  }, 3000);
+                } catch {
+                  alert("Ошибка отправки тестового уведомления");
+                }
+              }}
+              disabled={!isSubscribed}
+              style={{ marginTop: 8, fontSize: 12 }}>
+              🧪 Тест уведомления
+            </button>
+          )}
         </div>
       </section>
 

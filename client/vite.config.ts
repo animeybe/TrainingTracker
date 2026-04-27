@@ -61,7 +61,7 @@ export default defineConfig({
               cacheName: "static-resources",
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 7 * 24 * 60 * 60, // 7 дней
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 дней
               },
               // Fallback: если нет в кеше — всегда идём в сеть
               cacheableResponse: {
@@ -70,17 +70,16 @@ export default defineConfig({
             },
           },
 
-          // 2. API‑запросы: Network‑first + Fallback (Stale‑While‑Revalidate)
+          // 2. API: StaleWhileRevalidate — мгновенно из кеша, потом обновить
           {
             urlPattern: /\/api\/.*/,
-            handler: "NetworkFirst",
+            handler: "StaleWhileRevalidate",
             options: {
-              cacheName: "api-responses",
+              cacheName: "api-cache",
               expiration: {
                 maxEntries: 200,
                 maxAgeSeconds: 24 * 60 * 60, // 1 день для API
               },
-              networkTimeoutSeconds: 5, // ждём сеть 5 сек, затем кеш
               cacheableResponse: {
                 statuses: [0, 200],
               },
@@ -115,6 +114,19 @@ export default defineConfig({
               },
             },
           },
+          // 5. Кеширование страницы с планом (offline-доступ)
+          {
+            urlPattern: /\/training/,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "pages-cache",
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 7 * 24 * 60 * 60,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),
@@ -136,5 +148,15 @@ export default defineConfig({
   },
   preview: {
     port: 5173,
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom", "react-router-dom"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 500,
   },
 });

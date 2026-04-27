@@ -1,6 +1,8 @@
 // hooks/useTrainingPlan.ts
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { planApi, exerciseApi, userStateApi } from "@/shared/api";
+import { planApi } from "@/shared/api/planApi";
+import { exerciseApi } from "@/shared/api/exerciseApi";
+import { userStateApi } from "@/shared/api/userStateApi";
 import { useProfile } from "@/shared/hooks/useProfile";
 import { logger } from "@/lib/utils/logger";
 import {

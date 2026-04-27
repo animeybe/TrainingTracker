@@ -1,22 +1,7 @@
-const getApiBase = (): string => {
-  // Если переменная задана явно — используем её
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
+// api/index.ts
+import { addToQueue } from "@/lib/offline/offlineQueue";
 
-  // Если мы на продакшене (Tunyl) — используем тот же домен
-  if (import.meta.env.PROD) {
-    const origin = window.location.origin;
-    // https://trainingtk.tunyl.com → https://api-trainingtk.tunyl.com/api
-    const parts = origin.split("://");
-    return `${parts[0]}://api-${parts[1]}/api`;
-  }
-
-  // Локальная разработка
-  return "http://192.168.1.151:3001/api";
-};
-
-const API_BASE = getApiBase();
+export const API_BASE = "http://localhost:5173/api";
 
 export const apiRequest = async <T = unknown>(
   url: string,
@@ -35,28 +20,46 @@ export const apiRequest = async <T = unknown>(
   }
 
   const config: RequestInit = { ...options, headers };
-  const response = await fetch(FULL_URL, config);
 
-  if (!response.ok) {
-    if (response.status === 404) {
-      const errorData = await response.json();
-      throw new Error(
-        (errorData as { error?: string }).error || `HTTP ${response.status}`,
-      );
+  try {
+    const response = await fetch(FULL_URL, config);
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        const errorData = await response.json();
+        throw new Error(
+          (errorData as { error?: string }).error || `HTTP ${response.status}`,
+        );
+      }
+      if (
+        response.status === 401 &&
+        !url.includes("/auth/login") &&
+        !url.includes("/auth/register")
+      ) {
+        localStorage.removeItem("token");
+        throw new Error("Токен недействителен");
+      }
+      throw new Error(`HTTP ${response.status}`);
     }
-    if (
-      response.status === 401 &&
-      !url.includes("/auth/login") &&
-      !url.includes("/auth/register")
-    ) {
-      localStorage.removeItem("token");
-      throw new Error("Токен недействителен");
+
+    const data = await response.json();
+    return (data.data || data) as T;
+  } catch (error) {
+    // Если сеть недоступна и это мутирующий запрос — сохраняем в очередь
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      if (options.method && options.method !== "GET") {
+        addToQueue({
+          url: FULL_URL,
+          method: options.method,
+          body: options.body ? JSON.parse(options.body as string) : null,
+        });
+        throw new Error(
+          "📴 Запрос сохранён в очередь — отправится при подключении к сети",
+        );
+      }
     }
-    throw new Error(`HTTP ${response.status}`);
+    throw error;
   }
-
-  const data = await response.json();
-  return (data.data || data) as T;
 };
 
 export { authApi } from "./authApi";

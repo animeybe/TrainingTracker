@@ -13,7 +13,8 @@ import {
 import { useExercises } from "@/shared/hooks/useExercises";
 import { useError } from "@/shared/hooks/useError";
 import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
-import { favoriteApi, leastFavoriteApi } from "@/shared/api";
+import { favoriteApi } from "@/shared/api/favoriteApi";
+import { leastFavoriteApi } from "@/shared/api/leastFavoriteApi";
 import { logger } from "@/lib/utils/logger";
 import toast from "react-hot-toast";
 import { ExercisePreferencesModal } from "@/shared/ui/components/ExercisePreferencesModal/ExercisePreferencesModal";

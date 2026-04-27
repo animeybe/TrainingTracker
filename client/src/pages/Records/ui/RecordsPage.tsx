@@ -11,6 +11,8 @@ import type {
 } from "@/shared/api/types";
 import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
 import { useNavigate } from "react-router-dom";
+import { addToQueue } from "@/lib/offline/offlineQueue";
+import { API_BASE } from "@/shared/api";
 
 type ExerciseRecord = {
   exerciseId: string;
@@ -112,13 +114,28 @@ export function RecordsPage() {
   // ─── Начать тренировку ─────────────────────────────
   const handleStart = useCallback(async () => {
     if (!weekPlan) return;
+
+    const data: CreateTrainingDayExecution = {
+      week: weekPlan.week,
+      dayOfWeek: today.dayIndex,
+      wellbeingToday: "NORMAL",
+      notes: null,
+    };
+
+    if (!navigator.onLine) {
+      addToQueue({
+        url: `${API_BASE}/training-executions/days`,
+        method: "POST",
+        body: data as unknown as Record<string, unknown>,
+      });
+      setError(
+        "empty",
+        "📴 Тренировка сохранена локально. Отправится при подключении к сети.",
+      );
+      return;
+    }
+
     try {
-      const data: CreateTrainingDayExecution = {
-        week: weekPlan.week,
-        dayOfWeek: today.dayIndex,
-        wellbeingToday: "NORMAL",
-        notes: null,
-      };
       const newDay = await startTraining(data);
       if (newDay?.id) {
         await loadExercisesByDay(newDay.id);
@@ -128,7 +145,7 @@ export function RecordsPage() {
         err instanceof Error ? err.message : "Не удалось начать тренировку";
       setError("network", message);
     }
-  }, [weekPlan, today.dayIndex, startTraining, loadExercisesByDay, setError]);
+  }, [weekPlan, today.dayIndex, setError, startTraining, loadExercisesByDay]);
 
   // ─── Добавить упражнение из модалки ────────────────
   const handleAddExercise = useCallback(
@@ -202,24 +219,57 @@ export function RecordsPage() {
   const handleFinish = useCallback(async () => {
     if (!dayExecution) return;
 
+    const exerciseData: CreateTrainingExerciseExecution[] = exerciseRecords.map(
+      (rec) => ({
+        executionId: dayExecution.id,
+        exerciseId: rec.exerciseId,
+        setsData: rec.sets
+          .map((s, i) => ({ set: i + 1, weight: s.weight, reps: s.reps }))
+          .filter((s) => s.reps > 0),
+        orderInDay: rec.orderInDay,
+      }),
+    );
+
+    // Если офлайн — сохраняем ВСЁ в очередь
+    if (!navigator.onLine) {
+      // 1. Обновление заметок
+      addToQueue({
+        url: `${API_BASE}/training-executions/days/${dayExecution.id}`,
+        method: "PUT",
+        body: { notes: dayNotes || null } as unknown as Record<string, unknown>,
+      });
+
+      // 2. Сохранение упражнений
+      if (exerciseData.length > 0) {
+        addToQueue({
+          url: `${API_BASE}/training-executions/exercises`,
+          method: "POST",
+          body: exerciseData as unknown as Record<string, unknown>,
+        });
+      }
+
+      // 3. Завершение тренировки
+      addToQueue({
+        url: `${API_BASE}/training-executions/days/${dayExecution.id}/finish`,
+        method: "PUT",
+        body: null,
+      });
+
+      setTrainingCompleted(true);
+      setShowFinishWarning(false);
+      setError(
+        "empty",
+        "📴 Тренировка сохранена локально. Данные отправятся при подключении к сети.",
+      );
+      return;
+    }
+
+    // Онлайн — отправляем сразу
     try {
       await updateDayExecution(dayExecution.id, { notes: dayNotes || null });
 
-      if (exerciseRecords.length > 0) {
-        const data: CreateTrainingExerciseExecution[] = exerciseRecords.map(
-          (rec) => ({
-            executionId: dayExecution.id,
-            exerciseId: rec.exerciseId,
-            setsData: rec.sets
-              .map((s, i) => ({ set: i + 1, weight: s.weight, reps: s.reps }))
-              .filter((s) => s.reps > 0),
-            orderInDay: rec.orderInDay,
-          }),
-        );
-
-        if (data.length > 0) {
-          await addExercises(data);
-        }
+      if (exerciseData.length > 0) {
+        await addExercises(exerciseData);
       }
 
       await finishTraining(dayExecution.id);
@@ -236,10 +286,10 @@ export function RecordsPage() {
     dayExecution,
     exerciseRecords,
     dayNotes,
-    updateDayExecution,
-    addExercises,
-    finishTraining,
     setError,
+    updateDayExecution,
+    finishTraining,
+    addExercises,
   ]);
 
   // ═══════════════════════════════════════════════════

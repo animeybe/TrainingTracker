@@ -11,7 +11,7 @@ Disallow: /service-worker.js
 Disallow: /workbox-*.js
 
 # Указываем путь к Sitemap (если есть)
-# Sitemap: https://trainingtk.tunyl.com/sitemap.xml
+# Sitemap: https://trainingtr.netlify.app/sitemap.xml
 
 # Для Яндекса отдельно
 User-agent: Yandex
