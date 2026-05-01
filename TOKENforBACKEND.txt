@@ -1,3 +1,0 @@
-cEbVpG6aSmra0fZd4X8p6AAJGwKHV0sznBQPZ6mOflOEPXSiePAzCLl0ZkDP
-
-npx start-tunyl@latest --token cEbVpG6aSmra0fZd4X8p6AAJGwKHV0sznBQPZ6mOflOEPXSiePAzCLl0ZkDP --port 3001

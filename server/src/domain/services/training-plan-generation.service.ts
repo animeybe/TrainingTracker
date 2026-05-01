@@ -24,7 +24,7 @@ import {
   SplitRecommendation,
   DayType,
   LocalWeekPlan,
-} from "../types/training.types";
+} from "../common/types/training.types";
 import { TypedTrainingSplit } from "../../common/types/rec-sys.types.types";
 import cuid from "cuid";
 

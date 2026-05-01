@@ -5,7 +5,7 @@ import {
   DayType,
   ExerciseSet,
   DAY_MUSCLE_GROUPS,
-} from "../../types/training.types";
+} from "../../common/types/training.types";
 import { logger } from "../../../common/utils/logger";
 import { SELECTOR_CONFIG } from "../../config/selector.config";
 import { Result } from "../../common";

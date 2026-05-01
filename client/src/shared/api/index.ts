@@ -1,7 +1,7 @@
 // api/index.ts
 import { addToQueue } from "@/lib/offline/offlineQueue";
 
-export const API_BASE = "http://localhost:5173/api";
+export const API_BASE = "https://api.trainingtracker.ru/api";
 
 export const apiRequest = async <T = unknown>(
   url: string,

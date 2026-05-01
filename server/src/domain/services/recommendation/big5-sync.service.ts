@@ -1,7 +1,7 @@
 // domain/services/recommendation/big5-sync.service.ts
 import { SELECTOR_CONFIG } from "../../config/selector.config";
 import { ExerciseEntity } from "../../entities/exercise.entity";
-import { DayType } from "../../types/training.types";
+import { DayType } from "../../common/types/training.types";
 
 /**
  * Синхронизирует bigFiveNames → реальные ID упражнений из базы.

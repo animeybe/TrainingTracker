@@ -3,7 +3,7 @@ import {
   Difficulty,
   Lifestyle,
 } from "../../common/types/enums.types";
-import { DayType } from "../types/training.types";
+import { DayType } from "../common/types/training.types";
 
 // 🔥 БАЗОВЫЕ КОНСТАНТЫ ДЛЯ ПОДБОРА УПРАЖНЕНИЙ (с полным покрытием MuscleGroup)
 export const SELECTOR_CONFIG = {

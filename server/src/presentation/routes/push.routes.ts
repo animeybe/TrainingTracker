@@ -21,4 +21,7 @@ router.post(
 // Количество устройств
 router.get("/count", authenticateToken, PushController.getDeviceCount);
 
+// ТЕСТ
+router.post("/test", authenticateToken, PushController.sendTest);
+
 export default router;

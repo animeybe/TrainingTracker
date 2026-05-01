@@ -1,6 +1,6 @@
 // domain/services/recommendation/split-recommender.service.ts
 import { UserProfileEntity } from "../../entities/user-profile.entity";
-import { SplitRecommendation } from "../../types/training.types";
+import { SplitRecommendation } from "../../common/types/training.types";
 import { logger } from "../../../common/utils/logger";
 import { Result, EntityValidationError } from "../../common";
 import { calculateBMI } from "../../../common/utils/profile-utils";

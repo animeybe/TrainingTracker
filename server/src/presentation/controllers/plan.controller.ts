@@ -33,7 +33,7 @@ import {
   DayType,
   LocalTrainingPlan,
   LocalWeekPlan,
-} from "../../domain/types/training.types";
+} from "../../domain/common/types/training.types";
 import { WeeklyTrainingExerciseEntity } from "../../domain/entities/weekly-training-exercise.entity";
 import { ExerciseEntity } from "../../domain/entities/exercise.entity";
 import { calculateBMI } from "../../common/utils/profile-utils";

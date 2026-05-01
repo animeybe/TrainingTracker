@@ -1,5 +1,5 @@
 // domain/services/recommendation/volume-calculator.service.ts
-import { ExerciseSet } from "../../types/training.types";
+import { ExerciseSet } from "../../common/types/training.types";
 import { SELECTOR_CONFIG } from "../../config/selector.config";
 import { MuscleGroup } from "../../../common/types/enums.types";
 

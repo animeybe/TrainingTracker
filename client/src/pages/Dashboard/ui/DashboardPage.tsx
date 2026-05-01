@@ -462,7 +462,11 @@ export function DashboardPage() {
                 }
               }}
               disabled={!isSubscribed}
-              style={{ marginTop: 8, fontSize: 12 }}>
+              style={{
+                marginTop: 8,
+                fontSize: 12,
+                color: "var(--text-primary)",
+              }}>
               🧪 Тест уведомления
             </button>
           )}

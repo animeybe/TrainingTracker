@@ -139,6 +139,13 @@ export default defineConfig({
   server: {
     port: 5173,
     host: "0.0.0.0",
+    allowedHosts: [
+      "trainingtracker.ru",
+      "*.trainingtracker.ru",
+      "localhost",
+      "127.0.0.1",
+      "192.168.1.151",
+    ],
     proxy: {
       "/api": {
         target: "http://192.168.1.151:3001",

@@ -4,8 +4,8 @@ import {
   Lifestyle,
   MuscleGroup,
   TrainingSplit,
-} from "../../common/types/enums.types";
-import { TypedTrainingSplit } from "../../common/types/rec-sys.types.types";
+} from "../../../common/types/enums.types";
+import { TypedTrainingSplit } from "../../../common/types/rec-sys.types.types";
 
 export type DayType =
   | "push"

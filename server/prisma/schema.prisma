@@ -11,13 +11,13 @@ model exercise {
   id                     String                      @id @default(cuid())
   name                   String
   description            String?
+  primaryMuscleGroup     PrimaryMuscleGroup
   secondaryMuscles       MuscleGroup[]
+  movementPatterns       MovementPattern[]
+  trainingFocus          TrainingFocus[]
   difficulty             Difficulty                  @default(EASY)
   imageUrl               String?
   videoUrl               String?
-  movementPatterns       MovementPattern[]
-  primaryMuscleGroup     PrimaryMuscleGroup
-  trainingFocus          TrainingFocus[]
   favorites              favoriteExercise[]
   leastFavoriteExercises leastFavoriteExercise[]
   dailyExecutions        trainingExerciseExecution[]
@@ -56,9 +56,9 @@ model userProfile {
   age       Int?
   lifestyle Lifestyle?
   goal      Goal?
+  gender    Gender?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
-  gender    Gender?
   user      user       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])

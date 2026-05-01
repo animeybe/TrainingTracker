@@ -14,7 +14,7 @@ import {
   DAY_MUSCLE_GROUPS,
   LocalWeekPlan,
   LocalTrainingPlan,
-} from "../../types/training.types";
+} from "../../common/types/training.types";
 import { ExerciseEntity } from "../../entities/exercise.entity";
 import { Result } from "../../common";
 import { logger } from "../../../common/utils/logger";
