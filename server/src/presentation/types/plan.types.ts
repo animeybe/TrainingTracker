@@ -1,9 +1,6 @@
 // presentation/types/plan.types.ts
 import { TrainingSplit, Wellbeing } from "../../common/types/enums.types";
-import {
-  LocalWeekPlan,
-  LocalTrainingPlan,
-} from "../../domain/types/training.types";
+import { LocalTrainingPlan, LocalWeekPlan } from "../../domain/common/types/training.types";
 
 // ─── Запросы ────────────────────────────────────────
 

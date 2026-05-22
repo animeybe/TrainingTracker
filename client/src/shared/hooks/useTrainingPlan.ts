@@ -41,7 +41,60 @@ interface UseTrainingPlanReturn {
   maxWeek: number | null;
   isNextWeekPlanStale: boolean;
   dismissWellbeingWarning: () => void;
+  loadPlanFromCacheOnly: (week: number) => WeekPlan | null;
 }
+
+// ==================== ФУНКЦИИ КЭШИРОВАНИЯ ПЛАНА ====================
+
+const getPlanCacheKey = (userId: string, week: number): string => {
+  return `plan_${userId}_${week}`;
+};
+
+const savePlanToCache = (userId: string, plan: WeekPlan): void => {
+  try {
+    const cacheKey = getPlanCacheKey(userId, plan.week);
+    localStorage.setItem(
+      cacheKey,
+      JSON.stringify({
+        data: plan,
+        timestamp: Date.now(),
+        week: plan.week,
+      }),
+    );
+    console.log(`💾 План сохранён в кэш: неделя ${plan.week}`);
+  } catch (error) {
+    console.error("Ошибка сохранения плана в кэш:", error);
+  }
+};
+
+const loadPlanFromCache = (
+  userId: string,
+  week: number,
+  maxAgeDays: number = 7,
+): WeekPlan | null => {
+  try {
+    const cacheKey = getPlanCacheKey(userId, week);
+    const cached = localStorage.getItem(cacheKey);
+    if (!cached) return null;
+
+    const { data, timestamp } = JSON.parse(cached);
+    const daysDiff = Math.floor((Date.now() - timestamp) / 86400000);
+
+    if (daysDiff > maxAgeDays) {
+      console.log(`⏰ Кэш плана устарел (${daysDiff} дней), удаляем`);
+      localStorage.removeItem(cacheKey);
+      return null;
+    }
+
+    console.log(
+      `📦 План загружен из кэша: неделя ${data.week}, возраст ${daysDiff} дней`,
+    );
+    return data;
+  } catch (error) {
+    console.error("Ошибка загрузки плана из кэша:", error);
+    return null;
+  }
+};
 
 export const useTrainingPlan = (): UseTrainingPlanReturn => {
   const userId = getUserIdFromToken();
@@ -123,6 +176,21 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
     [profile],
   );
 
+  // ── Принудительная загрузка плана из кэша (для офлайн-режима) ──
+  const loadPlanFromCacheOnly = useCallback(
+    (week: number): WeekPlan | null => {
+      if (!userId) return null;
+      const cachedPlan = loadPlanFromCache(userId, week);
+      if (cachedPlan) {
+        setWeekPlan(cachedPlan);
+        console.log("📦 План загружен из кэша (офлайн-режим)");
+        return cachedPlan;
+      }
+      return null;
+    },
+    [userId],
+  );
+
   // ── Главная загрузка (ВСЕ запросы последовательно) ──
   useEffect(() => {
     if (!userId || initialLoadDone.current) return;
@@ -155,20 +223,17 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
           setMaxWeek(week);
         }
 
-        // 4. План
-        try {
-          const plan = (await planApi.getPlan(
-            userId,
-            week,
-          )) as unknown as WeekPlan | null;
-          console.log(
-            "✅ План загружен:",
-            plan
-              ? `week=${plan.week}, days=${plan.trainingDays?.length}`
-              : "НЕТ",
-          );
-          setWeekPlan(plan);
+        // 4. План — сначала из кэша, потом из API
+        let plan: WeekPlan | null = null;
 
+        // Пытаемся загрузить из localStorage
+        plan = loadPlanFromCache(userId, week);
+
+        if (plan) {
+          setWeekPlan(plan);
+          console.log("📦 План загружен из localStorage кэша");
+
+          // Обновить todayPlan из закэшированного плана
           if (plan?.trainingDays?.length) {
             const todayDayPlan = plan.trainingDays.find(
               (d) => d.dayOfWeek === today.dayIndex,
@@ -183,8 +248,21 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
               });
             }
           }
-        } catch {
-          setWeekPlan(null);
+        } else {
+          // Если в кэше нет — загружаем из API
+          try {
+            plan = (await planApi.getPlan(
+              userId,
+              week,
+            )) as unknown as WeekPlan | null;
+            if (plan) {
+              savePlanToCache(userId, plan);
+              setWeekPlan(plan);
+              console.log("🌐 План загружен из API и сохранён в кэш");
+            }
+          } catch {
+            setWeekPlan(null);
+          }
         }
 
         // 5. Wellbeing
@@ -285,10 +363,11 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
           week: forcingNewWeek ? currentWeek + 1 : currentWeek,
         });
 
-        // apiRequest уже вернул data.data, поэтому response — это WeekPlan
         const plan = response as unknown as WeekPlan;
 
+        // Сохраняем в state и в кэш
         setWeekPlan(plan);
+        savePlanToCache(userId, plan);
         setCurrentWeek(plan.week);
         setMaxWeek((prev) => Math.max(prev ?? 0, plan.week));
 
@@ -349,5 +428,6 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
     maxWeek,
     isNextWeekPlanStale,
     dismissWellbeingWarning,
+    loadPlanFromCacheOnly,
   };
 };

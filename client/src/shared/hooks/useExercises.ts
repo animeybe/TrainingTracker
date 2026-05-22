@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+// shared/hooks/useExercises.ts
+import { useState, useEffect } from "react";
 import { exerciseApi } from "@/shared/api/exerciseApi";
 import { favoriteApi } from "@/shared/api/favoriteApi";
 import { leastFavoriteApi } from "@/shared/api/leastFavoriteApi";
@@ -17,12 +18,13 @@ interface UseExercisesReturn {
   refetchAll: () => Promise<void>;
   refetchFavorites: () => Promise<void>;
   refetchLeastFavorites: () => Promise<void>;
+  toggleFavorite: (exerciseId: string) => Promise<boolean>;
+  toggleLeastFavorite: (exerciseId: string) => Promise<boolean>;
 }
 
 export const useExercises = (): UseExercisesReturn => {
   const { setError, clearError } = useError();
 
-  // States
   const [allExercises, setAllExercises] = useState<Exercise[] | null>(null);
   const [favoriteExercises, setFavoriteExercises] = useState<Exercise[] | null>(
     null,
@@ -36,59 +38,218 @@ export const useExercises = (): UseExercisesReturn => {
     leastFavorites: false,
   });
 
-  const loadAllExercises = useCallback(async () => {
+  // ==================== ВСЕ УПРАЖНЕНИЯ ====================
+  const loadAllExercises = async () => {
     setLoadingExercises((prev) => ({ ...prev, all: true }));
     clearError();
+
     try {
       const data = await exerciseApi.getAllExercises();
       const allData = Array.isArray(data) ? data : (data?.data ?? null);
       setAllExercises(allData);
-    } catch {
-      const msg = "Ошибка при загрузке списка упражнений";
-      setError("network", msg);
-    } finally {
-      setLoadingExercises((prev) => ({ ...prev, all: false }));
+    } catch (err) {
+      console.error("❌ Ошибка загрузки упражнений:", err);
+      // В офлайне не показываем ошибку, если уже есть данные
+      if (!allExercises) {
+        setError("network", "Ошибка загрузки упражнений");
+      }
     }
-  }, [setError, clearError]);
 
-  const loadFavoriteExercises = useCallback(async () => {
+    setLoadingExercises((prev) => ({ ...prev, all: false }));
+  };
+
+  // ==================== ИЗБРАННЫЕ УПРАЖНЕНИЯ ====================
+  const loadFavoriteExercises = async () => {
     setLoadingExercises((prev) => ({ ...prev, favorites: true }));
     clearError();
 
     try {
       const data = await favoriteApi.getFavorites();
       const favoritesData = Array.isArray(data) ? data : (data?.data ?? null);
-      setFavoriteExercises(favoritesData);
-    } catch {
-      setError("network", "Ошибка при загрузке избранного");
-    } finally {
-      setLoadingExercises((prev) => ({ ...prev, favorites: false }));
+      setFavoriteExercises(favoritesData || []);
+    } catch (err) {
+      console.error("❌ Ошибка загрузки избранного:", err);
+      // В офлайне не сбрасываем существующие данные
+      if (!favoriteExercises) {
+        setFavoriteExercises([]);
+      }
+      setError("network", "Ошибка загрузки избранного");
     }
-  }, [setError, clearError]);
 
-  const loadLeastFavoriteExercises = useCallback(async () => {
+    setLoadingExercises((prev) => ({ ...prev, favorites: false }));
+  };
+
+  // ==================== НЕЛЮБИМЫЕ УПРАЖНЕНИЯ ====================
+  const loadLeastFavoriteExercises = async () => {
     setLoadingExercises((prev) => ({ ...prev, leastFavorites: true }));
     clearError();
+
     try {
       const data = await leastFavoriteApi.getLeastFavorites();
-
       const leastFavoritesData = Array.isArray(data)
         ? data
         : (data?.data ?? null);
-
-      setLeastFavoriteExercises(leastFavoritesData);
-    } catch {
-      const msg = "Ошибка при загрузке нелюбимых упражнений";
-      setError("network", msg);
-    } finally {
-      setLoadingExercises((prev) => ({ ...prev, leastFavorites: false }));
+      setLeastFavoriteExercises(leastFavoritesData || []);
+    } catch (err) {
+      console.error("❌ Ошибка загрузки нелюбимых:", err);
+      // В офлайне не сбрасываем существующие данные
+      if (!leastFavoriteExercises) {
+        setLeastFavoriteExercises([]);
+      }
+      setError("network", "Ошибка загрузки нелюбимых");
     }
-  }, [setError, clearError]);
 
+    setLoadingExercises((prev) => ({ ...prev, leastFavorites: false }));
+  };
+
+  // ==================== TOGGLE ИЗБРАННОГО ====================
+  const toggleFavorite = async (exerciseId: string): Promise<boolean> => {
+    // Находим упражнение в общем списке
+    const exercise = allExercises?.find((e) => e.id === exerciseId);
+
+    // Проверяем, не в нелюбимых ли оно
+    const isLeastFavorite = leastFavoriteExercises?.some(
+      (lf) => lf.id === exerciseId,
+    );
+    if (isLeastFavorite) {
+      console.warn("⚠️ Нельзя добавить в избранное из нелюбимых");
+      return false;
+    }
+
+    // Проверяем текущий статус
+    const isCurrentlyFavorite = favoriteExercises?.some(
+      (fav) => fav.id === exerciseId,
+    );
+
+    // Оптимистичное обновление UI
+    setFavoriteExercises((prev) => {
+      if (!prev) return prev;
+
+      if (isCurrentlyFavorite) {
+        // Удаляем из избранного
+        return prev.filter((fav) => fav.id !== exerciseId);
+      } else if (exercise) {
+        // Добавляем в избранное
+        return [...prev, exercise];
+      }
+      return prev;
+    });
+
+    // Если офлайн — сохраняем изменения и надеемся на синхронизацию
+    if (!navigator.onLine) {
+      console.log(
+        "📴 Офлайн: изменения будут синхронизированы при появлении сети",
+      );
+      return true;
+    }
+
+    // Онлайн: синхронизируем с сервером
+    try {
+      const result = await favoriteApi.toggleFavorite({ exerciseId });
+
+      if (result.success) {
+        // Фоновая синхронизация с сервером
+        await loadFavoriteExercises();
+        return true;
+      } else {
+        // Ошибка на сервере — откатываем
+        console.warn("⚠️ Сервер вернул ошибку, откатываем изменения");
+        await loadFavoriteExercises();
+        return false;
+      }
+    } catch (err) {
+      // Если сеть пропала во время запроса — не откатываем
+      if (err instanceof TypeError && err.message === "Failed to fetch") {
+        console.log("📴 Сеть пропала во время запроса, оставляем изменения");
+        return true;
+      }
+
+      // Другие ошибки — откатываем
+      console.error("❌ Ошибка синхронизации, откатываем изменения");
+      await loadFavoriteExercises();
+      setError("network", "Не удалось изменить избранное");
+      return false;
+    }
+  };
+
+  // ==================== TOGGLE НЕЛЮБИМОГО ====================
+  const toggleLeastFavorite = async (exerciseId: string): Promise<boolean> => {
+    // Находим упражнение в общем списке
+    const exercise = allExercises?.find((e) => e.id === exerciseId);
+
+    // Проверяем, не в избранном ли оно
+    const isFavorite = favoriteExercises?.some((fav) => fav.id === exerciseId);
+    if (isFavorite) {
+      console.warn("⚠️ Нельзя добавить в нелюбимые из избранного");
+      return false;
+    }
+
+    // Проверяем текущий статус
+    const isCurrentlyLeastFavorite = leastFavoriteExercises?.some(
+      (lf) => lf.id === exerciseId,
+    );
+
+    // Оптимистичное обновление UI
+    setLeastFavoriteExercises((prev) => {
+      if (!prev) return prev;
+
+      if (isCurrentlyLeastFavorite) {
+        // Удаляем из нелюбимых
+        return prev.filter((lf) => lf.id !== exerciseId);
+      } else if (exercise) {
+        // Добавляем в нелюбимые
+        return [...prev, exercise];
+      }
+      return prev;
+    });
+
+    // Если офлайн — сохраняем изменения и надеемся на синхронизацию
+    if (!navigator.onLine) {
+      console.log(
+        "📴 Офлайн: изменения будут синхронизированы при появлении сети",
+      );
+      return true;
+    }
+
+    // Онлайн: синхронизируем с сервером
+    try {
+      const result = await leastFavoriteApi.toggleLeastFavorite({
+        exerciseId,
+      });
+
+      if (result.success) {
+        // Фоновая синхронизация с сервером
+        await loadLeastFavoriteExercises();
+        return true;
+      } else {
+        // Ошибка на сервере — откатываем
+        console.warn("⚠️ Сервер вернул ошибку, откатываем изменения");
+        await loadLeastFavoriteExercises();
+        return false;
+      }
+    } catch (err) {
+      // Если сеть пропала во время запроса — не откатываем
+      if (err instanceof TypeError && err.message === "Failed to fetch") {
+        console.log("📴 Сеть пропала во время запроса, оставляем изменения");
+        return true;
+      }
+
+      // Другие ошибки — откатываем
+      console.error("❌ Ошибка синхронизации, откатываем изменения");
+      await loadLeastFavoriteExercises();
+      setError("network", "Не удалось изменить нелюбимые");
+      return false;
+    }
+  };
+
+  // ==================== ПЕРВОНАЧАЛЬНАЯ ЗАГРУЗКА ====================
   useEffect(() => {
-    loadAllExercises();
-    loadFavoriteExercises();
-    loadLeastFavoriteExercises();
+    const init = async () => {
+      await loadAllExercises();
+      await loadFavoriteExercises();
+      await loadLeastFavoriteExercises();
+    };
+    init();
   }, []);
 
   return {
@@ -99,5 +260,7 @@ export const useExercises = (): UseExercisesReturn => {
     refetchAll: loadAllExercises,
     refetchFavorites: loadFavoriteExercises,
     refetchLeastFavorites: loadLeastFavoriteExercises,
+    toggleFavorite,
+    toggleLeastFavorite,
   };
 };

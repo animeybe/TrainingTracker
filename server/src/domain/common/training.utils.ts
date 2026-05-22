@@ -1,5 +1,5 @@
 import { TypedTrainingSplit } from "../../common/types/rec-sys.types.types";
-import { DayType } from "../types/training.types";
+import { DayType } from "./types/training.types";
 
 export function getDayTypeForIndex(
   dayIndex: number,

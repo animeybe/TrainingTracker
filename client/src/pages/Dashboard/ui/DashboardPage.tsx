@@ -1,4 +1,19 @@
 // pages/DashboardPage.tsx
+/**
+ * DashboardPage — главная страница после авторизации
+ *
+ * Отображает:
+ * - Приветствие пользователя
+ * - Роль (USER/ADMIN)
+ * - Дату регистрации
+ * - Статистику профиля (ИМТ, калории, БЖУ)
+ * - Избранные/нелюбимые упражнения
+ * - Текущий план тренировок
+ * - Настройки (тема, уведомления)
+ *
+ * Кэширование профиля реализовано в useProfile (localStorage, 7 дней)
+ */
+
 import { useTheme } from "@/shared/store";
 import "./DashboardPage.scss";
 import { useSafeAuthContext } from "@/shared/hooks/useSafeAuth";
@@ -24,6 +39,7 @@ import { pushApi } from "@/shared/api";
 
 /**
  * Создает пустой профиль для fallback UI
+ * Используется, когда профиль ещё не загружен или пользователь не авторизован
  */
 const createEmptyProfile = (userId: string = ""): ProfileData => ({
   id: "",
@@ -53,7 +69,10 @@ export function DashboardPage() {
   // ==================== CONTEXTS & HOOKS ====================
   const { theme, toggleTheme } = useTheme();
   const { user, refreshUser } = useSafeAuthContext();
+
+  // useProfile содержит кэширование профиля в localStorage (7 дней)
   const { profile, loadingProfile, reloadProfile } = useProfile();
+
   const { isSupported, isSubscribed, isLoading, toggle } =
     usePushNotifications();
   const { leastFavoriteExercises, favoriteExercises, loadingExercises } =
@@ -69,8 +88,10 @@ export function DashboardPage() {
   } | null>(null);
 
   // ==================== COMPUTED ====================
+
   /**
    * Эффективный профиль (реальный или fallback)
+   * Используется для отображения, пока реальные данные не загрузились
    */
   const effectiveProfile = useMemo(() => {
     if (profile) return profile;
@@ -80,6 +101,7 @@ export function DashboardPage() {
 
   /**
    * Проверка полноты профиля
+   * Все поля должны быть заполнены для генерации тренировочного плана
    */
   const isProfileComplete = useMemo(() => {
     return (
@@ -103,9 +125,12 @@ export function DashboardPage() {
   ]);
 
   /**
-   * TDEE + БЖУ
+   * TDEE (Total Daily Energy Expenditure) и БЖУ
+   * Рассчитывается по формуле Harris-Benedict Revised
+   * Используется для отображения рекомендуемой калорийности и соотношения белков/жиров/углеводов
    */
   const nutritionStats = useMemo(() => {
+    // Проверяем наличие всех необходимых данных
     if (
       !effectiveProfile.weight ||
       !effectiveProfile.height ||
@@ -119,7 +144,7 @@ export function DashboardPage() {
     const age = effectiveProfile.age;
     const gender = effectiveProfile.gender;
 
-    // Harris-Benedict Revised формула
+    // Harris-Benedict Revised формула для BMR (Basal Metabolic Rate)
     let bmr: number;
     if (gender === "Male") {
       bmr = 88.362 + 13.397 * weight + 4.799 * height - 5.677 * age;
@@ -141,10 +166,10 @@ export function DashboardPage() {
 
     const tdee = Math.round(bmr * multiplier);
 
-    // БЖУ: 30% protein, 20% fat, 50% carbs
-    const proteins = Math.round((tdee * 0.3) / 4); // г
-    const fats = Math.round((tdee * 0.2) / 9); // г
-    const carbs = Math.round((tdee * 0.5) / 4); // г
+    // БЖУ: 30% белки, 20% жиры, 50% углеводы
+    const proteins = Math.round((tdee * 0.3) / 4); // 1 г белка = 4 ккал
+    const fats = Math.round((tdee * 0.2) / 9); // 1 г жира = 9 ккал
+    const carbs = Math.round((tdee * 0.5) / 4); // 1 г углеводов = 4 ккал
 
     return {
       tdee: tdee.toString(),
@@ -160,6 +185,7 @@ export function DashboardPage() {
 
   /**
    * Расширенные stats для UI
+   * Форматирует данные профиля для отображения
    */
   const profileStats = useMemo(
     () => ({
@@ -203,16 +229,19 @@ export function DashboardPage() {
   );
 
   // ==================== EVENT HANDLERS ====================
+
   /**
-   * Обновление профиля после модалки
+   * Обновление профиля после закрытия модалки
+   * Обновляет данные пользователя и перезагружает профиль из API
+   * reloadProfile автоматически сохраняет данные в localStorage кэш
    */
   const handleProfileUpdate = useCallback(async () => {
     try {
       logger.debug("handleProfileUpdate started");
-      await refreshUser();
-      await reloadProfile();
+      await refreshUser(); // Обновляем данные пользователя в контексте
+      await reloadProfile(); // Перезагружаем профиль из API (обновляет и кэш)
       logger.debug("Profile updated successfully");
-      setIsProfileModalOpen(false);
+      setIsProfileModalOpen(false); // Закрываем модалку
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -225,7 +254,7 @@ export function DashboardPage() {
   }, [refreshUser, reloadProfile]);
 
   /**
-   * Открытие модалки профиля
+   * Открытие модалки редактирования профиля
    */
   const handleOpenModal = useCallback(() => {
     logger.debug("Opening profile modal");
@@ -234,6 +263,7 @@ export function DashboardPage() {
 
   /**
    * Клик по роли (Admin → /admin)
+   * Если пользователь имеет роль ADMIN, переходим в админку
    */
   const handleRoleClick = useCallback(() => {
     if (user?.role === "ADMIN") {
@@ -243,7 +273,7 @@ export function DashboardPage() {
   }, [user?.role, navigate]);
 
   /**
-   * Toggle theme
+   * Переключение темы (светлая/тёмная)
    */
   const handleThemeToggle = useCallback(() => {
     logger.debug("Theme toggle", { from: theme });
@@ -251,6 +281,8 @@ export function DashboardPage() {
   }, [theme, toggleTheme]);
 
   // ==================== RENDER ====================
+
+  // Отображаем ошибку, если она есть
   if (localError) {
     return (
       <InfoPage
@@ -264,6 +296,7 @@ export function DashboardPage() {
     );
   }
 
+  // Отображаем загрузку, пока данные не получены
   if (
     loadingExercises.all ||
     loadingExercises.favorites ||
@@ -277,6 +310,7 @@ export function DashboardPage() {
     );
   }
 
+  // Основной рендер
   return (
     <div className="dashboard-content">
       {/* 👋 ЛЕВАЯ КОЛОНКА: приветствие + роль + дата */}
@@ -326,37 +360,31 @@ export function DashboardPage() {
 
         {isProfileComplete ? (
           <div className="dashboard-profile-stats">
-            {/* 🎯 Цель */}
             <div className="stat-item">
               <span className="stat-item__label">Цель:</span>
               <span className="stat-item__value">{profileStats.goal}</span>
             </div>
 
-            {/* ⚖️ ИМТ */}
             <div className="stat-item">
               <span className="stat-item__label">ИМТ (BMI):</span>
               <span className="stat-item__value">{profileStats.bmi}</span>
             </div>
 
-            {/* 🔥 Калории */}
             <div className="stat-item">
               <span className="stat-item__label">Калории/сутки:</span>
               <span className="stat-item__value">{profileStats.tdee}</span>
             </div>
 
-            {/* 🍽️ БЖУ */}
             <div className="stat-item">
               <span className="stat-item__label">Суточное БЖУ:</span>
               <span className="stat-item__value">{profileStats.macros}</span>
             </div>
 
-            {/* ⭐ Избранные */}
             <div className="stat-item">
               <span className="stat-item__label">Избранных:</span>
               <span className="stat-item__value">{profileStats.favorites}</span>
             </div>
 
-            {/* 💪 План */}
             <div className="stat-item">
               <span className="stat-item__label">Текущий план:</span>
               <span className="stat-item__value">
@@ -384,7 +412,7 @@ export function DashboardPage() {
         </div>
 
         <div className="dashboard-content-block-right-settings">
-          {/* 🎨 Theme toggle */}
+          {/* 🎨 Переключение темы */}
           <div className="dashboard-content-block-right-settings__theme-subtitle dashboard-content-block-right__subtitles">
             Сменить тему:
           </div>
@@ -425,7 +453,7 @@ export function DashboardPage() {
             </button>
           </fieldset>
 
-          {/* 🔔 Notifications (placeholder) */}
+          {/* 🔔 Push-уведомления */}
           <div className="dashboard-content-block-right-settings__notifications">
             <span className="dashboard-content-block-right-settings__notifications-subtitle dashboard-content-block-right__subtitles">
               Уведомления:
@@ -447,16 +475,13 @@ export function DashboardPage() {
             )}
           </div>
 
+          {/* 🧪 Тестовое уведомление (только для разработки) */}
           {pushApi.sendTest && (
             <button
               onClick={async () => {
                 try {
                   await pushApi.sendTest();
-                  // Не показываем alert — уведомление придёт само через push
-                  // Закрываем страницу или ждём 3 секунды
-                  setTimeout(() => {
-                    // Ничего не делаем — уведомление уже должно прийти
-                  }, 3000);
+                  setTimeout(() => {}, 3000);
                 } catch {
                   alert("Ошибка отправки тестового уведомления");
                 }

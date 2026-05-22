@@ -11,13 +11,9 @@ import apiRouter from "./presentation/routes";
 const PORT = process.env.PORT || 3001;
 
 const ALLOWED_ORIGINS = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "http://192.168.1.151:5173",
   "https://localhost:5173",
   "https://trainingtracker.ru",
   "https://www.trainingtracker.ru",
-  "http://trainingtracker.ru",
 ];
 
 const RATE_LIMIT_WINDOW_MS =
@@ -60,14 +56,23 @@ const createRateLimiter = (max: number, skipLocalhost = true) =>
 app.use("/api/auth", createRateLimiter(RATE_LIMIT_AUTH_MAX));
 app.use("/api", createRateLimiter(RATE_LIMIT_API_MAX));
 
+// Middleware для управления кэшированием
 app.use((req, res, next) => {
-  const { path, method } = req;
+  const { path } = req;
+
+  // Статические файлы могут кэшироваться
   if (!path.startsWith("/api")) {
     res.set("Cache-Control", "public, max-age=3600, s-maxage=86400");
-  } else if (method === "GET") {
-    res.set("Cache-Control", "private, max-age=300");
-  } else {
-    res.set("Cache-Control", "no-store");
+  }
+  // API запросы — без кэширования
+  else {
+    res.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
+    res.set("Surrogate-Control", "no-store");
   }
   next();
 });

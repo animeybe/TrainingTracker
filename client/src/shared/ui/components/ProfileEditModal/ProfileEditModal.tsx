@@ -18,6 +18,7 @@ interface FormProfileData {
   age: string;
   lifestyle: string;
   goal: string;
+  gender: string;
 }
 
 interface LoginEmailData {
@@ -62,6 +63,7 @@ const INITIAL_PROFILE_DATA: FormProfileData = {
   age: "",
   lifestyle: "",
   goal: "",
+  gender: "",
 };
 
 const INITIAL_LOGIN_EMAIL_DATA: LoginEmailData = {
@@ -174,6 +176,7 @@ export function ProfileEditModal({
         age: profile?.age === -1 ? "" : profile?.age?.toString() || "",
         lifestyle: profile?.lifestyle || "",
         goal: profile?.goal || "",
+        gender: profile?.gender || "",
       });
 
       // Остальная инициализация
@@ -363,6 +366,7 @@ export function ProfileEditModal({
 
     if (profileData.lifestyle) updateData.lifestyle = profileData.lifestyle;
     if (profileData.goal) updateData.goal = profileData.goal;
+    if (profileData.gender) updateData.gender = profileData.gender;
 
     return updateData;
   }, [profileData]);
@@ -474,6 +478,16 @@ export function ProfileEditModal({
     onClose,
     onSuccess,
   ]);
+
+  const handleGenderChange = useCallback(
+    (value: string) => {
+      setProfileData((prev) => ({ ...prev, gender: value }));
+      if (profileErrors.gender) {
+        updateFieldError(setProfileErrors, "gender", null);
+      }
+    },
+    [updateFieldError],
+  );
 
   const handleAccountTabClick = useCallback(() => {
     setActiveTab("account");
@@ -604,6 +618,24 @@ export function ProfileEditModal({
                       {profileErrors.age}
                     </span>
                   )}
+                </div>
+              </div>
+
+              <div className="profile-data-form__group profile-data-form__group--full-width">
+                <label>Пол</label>
+                <div className="gender-toggle">
+                  <button
+                    type="button"
+                    className={`gender-toggle__btn ${profileData.gender === "Male" ? "gender-toggle__btn--active" : ""}`}
+                    onClick={() => handleGenderChange("Male")}>
+                    ♂ Мужской
+                  </button>
+                  <button
+                    type="button"
+                    className={`gender-toggle__btn ${profileData.gender === "Female" ? "gender-toggle__btn--active" : ""}`}
+                    onClick={() => handleGenderChange("Female")}>
+                    ♀ Женский
+                  </button>
                 </div>
               </div>
 

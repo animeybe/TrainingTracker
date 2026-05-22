@@ -3,6 +3,22 @@ import { addToQueue } from "@/lib/offline/offlineQueue";
 
 export const API_BASE = "https://api.trainingtracker.ru/api";
 
+export class ApiError extends Error {
+  status: number;
+  data: Record<string, unknown> | null;
+
+  constructor(
+    message: string,
+    status: number,
+    data?: Record<string, unknown> | null,
+  ) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.data = data || null;
+  }
+}
+
 export const apiRequest = async <T = unknown>(
   url: string,
   options: RequestInit = {},
@@ -19,33 +35,69 @@ export const apiRequest = async <T = unknown>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const config: RequestInit = { ...options, headers };
+  const config: RequestInit = {
+    ...options,
+    headers,
+    cache: "no-store",
+  };
 
   try {
     const response = await fetch(FULL_URL, config);
 
     if (!response.ok) {
-      if (response.status === 404) {
-        const errorData = await response.json();
-        throw new Error(
-          (errorData as { error?: string }).error || `HTTP ${response.status}`,
-        );
+      let errorData: Record<string, unknown> = {};
+      try {
+        errorData = (await response.json()) as Record<string, unknown>;
+      } catch {
+        errorData = {};
       }
-      if (
-        response.status === 401 &&
-        !url.includes("/auth/login") &&
-        !url.includes("/auth/register")
-      ) {
-        localStorage.removeItem("token");
-        throw new Error("Токен недействителен");
+
+      let message =
+        (errorData.error as string) ||
+        (errorData.message as string) ||
+        `Ошибка ${response.status}`;
+
+      // Понятные сообщения на русском
+      switch (response.status) {
+        case 400:
+          message = `Ошибка 400: ${message || "Неверный запрос"}`;
+          break;
+        case 401:
+          if (!url.includes("/auth/login") && !url.includes("/auth/register")) {
+            localStorage.removeItem("token");
+          }
+          message = `Ошибка 401: ${message || "Неверный логин или пароль"}`;
+          break;
+        case 403:
+          message = `Ошибка 403: ${message || "Доступ запрещён"}`;
+          break;
+        case 404:
+          message = `Ошибка 404: ${message || "Не найдено"}`;
+          break;
+        case 409:
+          // Сервер уже вернул понятное сообщение
+          message = `Ошибка 409: ${message}`;
+          break;
+        case 429:
+          message = "Ошибка 429: Слишком много запросов. Попробуйте позже";
+          break;
+        case 500:
+          message = "Ошибка 500: Внутренняя ошибка сервера. Попробуйте позже";
+          break;
+        default:
+          message = `Ошибка ${response.status}: ${message}`;
       }
-      throw new Error(`HTTP ${response.status}`);
+
+      throw new ApiError(message, response.status, errorData);
     }
 
     const data = await response.json();
     return (data.data || data) as T;
   } catch (error) {
-    // Если сеть недоступна и это мутирующий запрос — сохраняем в очередь
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
     if (error instanceof TypeError && error.message === "Failed to fetch") {
       if (options.method && options.method !== "GET") {
         addToQueue({
@@ -53,10 +105,12 @@ export const apiRequest = async <T = unknown>(
           method: options.method,
           body: options.body ? JSON.parse(options.body as string) : null,
         });
-        throw new Error(
-          "📴 Запрос сохранён в очередь — отправится при подключении к сети",
+        throw new ApiError(
+          "📴 Нет подключения к интернету. Запрос будет отправлен при восстановлении сети",
+          0,
         );
       }
+      throw new ApiError("📴 Нет подключения к интернету", 0);
     }
     throw error;
   }

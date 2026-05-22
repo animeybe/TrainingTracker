@@ -49,7 +49,10 @@ export const register = async (
   req: Request<{}, {}, RegisterRequestDto>,
   res: Response<AuthResponse>,
 ) => {
-  logger.info("=== REGISTER START ===", { bodyKeys: Object.keys(req.body) });
+  logger.info("=== REGISTER START ===", {
+    login: req.body.login,
+    email: req.body.email,
+  });
 
   try {
     const { login, email, password } = req.body;
@@ -94,17 +97,50 @@ export const register = async (
     };
 
     res.status(201).json({ data: response });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as {
+      message?: string;
+      code?: string;
+      meta?: {
+        target?: string[];
+        modelName?: string;
+      };
+    };
+
     logger.error("💥 REGISTER ERROR", {
-      error: error.message,
-      code: error.code,
+      error: err.message,
+      code: err.code,
+      meta: err.meta,
     });
 
-    if (error.code === "P2002") {
-      return res.status(409).json({ error: "Логин уже занят" });
+    // Обработка конфликта уникальности (Prisma P2002)
+    if (err.code === "P2002") {
+      const target = err.meta?.target;
+
+      // Проверяем, какое именно поле вызвало конфликт
+      if (Array.isArray(target)) {
+        if (target.includes("login")) {
+          return res.status(409).json({
+            error: "Пользователь с таким логином уже существует",
+          });
+        }
+
+        if (target.includes("email")) {
+          return res.status(409).json({
+            error: "Аккаунт с такой почтой уже зарегистрирован",
+          });
+        }
+      }
+
+      // Если не можем определить конкретное поле
+      return res.status(409).json({
+        error: "Пользователь с такими данными уже зарегистрирован",
+      });
     }
 
-    res.status(400).json({ error: error.message || "Registration failed" });
+    res.status(400).json({
+      error: err.message || "Ошибка регистрации",
+    });
   }
 };
 
@@ -126,6 +162,17 @@ export const login = async (
       return res.status(401).json({ error: "Неверный логин или пароль" });
     }
 
+    // ✅ Проверка активности аккаунта
+    if (!user.isActive) {
+      logger.warn("❌ User is inactive", {
+        userId: user.id,
+        login: loginInput.slice(0, 3) + "...",
+      });
+      return res.status(403).json({
+        error: "Аккаунт деактивирован. Обратитесь к администратору",
+      });
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
@@ -135,9 +182,16 @@ export const login = async (
       return res.status(401).json({ error: "Неверный логин или пароль" });
     }
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        role: user.role, // ✅ Добавить роль в токен для будущей авторизации
+      },
+      process.env.JWT_SECRET!,
+      {
+        expiresIn: "7d",
+      },
+    );
 
     logger.info("🎉 LOGIN SUCCESS", { userId: user.id });
 
@@ -153,9 +207,16 @@ export const login = async (
     };
 
     res.json({ data: response });
-  } catch (error: any) {
-    logger.error("💥 LOGIN ERROR", error);
-    res.status(400).json({ error: "Login failed" });
+  } catch (error: unknown) {
+    const err = error as { message?: string; code?: string };
+    logger.error("💥 LOGIN ERROR", {
+      error: err.message,
+      code: err.code,
+    });
+
+    res.status(500).json({
+      error: "Внутренняя ошибка сервера при входе",
+    });
   }
 };
 

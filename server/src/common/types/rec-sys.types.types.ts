@@ -1,4 +1,4 @@
-import { DayType } from "../../domain/types/training.types";
+import { DayType } from "../../domain/common/types/training.types";
 import { TrainingSplit } from "./enums.types";
 
 export interface TypedTrainingSplit {

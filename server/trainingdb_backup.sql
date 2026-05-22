@@ -1,0 +1,1073 @@
+--
+-- PostgreSQL database dump
+--
+
+\restrict wkBcDnA8YCf563tTGKREtLyRAfSOB6i8A5ZSApRqahDnthrDITHyFbEVJvrJXgO
+
+-- Dumped from database version 18.1
+-- Dumped by pg_dump version 18.1
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- Name: public; Type: SCHEMA; Schema: -; Owner: postgres
+--
+
+-- *not* creating schema, since initdb creates it
+
+
+ALTER SCHEMA public OWNER TO postgres;
+
+--
+-- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: postgres
+--
+
+COMMENT ON SCHEMA public IS '';
+
+
+--
+-- Name: Difficulty; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public."Difficulty" AS ENUM (
+    'EASY',
+    'MEDIUM',
+    'HARD'
+);
+
+
+ALTER TYPE public."Difficulty" OWNER TO postgres;
+
+--
+-- Name: Gender; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public."Gender" AS ENUM (
+    'Male',
+    'Female'
+);
+
+
+ALTER TYPE public."Gender" OWNER TO postgres;
+
+--
+-- Name: Goal; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public."Goal" AS ENUM (
+    'LOSE_FAT',
+    'MAINTAIN_WEIGHT',
+    'GAIN_MUSCLE_MASS',
+    'STRENGTH',
+    'HYPERTROPHY',
+    'ENDURANCE',
+    'POWER',
+    'HEALTH',
+    'REHABILITATION'
+);
+
+
+ALTER TYPE public."Goal" OWNER TO postgres;
+
+--
+-- Name: Lifestyle; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public."Lifestyle" AS ENUM (
+    'IMMOBILE',
+    'LIGHT',
+    'AVERAGE',
+    'HARD'
+);
+
+
+ALTER TYPE public."Lifestyle" OWNER TO postgres;
+
+--
+-- Name: MovementPattern; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public."MovementPattern" AS ENUM (
+    'PUSH',
+    'PULL',
+    'SQUAT',
+    'HINGE',
+    'CARRY',
+    'CORE_STABILITY',
+    'CORE_ROTATION',
+    'CARDIO',
+    'MOBILITY',
+    'ISOMETRIC'
+);
+
+
+ALTER TYPE public."MovementPattern" OWNER TO postgres;
+
+--
+-- Name: MuscleGroup; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public."MuscleGroup" AS ENUM (
+    'NECK',
+    'TRAPEZIUS_UPPER',
+    'TRAPEZIUS_LOWER',
+    'DELTOIDS_ANTERIOR',
+    'DELTOIDS_MEDIAL',
+    'DELTOIDS_POSTERIOR',
+    'CHEST_UPPER',
+    'CHEST_MIDDLE',
+    'CHEST_LOWER',
+    'LATS',
+    'RHOMBOIDS_UPPER',
+    'RHOMBOIDS_LOWER',
+    'TERES_MAJOR',
+    'TERES_MINOR',
+    'ERECTOR_SPINAE_UPPER',
+    'ERECTOR_SPINAE_LOWER',
+    'BICEPS_LONG_HEAD',
+    'BICEPS_SHORT_HEAD',
+    'TRICEPS_LONG_HEAD',
+    'TRICEPS_MEDIAL_HEAD',
+    'TRICEPS_LATERAL_HEAD',
+    'FOREARMS_FLEXORS',
+    'FOREARMS_EXTENSORS',
+    'ABS_UPPER',
+    'ABS_LOWER',
+    'OBLIQUES',
+    'GLUTES_MAXIMUS',
+    'GLUTES_MEDIAS',
+    'ABDUCTORS',
+    'ADDUCTORS',
+    'QUADS_VASTUS_LATERALIS',
+    'QUADS_VASTUS_MEDIALIS',
+    'QUADS_RECTUS_FEMORIS',
+    'HAMSTRINGS',
+    'CALVES_GASTROCNEMIUS',
+    'CALVES_SOLEUS'
+);
+
+
+ALTER TYPE public."MuscleGroup" OWNER TO postgres;
+
+--
+-- Name: PrimaryMuscleGroup; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public."PrimaryMuscleGroup" AS ENUM (
+    'LEGS',
+    'BACK',
+    'CHEST',
+    'SHOULDERS',
+    'ARMS',
+    'CORE'
+);
+
+
+ALTER TYPE public."PrimaryMuscleGroup" OWNER TO postgres;
+
+--
+-- Name: Role; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public."Role" AS ENUM (
+    'USER',
+    'ADMIN'
+);
+
+
+ALTER TYPE public."Role" OWNER TO postgres;
+
+--
+-- Name: TrainingFocus; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public."TrainingFocus" AS ENUM (
+    'STRENGTH',
+    'HYPERTROPHY',
+    'ENDURANCE',
+    'POWER',
+    'MAINTENANCE',
+    'REHABILITATION'
+);
+
+
+ALTER TYPE public."TrainingFocus" OWNER TO postgres;
+
+--
+-- Name: TrainingSplit; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public."TrainingSplit" AS ENUM (
+    'PPL',
+    'FULL_BODY',
+    'UPPER_LOWER',
+    'BRO_SPLIT',
+    'STRENGTH_FOCUS',
+    'HYPERTROPHY_FOCUS'
+);
+
+
+ALTER TYPE public."TrainingSplit" OWNER TO postgres;
+
+--
+-- Name: Wellbeing; Type: TYPE; Schema: public; Owner: postgres
+--
+
+CREATE TYPE public."Wellbeing" AS ENUM (
+    'BAD',
+    'NORMAL',
+    'GOOD'
+);
+
+
+ALTER TYPE public."Wellbeing" OWNER TO postgres;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: _prisma_migrations; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public._prisma_migrations (
+    id character varying(36) NOT NULL,
+    checksum character varying(64) NOT NULL,
+    finished_at timestamp with time zone,
+    migration_name character varying(255) NOT NULL,
+    logs text,
+    rolled_back_at timestamp with time zone,
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    applied_steps_count integer DEFAULT 0 NOT NULL
+);
+
+
+ALTER TABLE public._prisma_migrations OWNER TO postgres;
+
+--
+-- Name: exercises; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.exercises (
+    id text NOT NULL,
+    name text NOT NULL,
+    description text,
+    "secondaryMuscles" public."MuscleGroup"[],
+    difficulty public."Difficulty" DEFAULT 'EASY'::public."Difficulty" NOT NULL,
+    "imageUrl" text,
+    "videoUrl" text,
+    "movementPatterns" public."MovementPattern"[],
+    "primaryMuscleGroup" public."PrimaryMuscleGroup" NOT NULL,
+    "trainingFocus" public."TrainingFocus"[]
+);
+
+
+ALTER TABLE public.exercises OWNER TO postgres;
+
+--
+-- Name: favorite_exercises; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.favorite_exercises (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    "exerciseId" text NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.favorite_exercises OWNER TO postgres;
+
+--
+-- Name: least_favorite_exercises; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.least_favorite_exercises (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    "exerciseId" text NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.least_favorite_exercises OWNER TO postgres;
+
+--
+-- Name: push_subscriptions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.push_subscriptions (
+    id integer NOT NULL,
+    "userId" text NOT NULL,
+    endpoint text NOT NULL,
+    p256dh text NOT NULL,
+    auth text NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE public.push_subscriptions OWNER TO postgres;
+
+--
+-- Name: push_subscriptions_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.push_subscriptions_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.push_subscriptions_id_seq OWNER TO postgres;
+
+--
+-- Name: push_subscriptions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.push_subscriptions_id_seq OWNED BY public.push_subscriptions.id;
+
+
+--
+-- Name: training_day_executions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.training_day_executions (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    week integer NOT NULL,
+    "dayOfWeek" integer NOT NULL,
+    "wellbeingToday" public."Wellbeing" NOT NULL,
+    notes character varying(500),
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "endTime" timestamp(3) without time zone,
+    "startTime" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.training_day_executions OWNER TO postgres;
+
+--
+-- Name: training_exercise_executions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.training_exercise_executions (
+    id text NOT NULL,
+    "executionId" text NOT NULL,
+    "exerciseId" text NOT NULL,
+    "orderInDay" integer NOT NULL,
+    "setsData" jsonb NOT NULL
+);
+
+
+ALTER TABLE public.training_exercise_executions OWNER TO postgres;
+
+--
+-- Name: user_profiles; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.user_profiles (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    weight double precision,
+    height double precision,
+    age integer,
+    lifestyle public."Lifestyle",
+    goal public."Goal",
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL,
+    gender public."Gender"
+);
+
+
+ALTER TABLE public.user_profiles OWNER TO postgres;
+
+--
+-- Name: user_states; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.user_states (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    "currentWeek" integer DEFAULT 1 NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE public.user_states OWNER TO postgres;
+
+--
+-- Name: users; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.users (
+    id text NOT NULL,
+    login text NOT NULL,
+    email text,
+    password text NOT NULL,
+    role public."Role" DEFAULT 'USER'::public."Role" NOT NULL,
+    "isActive" boolean DEFAULT true NOT NULL,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE public.users OWNER TO postgres;
+
+--
+-- Name: weekly_training_exercises; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.weekly_training_exercises (
+    id text NOT NULL,
+    "planId" text NOT NULL,
+    "exerciseId" text NOT NULL,
+    "dayOfWeek" integer NOT NULL,
+    sets integer NOT NULL,
+    "repsRange" jsonb NOT NULL,
+    "orderInDay" integer NOT NULL
+);
+
+
+ALTER TABLE public.weekly_training_exercises OWNER TO postgres;
+
+--
+-- Name: weekly_training_plans; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.weekly_training_plans (
+    id text NOT NULL,
+    "userId" text NOT NULL,
+    week integer NOT NULL,
+    split public."TrainingSplit" NOT NULL,
+    "daysPerWeek" integer NOT NULL,
+    "restDays" integer[],
+    message text,
+    "createdAt" timestamp(3) without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "updatedAt" timestamp(3) without time zone NOT NULL
+);
+
+
+ALTER TABLE public.weekly_training_plans OWNER TO postgres;
+
+--
+-- Name: push_subscriptions id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.push_subscriptions ALTER COLUMN id SET DEFAULT nextval('public.push_subscriptions_id_seq'::regclass);
+
+
+--
+-- Data for Name: _prisma_migrations; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public._prisma_migrations (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count) FROM stdin;
+c75ed78b-e22f-4483-b3db-2846b4c1c634	f9b6ef569bca84279a6839578b5474e7bf2acb1701a34f399129e7ba14c6e09d	2026-02-15 03:34:27.679203+10	20260214173427_init_exercises	\N	\N	2026-02-15 03:34:27.636767+10	1
+51689f20-5b5b-421a-bfbc-69e0da26f30f	f4acdfd283bedcc91a9920c095a5f019a3b62191d111a4529896ed5ee36ad7b8	2026-02-15 03:55:50.356978+10	20260214175550_remove_instructions	\N	\N	2026-02-15 03:55:50.34745+10	1
+81b34982-36fe-4492-902e-2fd4e276cd00	bf0749acacc5f6372a60477e50aabbcd17550345edf40df60c8f3d1f4397380f	2026-02-15 13:34:57.252449+10	20260215033457_add_email_unique	\N	\N	2026-02-15 13:34:57.234168+10	1
+\.
+
+
+--
+-- Data for Name: exercises; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.exercises (id, name, description, "secondaryMuscles", difficulty, "imageUrl", "videoUrl", "movementPatterns", "primaryMuscleGroup", "trainingFocus") FROM stdin;
+cmlmmb10k0002uw4zw8hu6ts2	Приседания со штангой	Поставьте штангу на стойки на уровне верхней части трапеций, возьмитесь хватом на ширине плеч или чуть шире, согните колени и пройдите под гриф, разместив его на средних трапециях и задних дельтах (не на шее), сведите лопатки, ноги на ширине плеч с носками наружу на 15–30°. Снимите штангу со стоек, сделайте шаг назад, сохраняя вертикальный взгляд вперед, естественный прогиб в пояснице и вес на среднепятковой части стопы. На вдохе отведите таз назад и вниз (как на стул), разводя колени в стороны по линии носков, сохраняя спину прямой с лёгким наклоном вперед — опуститесь до параллели бедер полу или чуть ниже, не позволяя коленям уходить вперёд носков и тазу "клевать" вверх. В нижней точке пауза 1 секунду, затем на выдохе мощно поднимитесь за счёт разгибания колен и тазобедренных суставов, не толкаясь носками и не выпрямляя колени досрочно. Выполняйте медленно вниз (2–3 секунды) и взрывно вверх без рывков, дыша в ритме: вдох на спуске, выдох на подъёме. После подхода аккуратно верните штангу на стойки. Если мобильность ограничена, используйте подставки под пятки или начните с меньшей глубины.	{QUADS_RECTUS_FEMORIS,QUADS_VASTUS_LATERALIS,QUADS_VASTUS_MEDIALIS,GLUTES_MAXIMUS,HAMSTRINGS,ADDUCTORS,ABDUCTORS,CALVES_GASTROCNEMIUS,CALVES_SOLEUS,ERECTOR_SPINAE_UPPER,ERECTOR_SPINAE_UPPER,ERECTOR_SPINAE_LOWER,TRAPEZIUS_UPPER}	MEDIUM	\N	\N	{SQUAT,HINGE}	LEGS	{HYPERTROPHY}
+cmlnuyny30004hxsg10p54lzc	Армейский жим штанги стоя	Поставьте ноги на ширине плеч, носки слегка наружу 15°. Возьмитесь за штангу прямым хватом на ширине плеч, поднимите к верхней части груди (хват V-образный), локти впереди. Напрягите корпус, взгляд вперёд. На выдохе выжмите штангу вертикально вверх (1–2 секунды) до полного разгибания рук над головой без фиксации локтей, напрягая передние дельты. На вдохе контролируемо опустите штангу к подбородку (2–3 секунды), не расслабляя корпус и не заваливая штангу вперёд. Локти не разводите широко, используйте страховку при тяжёлом весе. Выполняйте 3–4 подхода по 6–10 повторений с отдыхом 90–120 секунд.	{TRICEPS_LONG_HEAD,TRAPEZIUS_UPPER,CHEST_UPPER}	HARD	\N	\N	{PUSH}	SHOULDERS	{HYPERTROPHY}
+cmlnuyny50005hxsga12ps6e3	Разведения гантелей в стороны стоя	Поставьте ноги на ширине плеч, гантели в руках вдоль корпуса ладонями к себе, плечи опущены, лопатки сведены. На выдохе поднимайте руки в стороны по дуге до параллели с полом (1–2 секунды), локти слегка согнуты (угол 10–15° не меняется), ведите их чуть вперёд под углом 15–30° к горизонтали для акцента на средние дельты. В верхней точке пауза 1 секунду с напряжением. На вдохе медленно опустите гантели (2–3 секунды) без изменения угла в локтях, полностью контролируя движение. Не раскачивайтесь, не пожимайте плечами вверх и не используйте импульс. Выполняйте 3–4 подхода по 12–15 повторений.	{DELTOIDS_POSTERIOR,TRAPEZIUS_UPPER,FOREARMS_FLEXORS}	MEDIUM	\N	\N	{PUSH}	SHOULDERS	{HYPERTROPHY}
+cmlmmb10k0003uw4zfx6387p9	Планка на локтях	Лягте лицом вниз, упритесь предплечьями в пол — локти строго под плечами на ширине плеч, кисти сцепите в замок или держите параллельно. Выпрямите ноги, упрившись носками, и поднимите тело в прямую линию от макушки до пяток, напрягая пресс (втяните живот к позвоночнику), ягодицы и ноги — таз не поднимайте вверх и не провисайте вниз. Дышите ровно и глубоко, не задерживайте дыхание, взгляд вниз под 45° — тело как натянутая струна. Держите позицию максимально долго с полным напряжением кора, избегая прогиба в пояснице или подъёма лопаток. Опуститесь, когда форма нарушится; отдыхайте 30–60 сек между подходами 3–4 раза.	{ABS_UPPER,ABS_LOWER,OBLIQUES,ERECTOR_SPINAE_UPPER,ERECTOR_SPINAE_LOWER,GLUTES_MAXIMUS,QUADS_RECTUS_FEMORIS,DELTOIDS_ANTERIOR,DELTOIDS_ANTERIOR,TRICEPS_LONG_HEAD,TRICEPS_MEDIAL_HEAD,TRICEPS_LATERAL_HEAD,TRAPEZIUS_UPPER,RHOMBOIDS_UPPER,TRICEPS_LONG_HEAD,FOREARMS_FLEXORS,FOREARMS_EXTENSORS}	MEDIUM	\N	\N	{MOBILITY}	CORE	{HYPERTROPHY}
+cmlnvlcpp0003120krecx0eip	"Молот" Подъём на бицепс	Поставьте ноги на ширине плеч, гантели в руках нейтральным хватом (ладони друг к другу) вдоль корпуса. Локти прижаты, плечи опущены. На выдохе одновременно или поочерёдно согните локти (1–2 секунды), поднимая гантели к плечам без поворота кисти — движение вертикальное. В верхней точке пауза 1 секунду с напряжением бицепсов и брахиалиса. На вдохе медленно опустите (2–3 секунды) до полного разгибания, сопротивляясь весу. Не раскачивайтесь и не отрывайте локти от корпуса. Выполняйте 3–4 подхода по 10–12 повторений.	{BICEPS_LONG_HEAD,BICEPS_SHORT_HEAD,FOREARMS_FLEXORS}	EASY	\N	\N	{PULL}	ARMS	{HYPERTROPHY}
+cmlnovvbu0002gj7sa4mcc14w	Жим ногами (акцент на квадрицепсы)	Зайдите в тренажер, упритесь спиной в платформу, плечи под валиками. Поставьте стопы на середину платформы на ширине плеч, носки слегка наружу (15–30°), низко — колени над носками в старте. Разведите предохранители, полностью выпрямите ноги без фиксации коленей. На вдохе согните колени, опуская платформу до угла 90° в коленях (бедра параллельны), не отрывая поясницу, локти в стороны. На выдохе мощно разогните ноги вверх, фокусируясь на квадрицепсах, не выпрямляя колени досрочно. Медленно вернитесь в исходное без пауз внизу; 2–3 сек вниз, 1–2 вверх. После подхода зафиксируйте предохранители.	{QUADS_RECTUS_FEMORIS,QUADS_VASTUS_LATERALIS,QUADS_VASTUS_MEDIALIS,GLUTES_MAXIMUS,HAMSTRINGS,CALVES_SOLEUS,CALVES_GASTROCNEMIUS,ABDUCTORS,ADDUCTORS}	MEDIUM	\N	\N	{SQUAT,HINGE}	LEGS	{HYPERTROPHY}
+cmlnovvbu0003gj7su2dio6sp	Жим ногами (акцент на ягодицы)	Зайдите в тренажер, зафиксируйте спину и плечи. Поставьте стопы высоко на платформе (на 10–20 см ниже края), шире плеч, носки наружу 30–45°. Выпрямите ноги, снимите предохранители, сохраняя прогиб в пояснице. На вдохе отведите таз назад, сгибая колени и опуская платформу глубоко — до полного растяжения ягодиц (колени за линию носков не выводите). На выдохе выжмите вверх через пятки, напрягая ягодицы в верхней точке с паузой, не разгибая колени полностью. Опускание 3 сек под контролем, подъём взрывной. Зафиксируйте после подхода.	{GLUTES_MAXIMUS,GLUTES_MEDIAS,HAMSTRINGS,ADDUCTORS,QUADS_RECTUS_FEMORIS,CALVES_GASTROCNEMIUS}	MEDIUM	\N	\N	{SQUAT,HINGE}	LEGS	{HYPERTROPHY}
+cmlmmb10k0001uw4z9l4sql76	Подтягивания широким хватом	Возьмитесь за турник прямым хватом шириной на 20–25 см шире плеч (предплечья параллельны в верхней точке), полностью расслабьте руки, кроме хвата, и повисните, слегка сводя лопатки для растяжения спины. Глубоко вдохните, задержите дыхание и подтянитесь, напрягая широчайшие мышцы, направляя локти строго вниз без раскачки — грудь или подбородок к перекладине. В верхней точке сделайте паузу для сокращения спины, затем на выдохе медленно опуститесь в полный вис (2–3 секунды), сохраняя контроль. Не горбите плечи, работайте в полной амплитуде без рывков; если не получается чисто — используйте помощь для негатива. Выполняйте плавно, фокусируясь на спине, а не на руках.	{LATS,RHOMBOIDS_UPPER,RHOMBOIDS_LOWER,TERES_MAJOR,TERES_MINOR,TRAPEZIUS_UPPER,BICEPS_LONG_HEAD,BICEPS_SHORT_HEAD,FOREARMS_FLEXORS,FOREARMS_EXTENSORS,DELTOIDS_POSTERIOR}	HARD	\N	\N	{PULL}	BACK	{HYPERTROPHY}
+cmlnogfcq0000gj7s57fqa3ye	Поднятие диска, лёжа головой вниз на скамье	Лягте головой вниз на скамью. Край скамьи должен проходить по линии груди - это необходимо для достижения наибольшей эффективности упражнения. Диск должен находиться на затылке, придерживайте его руками. Начинайте с малого и увеличивайте вес по мере укрепления мышц шеи. На вдохе опустите голову вниз. На выдохе поднимите голову вверх, чуть выше среднего положения. Не стоит сильно поднимать голову вверх, так как это, во-первых, опасно для здоровья, а, во-вторых, нагрузка смещается на нижние группы шейных мышц. Выполняйте упражнение медленно без резких движений.	{NECK}	EASY	\N	\N	{MOBILITY}	CORE	{HYPERTROPHY}
+cmlnva3ff0000120koplfuib1	Жим гантелей сидя	Сядьте на скамью с вертикальной спинкой, ноги на пол на ширине плеч для устойчивости. Возьмите гантели нейтральным хватом (ладони друг к другу) на уровне верхней груди — локти согнуты под 90°, предплечья вертикальны, лопатки сведены вниз-назад. На вдохе контролируемо опустите гантели к плечам (2–3 секунды) до уровня ушей, сохраняя локти впереди. На выдохе мощно выжмите гантели вверх по дуге (1–2 секунды) до полного разгибания рук без фиксации локтей, слегка сводя гантели над головой. В верхней точке пауза 1 секунду с напряжением дельт. Выполняйте плавно без рывков, не заваливая локти назад.	{DELTOIDS_ANTERIOR,DELTOIDS_MEDIAL,TRAPEZIUS_UPPER,TRICEPS_LONG_HEAD}	MEDIUM	\N	\N	{PUSH}	SHOULDERS	{HYPERTROPHY}
+cmlntwclp0003a803ng3aqspj	Скручивания на пресс лёжа	Лягте на пол или скамью спиной вниз, согните колени на 90°, стопы на пол или зафиксируйте их. Руки за головой (не тяните шею), локти в стороны, втяните живот, напрягите пресс заранее — поясница прижата к полу без прогиба. На выдохе округлите верх спины, поднимая лопатки и плечи вверх (1–2 секунды) к коленям, фокусируясь на сокращении верха пресса — не тяните руками, движение от живота. В верхней точке пауза 1 секунду с напряжением. На вдохе медленно опуститесь вниз (2 секунды) до касания лопаток пола, растягивая пресс без полного расслабления. Дышите ритмично, шея нейтральна — взгляд на колени. Выполняйте 3–4 подхода по 15–25 повторений без рывков, отдых 45 сек; добавьте вес на грудь для прогресса.	{ABS_UPPER,OBLIQUES,ERECTOR_SPINAE_UPPER}	EASY	\N	\N	{MOBILITY}	CORE	{HYPERTROPHY}
+cmlntpus80000a803bhj3udan	Разгибания ног в тренажёре	Сядьте в тренажёр лицом к спинке, прижмите поясницу и ягодицы к сиденью, плечи расслабьте, стопы зафиксируйте на роликах валика чуть выше лодыжек — колени на одной линии с осью тренажёра. Отрегулируйте упор под колени для полного контакта, возьмитесь за ручки по бокам, спина прямая без округления, взгляд вперёд. Выберите вес для 12–15 повторений, полностью выпрямите ноги без рывка, напрягая квадрицепсы в верхней точке с паузой 1 секунду — не фиксируйте колени, чтобы избежать давления на суставы. На вдохе медленно опустите валик вниз (2–3 секунды) до угла 90° или чуть ниже, сохраняя контроль и не отрываясь от сиденья. На выдохе плавно разогните ноги через пятки, акцентируя сокращение квадрицепсов. Дышите ритмично, не раскачивайтесь и не используйте импульс — движение только в коленных суставах. Выполняйте 3–4 подхода с отдыхом 60–90 сек; если чувствуете дискомфорт в коленях, уменьшите амплитуду или вес. После подхода аккуратно верните рычаг в исходное положение без рывков.	{QUADS_VASTUS_LATERALIS,QUADS_VASTUS_MEDIALIS,QUADS_RECTUS_FEMORIS,HAMSTRINGS}	EASY	\N	\N	{SQUAT,HINGE}	LEGS	{HYPERTROPHY}
+cmlnvclmy0001120koyjdkzdz	Тяга горизонтального блока сидя	Сядьте лицом к тренажёру горизонтального блока, ноги под валиками, возьмитесь за V-образную рукоять нейтральным хватом. Отрегулируйте сиденье так, чтобы грудь касалась подушки, руки полностью выпрямлены. Сведіть лопатки заранее, слегка наклонитесь вперёд 10°. На выдохе потяните рукоять к животу (1–2 секунды), локти вдоль корпуса назад, максимально сводя лопатки вместе — грудь вперёд. В сокращении пауза 1 секунду. На вдохе медленно вернитесь (2–3 секунды) до полного растяжения без округления спины. Не раскачивайтесь и не тяните руками — работайте спиной.	{RHOMBOIDS_UPPER,RHOMBOIDS_LOWER,LATS,TRAPEZIUS_UPPER,TERES_MAJOR}	EASY	\N	\N	{PULL}	BACK	{HYPERTROPHY}
+cmlnu6ucb0005a803eya80crr	Подъёмы ног в висе на турнике	Возьмитесь за турник хватом на ширине плеч (прямым или обратным), полностью повисните на прямых руках, ноги вместе слегка согнуты в коленях — плечи опущены, лопатки сведены, пресс напряжён заранее. Не раскачивайтесь, взгляд вперёд, спина прямая без прогиба. На выдохе медленно поднимите прямые ноги (или согнутые колени к груди) вперёд-вверх (2–3 секунды) до параллели полу или касания турника стопами, фокусируясь на сокращении низа пресса — таз слегка наклоняется назад. В верхней точке пауза 1 секунду с напряжением живота. На вдохе контролируемо опустите ноги вниз (3 секунды) в полный вис без шума, сопротивляясь инерции — не раскачивайтесь и не прогибайтесь в пояснице. Движение от пресса, а не от бёдер. Выполняйте 3 подхода по 8–15 повторений, отдых 90 сек; используйте резинку на турнике если не получается чисто.	{ABS_LOWER,OBLIQUES,HAMSTRINGS,QUADS_RECTUS_FEMORIS,FOREARMS_FLEXORS}	HARD	\N	\N	{MOBILITY}	CORE	{HYPERTROPHY}
+cmlntuidh0002a803khg0yb33	Французский жим лежа	Лягте на горизонтальную скамью головой к стойкам, ноги на пол на ширине плеч для устойчивости. Возьмите EZ-гриф или прямой хватом на ширине плеч, снимите со стоек, полностью выпрямите руки над лбом — локти смотрят вперёд, не разводите их в стороны. На вдохе согните локти, опуская гриф к лбу или переносице (2–3 секунды) — предплечья перпендикулярны полу, растягивая трицепсы без касания головы. На выдохе разогните локти вверх через сокращение трицепсов до полного выпрямления, но не забрасывайте гриф за голову. Держите локти зафиксированными близко к корпусу на протяжении всего движения, не раскачивайтесь и не прогибайтесь в спине. Выполняйте плавно 3–4 подхода по 10–15 повторений, отдых 60–90 сек; используйте страховку при тяжёлом весе. Верните гриф на стойки после подхода, сохраняя контроль.	{TRICEPS_LONG_HEAD,TRICEPS_MEDIAL_HEAD,TRICEPS_LATERAL_HEAD,DELTOIDS_ANTERIOR,CHEST_UPPER}	HARD	\N	\N	{PUSH}	ARMS	{HYPERTROPHY}
+cmlnueyye0006a8035f88ajds	Разведения гантелей лёжа	Лягте на скамью (горизонтальную, наклонную вверх 15–45° или вниз 15–30°) перпендикулярно, ноги плотно на пол на ширине плеч для устойчивости. Возьмите гантели нейтральным хватом (ладони навстречу) над верхней грудью — руки слегка согнуты в локтях (угол 10–20° не меняется), лопатки сведены вниз-назад, прогиб в пояснице естественный без чрезмерного выгиба. На вдохе медленно разведите руки в широкую дугу (2–3 секунды) до уровня плеч или чуть ниже, локти мягкие — для акцента на верхнюю часть груди используйте наклон скамьи вверх и останавливайтесь выше уровня плеч; на нижнюю — скамью вниз головой с большей амплитудой ниже плеч; на среднюю часть — горизонталь с дугой строго на уровне груди. Не опускайте ниже плоскости плеч для защиты ротаторной манжеты. В нижней точке пауза 1 секунду для растяжения целевой зоны груди. На выдохе сведите гантели вверх по зеркальной дуге (1–2 секунды) над серединой груди или верхом/низом в зависимости от угла, слегка касаясь без сильного сжатия, акцентируя сокращение — не выпрямляйте локти досрочно и не используйте импульс из плеч. Дышите равномерно, взгляд на потолок, шея нейтральна. Выполняйте 3–4 подхода по 12–15 повторений, отдых 60–90 сек; начинайте с лёгких гантелей на горизонтали, чередуя углы по тренировкам для полного развития груди.	{CHEST_UPPER,CHEST_MIDDLE,CHEST_LOWER,DELTOIDS_ANTERIOR,TRICEPS_LONG_HEAD}	MEDIUM	\N	\N	{PUSH}	CHEST	{HYPERTROPHY}
+cmlnvh5vc0002120k0un8rc4t	Разгибания рук назад на блоке одной рукой	Станьте боком к тренажёру с верхним блоком, возьмите рукоять одной рукой обратным хватом (ладонь вниз). Отойдите вперёд, локоть прижат к корпусу под 90°. Слегка наклонитесь вперёд, другая рука на бедре для устойчивости. На выдохе полностью разогните рабочую руку назад (1–2 секунды), поворачивая кисть наружу в нижней точке для пикового сокращения всех головок трицепса. Пауза 1 секунду. На вдохе медленно согните локоть (2–3 секунды) до 90° или чуть больше с растяжением. Локоть неподвижен весь подход. Выполняйте 3–4 подхода по 12–15 на руку.	{TRICEPS_LONG_HEAD,TRICEPS_LATERAL_HEAD,TRICEPS_LATERAL_HEAD}	EASY	\N	\N	{PUSH}	ARMS	{HYPERTROPHY}
+cmlnuynxh0000hxsgf5gj479t	Жим гантелей лёжа горизонтально	Лягте на горизонтальную скамью перпендикулярно, ноги плотно на пол на ширине плеч для устойчивости. Возьмите гантели нейтральным хватом (ладони друг к другу) над грудью на уровне сосков — локти согнуты под углом 45–60°, лопатки сведены вниз-назад, сохраняя естественный прогиб в пояснице. На вдохе медленно опустите гантели дугообразно к бокам тела (2–3 секунды) до уровня груди или чуть ниже, ощущая растяжение грудных мышц, локти не разводите шире 75° от корпуса. В нижней точке сделайте паузу 1 секунду для максимального растяжения. На выдохе мощно выжмите гантели вверх по той же дуге (1–2 секунды), слегка сводя их над серединой груди без касания и полного выпрямления локтей, акцентируя сокращение средней груди. Выполняйте 3–4 подхода по 10–12 повторений с отдыхом 60–90 секунд.	{TRICEPS_LONG_HEAD,DELTOIDS_ANTERIOR,TRICEPS_MEDIAL_HEAD}	MEDIUM	\N	\N	{PUSH}	CHEST	{HYPERTROPHY}
+cmlnuynxv0001hxsgr6upjak5	Жим штанги узким хватом лежа	Лягте на горизонтальную скамью, ноги плотно на пол на ширине плеч. Возьмитесь за штангу прямым хватом на ширине плеч или чуть уже (индексный пальцы на насечках), снимите со стоек и зафиксируйте над серединой груди на прямых руках. На вдохе медленно опустите штангу к нижней части груди (уровень сосков, 2–3 секунды), держа локти близко к корпусу под углом 30–45° — движение вертикальное без сильного разведения. В нижней точке пауза 1 секунду. На выдохе выжмите штангу вверх через мощное сокращение трицепсов (1–2 секунды) до почти полного разгибания локтей без фиксации и отрыва поясницы от скамьи. Лопатки сведены на протяжении всего движения. Выполняйте 3–4 подхода по 8–12 повторений.	{CHEST_MIDDLE,TRICEPS_MEDIAL_HEAD,TRICEPS_LATERAL_HEAD}	MEDIUM	\N	\N	{PUSH}	ARMS	{HYPERTROPHY}
+cmlnuynxy0002hxsgiqv77p2q	Тяга штанги в наклоне	Поставьте ноги на ширине плеч, носки слегка наружу. Возьмите штангу прямым хватом чуть шире плеч, наклонитесь вперёд до угла 45° в тазобедренных суставах, спина прямая с естественным прогибом в пояснице, колени согнуты на 15–20°, взгляд вперёд. Лопатки сведите вниз-назад. На выдохе потяните штангу к нижней части живота или верхней части бедра (1–2 секунды), ведя локти строго назад вдоль корпуса и максимально сводя лопатки для сокращения спины. В верхней точке пауза 1 секунду. На вдохе медленно опустите штангу (2–3 секунды) до полного растяжения широчайших без округления спины и раскачки корпусом. Вес через середину стопы. Выполняйте 3–4 подхода по 8–10 повторений.	{RHOMBOIDS_UPPER,TRAPEZIUS_UPPER,BICEPS_LONG_HEAD}	HARD	\N	\N	{PULL}	BACK	{HYPERTROPHY}
+cmlnuyny10003hxsgmrd9sog8	Тяга верхнего блока к груди широким хватом	Сядьте в тренажёр с вертикальным блоком лицом к нему, отрегулируйте колени под валиками для фиксации. Возьмитесь за широкую прямую рукоять прямым хватом на максимальной ширине (предплечья параллельны в нижней точке), полностью выпрямите руки, слегка наклонитесь назад 10–15°, грудь вперёд, пресс напряжён. На выдохе потяните рукоять вниз к верхней части груди (1–2 секунды), отводя локти вниз и назад, сводя лопатки и напрягая широчайшие. В нижней точке пауза 1 секунду с акцентом на спину. На вдохе медленно вернитесь вверх (2–3 секунды) до полного выпрямления рук с растяжением спины, не раскачиваясь и не помогая корпусом. Локти не выходят за линию спины. Выполняйте 3–4 подхода по 10–12 повторений.	{RHOMBOIDS_UPPER,BICEPS_LONG_HEAD,TRAPEZIUS_UPPER}	MEDIUM	\N	\N	{PULL}	BACK	{HYPERTROPHY}
+cmlnvrvou0005120kravylsic	"Концентрация" Подъёмы гантели на бицепс	Сядьте на край скамьи, ноги широко разведены, локоть внутренней стороны бедра упирается в него. Гантель в руке ладонью вверх, другая рука на колене. Полностью выпрямите руку вниз. На выдохе согните локоть (1–2 секунды), поднимая гантель к плечу по дуге — локоть неподвижен, прижат к бедру. В верхней точке поверните кисть наружу и пауза 1 секунду с пиковым сокращением короткой головки. На вдохе медленно опустите (3 секунды) до полного разгибания. Выполняйте 3 подхода по 12–15 на каждую руку.	{BICEPS_SHORT_HEAD,FOREARMS_FLEXORS,BICEPS_LONG_HEAD}	EASY	\N	\N	{PULL}	ARMS	{HYPERTROPHY}
+cmlnvwqrj0006120kxtm881gq	Сгибания предплечий с гантелью сидя	Сядьте на скамью, предплечья верхней стороной на бёдра, локти на краю — гантель ладонью вверх, запястье на краю бедра. На выдохе согните запястье вверх (1–2 секунды) до полного сокращения сгибателей, не отрывая предплечья от бёдер. Пауза 1 секунду в пике. На вдохе медленно опустите кисть вниз (2–3 секунды) ниже уровня бедра для растяжения. Движение только в запястьях. Выполняйте 3–4 подхода по 15–20 повторений на каждую руку.	{FOREARMS_FLEXORS,BICEPS_SHORT_HEAD,FOREARMS_EXTENSORS}	EASY	\N	\N	{PULL}	ARMS	{HYPERTROPHY}
+cmlnvyvmm0007120kvi2nnm1t	Обратные сгибания предплечий	Сядьте, предплечья верхней стороной на бёдра, гантель хватом сверху (ладонь вниз), запястье на краю бедра. На выдохе разогните запястье вверх (1–2 секунды) до полного сокращения разгибателей — пальцы ведите к потолку. Пауза 1 секунду. На вдохе медленно согните запястье вниз (2–3 секунды) ниже уровня бедра для растяжения. Локти неподвижны. Выполняйте 3–4 подхода по 15–20 повторений на каждую руку.	{FOREARMS_FLEXORS,FOREARMS_EXTENSORS,TRICEPS_LATERAL_HEAD}	MEDIUM	\N	\N	{PUSH}	ARMS	{HYPERTROPHY}
+cmlt6bhea0002y6dksycsso4i	Выпады с гантелями вперёд	Гантели в руках вдоль корпуса, стойка ноги вместе. Сделайте шаг вперёд (60–70 см), на вдохе опуститесь (2 секунды) пока заднее колено почти коснётся пола — переднее бедро параллельно полу. В нижней точке пауза 1 секунду. На выдохе оттолкнитесь передней ногой назад в стойку (2 секунды). Выполняйте 3 подхода по 12 повторений на каждую ногу.	{QUADS_VASTUS_LATERALIS,GLUTES_MAXIMUS,HAMSTRINGS,QUADS_VASTUS_MEDIALIS}	HARD	\N	\N	{SQUAT,HINGE}	LEGS	{HYPERTROPHY}
+cmlt6kso20004y6dkvccnpfiz	Подъёмы на носки стоя	Встаньте прямо, штанга на трапециях или гантели в руках. На выдохе поднимитесь на носки (2 секунды) максимально высоко — икры полностью сокращены. В верхней точке пауза 2 секунды с напряжением икроножных. На вдохе медленно опуститесь (3 секунды) ниже уровня пола если возможно. Выполняйте 4 подхода по 15–20 повторений.	{CALVES_SOLEUS}	EASY	\N	\N	{PUSH}	LEGS	{HYPERTROPHY}
+cmlt6o02a0006y6dkwpore3h4	Жим Арнольда сидя	Сядьте на скамью с вертикальной спинкой, гантели на уровне плеч ладонями к себе. На выдохе одновременно поверните кисти наружу и выжмите гантели вверх (2–3 секунды) по дуге — локти проходят через центр. В верхней точке ладони смотрят вперёд, пауза 1 секунду с сокращением всех дельт. На вдохе опустите гантели (3 секунды) с поворотом кисти внутрь до уровня плеч. Ошибка: отрыв ягодиц от скамьи и чрезмерный наклон головы. Выполняйте 3–4 подхода по 10–12 повторений.	{DELTOIDS_MEDIAL,DELTOIDS_ANTERIOR,DELTOIDS_POSTERIOR,TRICEPS_LATERAL_HEAD}	HARD	\N	\N	{PUSH}	SHOULDERS	{HYPERTROPHY}
+cmlt6ql540007y6dkt38a0ogl	Отведения ноги назад в кроссовере	Встаньте боком к стойке тросового тренажёра, трос на уровне голени, наложите манжет на внешнюю сторону лодыжки. Держитесь за стойку левой рукой. На выдохе отведите правую ногу назад (2 секунды) по дуге сохраняя носок прямо — напрягите ягодицу. В пике пауза 1 секунду. На вдохе медленно верните ногу (3 секунды) контролируя. Ошибка: наклон корпуса и работа спиной. Чередуйте ноги. Выполняйте 3 подхода по 15–20 повторений.	{GLUTES_MAXIMUS,HAMSTRINGS}	MEDIUM	\N	\N	{SQUAT,HINGE}	LEGS	{HYPERTROPHY}
+cmlt6rrk10008y6dkiu2eulno	Русский твист с весом	Сядьте на пол, ноги согнуты, откиньтесь назад 45° держа спину прямой, гантеля или медбол у груди. На выдохе поверните корпус влево (1 секунда) касаясь весом пола сбоку. Вращайте за счёт косых мышц живота. На вдохе вернитесь через центр и поверните вправо. Движение плавное без рывков. Ошибка: округление спины и работа руками. Выполняйте 3 подхода по 20 поворотов (10 на сторону).	{ABS_UPPER,OBLIQUES}	EASY	\N	\N	{MOBILITY}	CORE	{HYPERTROPHY}
+cmlt6udpa0009y6dkyir695hh	Гиперэкстензии на скамье	Лягте животом на скамью для гиперэкстензий, стопы зафиксированы, бёдра на краю. Руки за головой или скрещены на груди. На выдохе медленно поднимите корпус (3 секунды) до прямой линии с бёдрами — напрягите поясницу и ягодицы. В верхней точке пауза 1 секунду без гиперэкстензии. На вдохе опуститесь (3 секунды) чуть ниже уровня скамьи с растяжением. Ошибка: резкие рывки и чрезмерный подъём. Выполняйте 3–4 подхода по 12–15 повторений.	{ERECTOR_SPINAE_LOWER,GLUTES_MAXIMUS,HAMSTRINGS}	MEDIUM	\N	\N	{PULL}	BACK	{HYPERTROPHY}
+cmlt6zxvn000ay6dkzuox3fd0	Подъёмы на бицепс EZ-грифом обратным хватом	Встаньте прямо, EZ-гриф хватом снизу на ширине плеч. Локти прижаты к корпусу. На выдохе согните руки (2 секунды) поднимая гриф к подбородку — кисти поворачиваются наружу. В верхней точке пауза 1 секунду с сокращением предплечий. На вдохе медленно опустите (3 секунды) контролируя эксцентрику. Ошибка: раскачка и отрыв локтей вперёд. Выполняйте 3 подхода по 12–15 повторений.	{BICEPS_LONG_HEAD,BICEPS_SHORT_HEAD,FOREARMS_EXTENSORS}	MEDIUM	\N	\N	{PULL}	ARMS	{HYPERTROPHY}
+cmlt6zxvn000by6dknqkiwyyy	Супермен на полу	Лягте животом на пол, руки вытянуты вперёд, ноги прямые. Одновременно поднимите руки, грудь и ноги (3 секунды) отрывая от пола на 15–20 см — напрягите всю спину и ягодицы. В верхней точке пауза 2–3 секунды держа напряжение. Медленно опуститесь (3 секунды) касаясь пола. Ошибка: задержка дыхания и гиперлордоз. Выполняйте 3 подхода по 12–15 повторений.	{ERECTOR_SPINAE_UPPER}	EASY	\N	\N	{MOBILITY}	BACK	{HYPERTROPHY}
+cmlmmb10k0000uw4zjc9woq78	Жим штанги лёжа на горизонтальной скамье широким хватом	Лягте на горизонтальную скамью так, чтобы глаза находились точно под грифом штанги. Ноги плотно поставьте на пол для устойчивости, сохраняя естественный прогиб в пояснице — ступни на ширине плеч или чуть шире, колени не разводите. Возьмитесь за гриф прямым хватом шириной примерно 1,5–2 ширины плеч (за насечками на штанге), слегка согните запястья для комфорта. Снимите штангу со стоек, полностью выпрямите руки и зафиксируйте её над серединой груди — это стартовая позиция. На вдохе медленно опустите штангу к нижней части груди (на уровень сосков или чуть выше), разводя локти в стороны под углом около 45–60 градусов для максимального растяжения груди, не касаясь груди слишком низко, чтобы избежать травм плеч. На выдохе мощно выжмите штангу вверх, сводя лопатки и акцентируя сокращение грудных мышц, не выпрямляйте локти полностью, чтобы сохранить напряжение. Выполняйте движение плавно, без рывков, под контролем — опускание 2–3 секунды, подъём 1–2 секунды. После подхода аккуратно верните штангу на стойки, убедившись в фиксации.	{CHEST_MIDDLE,CHEST_UPPER,CHEST_LOWER,DELTOIDS_ANTERIOR,TRICEPS_LONG_HEAD,TRICEPS_MEDIAL_HEAD,TRICEPS_LATERAL_HEAD,TRAPEZIUS_UPPER,FOREARMS_EXTENSORS,FOREARMS_FLEXORS}	EASY	\N	\N	{PUSH}	CHEST	{HYPERTROPHY}
+cmlnovvbu0001gj7s4f9wsfnj	Подтягивание обратным хватом	Возьмитесь за турник обратным (подхвата) хватом на ширине плеч или чуть уже — ладони к себе, большие пальцы образуют замок. Полностью повисните на прямых руках, слегка согнув колени если нужно, расслабьте плечи, сведите лопатки вниз-назад без раскачки тела. Глубоко вдохните, задержите дыхание и подтянитесь, фокусируясь на бицепсах и спине: локти ведите строго вниз вдоль корпуса, поднимая грудь или подбородок к перекладине до касания. В верхней точке пауза 1 секунду для пикового сокращения, затем на выдохе медленно опуститесь в полный вис (2–3 секунды), полностью выпрямляя руки под контролем. Выполняйте плавно без рывков, не раскачиваясь и не пожимая плечами; если тяжело — используйте резинку или негативные повторения. После подхода спрыгните аккуратно, отдыхая 1–2 минуты.	{BICEPS_LONG_HEAD,LATS,RHOMBOIDS_UPPER,RHOMBOIDS_LOWER,TERES_MAJOR,BICEPS_SHORT_HEAD,TRAPEZIUS_UPPER,FOREARMS_FLEXORS,ERECTOR_SPINAE_UPPER}	EASY	\N	\N	{PULL}	ARMS	{HYPERTROPHY}
+cmlntsclk0001a803n88x86v8	Сгибания ног лёжа в тренажёре	Лягте лицом вниз на скамью тренажёра, прижмите таз и грудь к поверхности, зафиксируйте голени под валиками — колени на краю скамьи для полной амплитуды. Возьмитесь за ручки по бокам, ноги вместе или на ширине бёдер, спина прямая без прогиба, подбородок на скамье, взгляд вниз. Настройте валик по длине бедра, выберите вес для 10–12 повторений. На выдохе медленно согните колени (1–2 секунды), поднимая стопы к ягодицам до угла 90° или полного сокращения подколенных, напрягая бицепсы бедра в пике без рывков. В верхней точке пауза 1 секунду для максимального напряжения. На вдохе контролируемо опустите валик вниз (3–4 секунды) в полное разгибание, сопротивляясь весу — не позволяйте инерции хлопать голенями. Движение только в коленях, не отрывайтесь тазом от скамьи и не раскачивайтесь. Выполняйте 3 подхода с отдыхом 90 сек; чередуйте ноги если тренажёр односторонний. По окончании плавно верните рычаг в старт.	{HAMSTRINGS,GLUTES_MAXIMUS,CHEST_UPPER,CALVES_GASTROCNEMIUS}	EASY	\N	\N	{SQUAT,HINGE}	LEGS	{HYPERTROPHY}
+cmlnvq4nm0004120k710ue9ak	Французский жим гантели над головой	Сядьте на скамью с вертикальной спинкой или стойте, одну гантелю держите обеими руками хватом сверху (ладони вниз) над головой — локти смотрят вверх, прижаты друг к другу. Слегка наклоните корпус вперёд 10–15°. На вдохе медленно согните локти (2–3 секунды), опуская гантелю за голову к основанию шеи — локти не разводите в стороны. В нижней точке пауза 1 секунду с растяжением всех головок трицепса. На выдохе полностью разогните локти вверх (1–2 секунды), напрягая медиальную головку в пике без фиксации. Выполняйте 3–4 подхода по 12–15 повторений.	{TRICEPS_LONG_HEAD,TRICEPS_MEDIAL_HEAD,DELTOIDS_ANTERIOR}	MEDIUM	\N	\N	{PUSH}	ARMS	{HYPERTROPHY}
+cmlnu2x4o0004a803qi7b7y0n	Молитва	Сядьте лицом к тренажёру с верхним вертикальным блоком, отрегулируйте сиденье так, чтобы локти были на уровне плеч. Возьмите ручки блока обратным хватом (ладони вверх), поставьте колени под мягкие валики для фиксации, спина прямая, грудь прижата к ручкам, пресс заранее втянут — руки полностью выпрямлены над головой в стартовой позиции. На выдохе медленно наклонитесь вперёд из бедер (2–3 секунды), округляя спину и опуская локти вниз-вперёд к полу, полностью растягивая пресс до ощущения жжения — не раскачивайтесь тазом и не сгибайте локти. В нижней точке (ручки у живота) пауза 1–2 секунды с максимальным напряжением пресса. На вдохе плавно вернитесь в исходное положение (2 секунды), сопротивляясь весу блока и акцентируя сокращение верха живота — полностью выпрямите руки без рывков. Дышите ритмично, взгляд вниз, шея нейтральна. Выполняйте 3–4 подхода по 12–20 повторений, отдых 60 сек; начинайте с лёгкого веса для освоения.	{ABS_UPPER,ABS_LOWER,OBLIQUES,ERECTOR_SPINAE_UPPER}	MEDIUM	\N	\N	{MOBILITY}	CORE	{HYPERTROPHY}
+cmlnueyye0007a803fw5pgo7t	Румынская тяга со штангой	Поставьте ноги на ширине плеч, носки вперёд, штангу на верхних трапециях или хватом прямым на ширине плеч — колени слегка согнуты (10–15°), спина прямая с естественным прогибом в пояснице, лопатки сведены, взгляд вперёд. Взяв штангу (или гантели), поднимитесь в стойку — вес на среднепятковой части стопы. На вдохе отведите таз назад (как будто толкаете дверь копчиком), наклоняясь вперёд с прямой спиной (2–3 секунды) до параллели штанги с полом или середины голени — растягивая бицепсы бедра, не округляйте спину и не сгибайте колени сильно. В нижней точке пауза 1 секунду. На выдохе мощно вернитесь вверх (1–2 секунды) за счёт сокращения ягодиц и подколенных, толкая бёдрами вперёд без рывка — не гиперэкстендируйте поясницу вверху. Дышите ритмично, вес через пятки. Выполняйте 3 подхода по 10–12 повторений, отдых 90–120 сек; используйте страховку при тяжёлом весе.	{HAMSTRINGS,GLUTES_MAXIMUS,ERECTOR_SPINAE_UPPER,ERECTOR_SPINAE_LOWER,TRAPEZIUS_UPPER,ADDUCTORS}	MEDIUM	\N	\N	{SQUAT,HINGE}	LEGS	{HYPERTROPHY}
+cmlt649xc0000y6dkxg5qomge	Отжимания от пола (классические)	Примите упор лёжа, руки на ширине плеч, тело прямая линия от головы до пят. На вдохе согните локти (2 секунды), опуская грудь к полу — локти на 45° от корпуса, лопатки сведены. В нижней точке грудь почти касается пола, пауза 1 секунду. На выдохе полностью разогните локти (1–2 секунды), напрягая грудные в верхней точке. Выполняйте 3–4 подхода по 15–20 повторений.	{CHEST_MIDDLE,TRICEPS_MEDIAL_HEAD,DELTOIDS_ANTERIOR,ABS_UPPER}	EASY	\N	\N	{PUSH}	CHEST	{HYPERTROPHY}
+cmlt6mbkd0005y6dkgxa3ee44	Разводка гантелей лёжа на наклонной скамье (верх груди)	Установите скамью под углом 30–45°. Лягте спиной на скамью, ноги упираются в пол. Гантели возьмите над верхней частью груди, ладони друг к другу (нейтральный хват), локти слегка согнуты 10–15°. На вдохе медленно разведите руки в стороны (3 секунды) по дуге до растяжения верхней груди — локти на уровне груди, не опускайте ниже плечевого сустава чтобы избежать травмы ротаторной манжеты. В нижней точке пауза 1 секунду без рывков. На выдохе сведите гантели вверх (2 секунды) по той же дуге, напрягая верх груди в пике, гантели не сталкивайте. Ошибка: разгибание локтей и провисание плеч. Выполняйте 3–4 подхода по 12–15 повторений.	{DELTOIDS_ANTERIOR,CHEST_UPPER,TRICEPS_LONG_HEAD}	MEDIUM	\N	\N	{PUSH}	CHEST	{HYPERTROPHY}
+cmlt72a9u000cy6dkpnleasfd	Обратные разведения в тренажёре "Пек-Дек"/"Бабочка"	Отрегулируйте сиденье так, чтобы локти были на уровне плечевого сустава. Сядьте спиной к аппарату, грудью к спинке, локти на подушки с лёгким сгибом 15–20° (не разгибайте полностью). Спина прямая, пресс напряжён. На выдохе медленно разведите руки назад (2–3 секунды) по дуге сводя лопатки вниз-назад — напрягите задние дельты и ромбовидные. В конечной точке (локти сзади на 30–45°) пауза 1–2 секунды с пиковым сокращением. На вдохе плавно верните рычаги вперёд (3 секунды) растягивая задние дельты без рывков. Ошибка: чрезмерный наклон вперёд, работа трапециями вместо дельт, импульсные движения. Вес лёгкий-средний, техника важнее. Выполняйте 3–4 подхода по 12–15 повторений.	{RHOMBOIDS_UPPER,TRAPEZIUS_LOWER}	MEDIUM	\N	\N	{PULL}	SHOULDERS	{HYPERTROPHY}
+\.
+
+
+--
+-- Data for Name: favorite_exercises; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.favorite_exercises (id, "userId", "exerciseId", "createdAt") FROM stdin;
+cmlqn7owi0001cpx21ab1td1t	cmlnljzmo0000ci25adxyj31m	cmlnvclmy0001120koyjdkzdz	2026-02-17 13:32:29.779
+cmlqny67a0003cpx2tk2vx6h4	cmlnljzmo0000ci25adxyj31m	cmlntsclk0001a803n88x86v8	2026-02-17 13:53:05.254
+cmlrhr5jm0001bej8s8innm3p	cmlnljzmo0000ci25adxyj31m	cmlnuynxy0002hxsgiqv77p2q	2026-02-18 03:47:26.29
+cmlsyg3sc0001uhjnlqmdblao	cmlnljzmo0000ci25adxyj31m	cmlnuyny10003hxsgmrd9sog8	2026-02-19 04:22:30.441
+cmltamk7i000110t7wpakyyl8	cmlnljzmo0000ci25adxyj31m	cmlnuyny50005hxsga12ps6e3	2026-02-19 10:03:27.05
+cmlvc968x0005ha2loywb10mp	cmlnljzmo0000ci25adxyj31m	cmlnovvbu0002gj7sa4mcc14w	2026-02-20 20:24:34.018
+cmly7l0lr0004j4ro5nauilf8_cmlnu2x4o0004a803qi7b7y0n	cmly7l0lr0004j4ro5nauilf8	cmlnu2x4o0004a803qi7b7y0n	2026-04-03 17:32:07.881
+cmly7l0lr0004j4ro5nauilf8_cmlnvclmy0001120koyjdkzdz	cmly7l0lr0004j4ro5nauilf8	cmlnvclmy0001120koyjdkzdz	2026-04-03 17:32:24.983
+cmly7l0lr0004j4ro5nauilf8_cmlnvlcpp0003120krecx0eip	cmly7l0lr0004j4ro5nauilf8	cmlnvlcpp0003120krecx0eip	2026-04-16 07:16:57.564
+cmoa32wrt000p127k7i7cqpg6	cmlnljzmo0000ci25adxyj31m	cmlnuynxh0000hxsgf5gj479t	2026-04-22 13:23:42.569
+cmoa3373e000t127kgoezq906	cmlnljzmo0000ci25adxyj31m	cmlnu2x4o0004a803qi7b7y0n	2026-04-22 13:23:55.946
+cmoa33abs000v127k4sov358s	cmlnljzmo0000ci25adxyj31m	cmlt72a9u000cy6dkpnleasfd	2026-04-22 13:24:00.136
+cmod0m5yr00015h08zg7obpwk	cmlnljzmo0000ci25adxyj31m	cmlnva3ff0000120koplfuib1	2026-04-24 14:38:00.624
+cmodq1go40003pr91wdz8wd56	cmlnljzmo0000ci25adxyj31m	cmlt6zxvn000ay6dkzuox3fd0	2026-04-25 02:29:44.74
+cmofmx07h00269dllaf02iddu	cmlnljzmo0000ci25adxyj31m	cmlnvlcpp0003120krecx0eip	2026-04-26 10:37:50.286
+\.
+
+
+--
+-- Data for Name: least_favorite_exercises; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.least_favorite_exercises (id, "userId", "exerciseId", "createdAt") FROM stdin;
+cmoa32cmy000b127kcr12xxt9	cmlnljzmo0000ci25adxyj31m	cmlntuidh0002a803khg0yb33	2026-04-22 13:23:16.474
+cmoa32d5a000d127kvokw13g1	cmlnljzmo0000ci25adxyj31m	cmlnvq4nm0004120k710ue9ak	2026-04-22 13:23:17.135
+cmoa32tis000n127kv6w37ec0	cmlnljzmo0000ci25adxyj31m	cmlt6bhea0002y6dksycsso4i	2026-04-22 13:23:38.356
+cmoa335i2000r127kb4ntphd7	cmlnljzmo0000ci25adxyj31m	cmlnuynxv0001hxsgr6upjak5	2026-04-22 13:23:53.882
+cmoa33eu6000x127kcqwdkd32	cmlnljzmo0000ci25adxyj31m	cmlt649xc0000y6dkxg5qomge	2026-04-22 13:24:05.982
+\.
+
+
+--
+-- Data for Name: push_subscriptions; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.push_subscriptions (id, "userId", endpoint, p256dh, auth, "createdAt", "updatedAt") FROM stdin;
+5	cmlnljzmo0000ci25adxyj31m	https://fcm.googleapis.com/fcm/send/d1g6OK7q1eg:APA91bFrtDC28ZSuLe9swTUnaULzFh5-B_Bds3T_3g56jhe67YZmWKHo45q5ejI7z911_V7_DiMEIbmdXEDYFzM74pwM6JWD7ShTErcXryWuTpfJxi7G2up2ZGIz4pjZywvLjgDXfeeK	BMvYDZrKisQlV5AGCfif-BJ4XuoIIr6ifwMlSfSVxdWNDTY6LnazqqWWP1i6cLG-0a5aM0ji4Wf-jAzJQSSkxd0	3iFfnGscIMYxcjnwhyFVIg	2026-05-01 08:30:23.098	2026-05-01 08:30:23.098
+\.
+
+
+--
+-- Data for Name: training_day_executions; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.training_day_executions (id, "userId", week, "dayOfWeek", "wellbeingToday", notes, "createdAt", "endTime", "startTime") FROM stdin;
+cmoiuzg31000m8htzvie4bqvt	cmlnljzmo0000ci25adxyj31m	1	2	NORMAL	\N	2026-04-28 16:46:59.629	\N	2026-04-28 16:46:59.616
+cmokvzw8r0000xh1qns9ql2iq	cmlnljzmo0000ci25adxyj31m	1	3	NORMAL	\N	2026-04-30 02:50:52.539	\N	2026-04-30 02:50:52.526
+\.
+
+
+--
+-- Data for Name: training_exercise_executions; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.training_exercise_executions (id, "executionId", "exerciseId", "orderInDay", "setsData") FROM stdin;
+\.
+
+
+--
+-- Data for Name: user_profiles; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.user_profiles (id, "userId", weight, height, age, lifestyle, goal, "createdAt", "updatedAt", gender) FROM stdin;
+cmlnlyfk10001nhswkeqfui55	cmlnljzmo0000ci25adxyj31m	75	178	23	LIGHT	HYPERTROPHY	2026-02-15 10:33:59.613	2026-04-22 19:14:10.102	Male
+cmly7l0m00006j4romvsl37o1	cmly7l0lr0004j4ro5nauilf8	56	177	23	AVERAGE	GAIN_MUSCLE_MASS	2026-02-22 20:37:07.033	2026-04-23 13:54:26.266	Female
+\.
+
+
+--
+-- Data for Name: user_states; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.user_states (id, "userId", "currentWeek", "createdAt", "updatedAt") FROM stdin;
+cmoc1jmv90000p2nlm4kc81rl	cmlnljzmo0000ci25adxyj31m	1	2026-04-23 22:16:16.005	2026-04-27 02:02:08.472
+cmoiuw0qm0000oubuozd2ei6z	cmly7l0lr0004j4ro5nauilf8	1	2026-04-28 16:44:19.773	2026-04-28 16:44:57.986
+\.
+
+
+--
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.users (id, login, email, password, role, "isActive", "createdAt", "updatedAt") FROM stdin;
+cmly7l0lr0004j4ro5nauilf8	dimasik015	obolonskii.ds@yandex.ru	$2b$12$26OreesCtz7fF5Om15flIO34CdVwIUftMoieZViE/qwprcMKClGu.	ADMIN	t	2026-02-22 20:37:07.015	2026-02-26 11:12:47.111
+cmlnljzmo0000ci25adxyj31m	animeybe	dumka.obol@mail.ru	$2b$12$3RVjWxSc7Q/PhjRdyzpThe8dEFeW7AFddxpuTCfjFIEqR64sX6QYS	USER	t	2026-02-15 10:22:45.793	2026-04-21 18:07:43.68
+\.
+
+
+--
+-- Data for Name: weekly_training_exercises; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.weekly_training_exercises (id, "planId", "exerciseId", "dayOfWeek", sets, "repsRange", "orderInDay") FROM stdin;
+cmogjxnxa0013xi5kmmhctsdm	cmogjtsce0000xi5k5o9q7ja5	cmlntsclk0001a803n88x86v8	0	4	[10, 12]	1
+cmogjxnxh0014xi5kh8o1pao9	cmogjtsce0000xi5k5o9q7ja5	cmlnvrvou0005120kravylsic	0	3	[10, 12]	2
+cmogjxnxk0015xi5k5l42zorr	cmogjtsce0000xi5k5o9q7ja5	cmlnvlcpp0003120krecx0eip	0	3	[10, 12]	3
+cmogjxnxn0016xi5kq14ysisw	cmogjtsce0000xi5k5o9q7ja5	cmlnva3ff0000120koplfuib1	0	3	[10, 12]	4
+cmogjxnxr0017xi5k6xfduok7	cmogjtsce0000xi5k5o9q7ja5	cmlnovvbu0002gj7sa4mcc14w	0	4	[10, 12]	5
+cmogjxnxu0018xi5k8sf9fbbq	cmogjtsce0000xi5k5o9q7ja5	cmlnvclmy0001120koyjdkzdz	1	4	[8, 10]	1
+cmogjxnxz0019xi5kbsbph4gf	cmogjtsce0000xi5k5o9q7ja5	cmlt72a9u000cy6dkpnleasfd	1	3	[8, 10]	2
+cmogjxny1001axi5kn4fbezth	cmogjtsce0000xi5k5o9q7ja5	cmlnuyny10003hxsgmrd9sog8	1	3	[8, 10]	3
+cmogjxny5001bxi5kdjaszrba	cmogjtsce0000xi5k5o9q7ja5	cmlnuynxy0002hxsgiqv77p2q	1	3	[8, 10]	4
+cmogjxny7001cxi5kcv4er4t2	cmogjtsce0000xi5k5o9q7ja5	cmlnvrvou0005120kravylsic	1	3	[8, 10]	5
+cmogjxnyd001dxi5kxjlwgdj6	cmogjtsce0000xi5k5o9q7ja5	cmlnvlcpp0003120krecx0eip	1	3	[8, 10]	6
+cmogjxnyf001exi5kgvv98uj7	cmogjtsce0000xi5k5o9q7ja5	cmlnuyny30004hxsg10p54lzc	1	3	[8, 10]	7
+cmogjxnyi001fxi5k0ljdu12q	cmogjtsce0000xi5k5o9q7ja5	cmlnva3ff0000120koplfuib1	1	3	[8, 10]	8
+cmogjxnyk001gxi5k2ahlvvwu	cmogjtsce0000xi5k5o9q7ja5	cmlnva3ff0000120koplfuib1	2	3	[8, 10]	1
+cmogjxnyn001hxi5kpzyncf73	cmogjtsce0000xi5k5o9q7ja5	cmlnuyny50005hxsga12ps6e3	2	3	[8, 10]	2
+cmogjxnys001ixi5kq1br84fv	cmogjtsce0000xi5k5o9q7ja5	cmlnuynxh0000hxsgf5gj479t	2	3	[8, 10]	3
+cmogjxnyv001jxi5kfgqm7tmi	cmogjtsce0000xi5k5o9q7ja5	cmlnvrvou0005120kravylsic	2	3	[8, 10]	4
+cmogjxnyx001kxi5k4z5fvfdm	cmogjtsce0000xi5k5o9q7ja5	cmlnvlcpp0003120krecx0eip	2	3	[8, 10]	5
+cmogjxnz0001lxi5ks7ldrnry	cmogjtsce0000xi5k5o9q7ja5	cmlnuyny30004hxsg10p54lzc	2	3	[8, 10]	6
+cmogjxnz3001mxi5kp4ftfxmo	cmogjtsce0000xi5k5o9q7ja5	cmlnovvbu0002gj7sa4mcc14w	2	4	[8, 10]	7
+cmogjxnz7001nxi5k6hb87nsv	cmogjtsce0000xi5k5o9q7ja5	cmlnvlcpp0003120krecx0eip	3	3	[10, 12]	1
+cmogjxnzb001oxi5kjv9i7go8	cmogjtsce0000xi5k5o9q7ja5	cmlnuynxh0000hxsgf5gj479t	3	3	[10, 12]	2
+cmogjxnzd001pxi5k791t2ddy	cmogjtsce0000xi5k5o9q7ja5	cmlt6zxvn000ay6dkzuox3fd0	3	3	[10, 12]	3
+cmogjxnzg001qxi5kkmw69t4p	cmogjtsce0000xi5k5o9q7ja5	cmlnvrvou0005120kravylsic	3	3	[10, 12]	4
+cmogjxnzj001rxi5k05nys4fw	cmogjtsce0000xi5k5o9q7ja5	cmlnva3ff0000120koplfuib1	3	3	[10, 12]	5
+cmogjxnzo001sxi5k3orzcigs	cmogjtsce0000xi5k5o9q7ja5	cmlnuyny10003hxsgmrd9sog8	3	3	[10, 12]	6
+cmogjxnzr001txi5k7u2j7k08	cmogjtsce0000xi5k5o9q7ja5	cmlnovvbu0002gj7sa4mcc14w	3	4	[10, 12]	7
+cmogjxnzu001uxi5k42l6oyj2	cmogjtsce0000xi5k5o9q7ja5	cmlnovvbu0003gj7su2dio6sp	3	4	[10, 12]	8
+cmogjxnzx001vxi5klgooxs4o	cmogjtsce0000xi5k5o9q7ja5	cmlmmb10k0000uw4zjc9woq78	3	4	[10, 12]	9
+cmogjxo03001wxi5kgn56b3ou	cmogjtsce0000xi5k5o9q7ja5	cmlntsclk0001a803n88x86v8	4	4	[8, 10]	1
+cmogjxo05001xxi5kgvarkt35	cmogjtsce0000xi5k5o9q7ja5	cmlnovvbu0002gj7sa4mcc14w	4	4	[8, 10]	2
+cmogjxo09001yxi5kakjzclm9	cmogjtsce0000xi5k5o9q7ja5	cmlnvrvou0005120kravylsic	4	3	[8, 10]	3
+cmogjxo0c001zxi5kf8rcpq1b	cmogjtsce0000xi5k5o9q7ja5	cmlnvlcpp0003120krecx0eip	4	3	[8, 10]	4
+cmogjxo0f0020xi5knc8ujid2	cmogjtsce0000xi5k5o9q7ja5	cmlnuyny30004hxsg10p54lzc	4	3	[8, 10]	5
+cmogjxo0k0021xi5kw3xm3jkt	cmogjtsce0000xi5k5o9q7ja5	cmlnva3ff0000120koplfuib1	4	3	[8, 10]	6
+cmoiuwu4100018htz7gjqlv0d	cmoiuw0s10001oubuvpxkatgo	cmlnvlcpp0003120krecx0eip	0	3	[10, 12]	1
+cmoiuwu4900028htzh68tvte3	cmoiuw0s10001oubuvpxkatgo	cmlnvclmy0001120koyjdkzdz	0	3	[10, 12]	2
+cmoiuwu4f00038htzne40y9xc	cmoiuw0s10001oubuvpxkatgo	cmlt6udpa0009y6dkyir695hh	0	3	[10, 12]	3
+cmoiuwu4m00048htz9la9e22j	cmoiuw0s10001oubuvpxkatgo	cmlnovvbu0002gj7sa4mcc14w	0	3	[10, 12]	4
+cmoiuwu4s00058htzn7mo93sm	cmoiuw0s10001oubuvpxkatgo	cmlnovvbu0003gj7su2dio6sp	0	3	[10, 12]	5
+cmoiuwu5100068htzkxf7aw7f	cmoiuw0s10001oubuvpxkatgo	cmlnu2x4o0004a803qi7b7y0n	0	3	[10, 12]	6
+cmoiuwu5a00078htz10e59k1m	cmoiuw0s10001oubuvpxkatgo	cmlnvlcpp0003120krecx0eip	1	3	[10, 12]	1
+cmoiuwu5g00088htzzaocsgfw	cmoiuw0s10001oubuvpxkatgo	cmlnvclmy0001120koyjdkzdz	1	3	[10, 12]	2
+cmoiuwu5m00098htzy5o44ogs	cmoiuw0s10001oubuvpxkatgo	cmlt6udpa0009y6dkyir695hh	1	3	[10, 12]	3
+cmoiuwu5u000a8htzjqq79qwb	cmoiuw0s10001oubuvpxkatgo	cmlnovvbu0002gj7sa4mcc14w	1	3	[10, 12]	4
+cmoiuwu60000b8htz64fzex5d	cmoiuw0s10001oubuvpxkatgo	cmlnovvbu0003gj7su2dio6sp	1	3	[10, 12]	5
+cmoiuwu69000c8htzw69vkzht	cmoiuw0s10001oubuvpxkatgo	cmlnu2x4o0004a803qi7b7y0n	1	3	[10, 12]	6
+cmoiuwu6f000d8htz5mj7fsfu	cmoiuw0s10001oubuvpxkatgo	cmlnovvbu0002gj7sa4mcc14w	3	3	[10, 12]	1
+cmoiuwu6l000e8htzlev5jvcf	cmoiuw0s10001oubuvpxkatgo	cmlnovvbu0003gj7su2dio6sp	3	3	[10, 12]	2
+cmoiuwu6t000f8htz5j0o20mn	cmoiuw0s10001oubuvpxkatgo	cmlt6udpa0009y6dkyir695hh	3	3	[10, 12]	3
+cmoiuwu74000g8htzoc59gooy	cmoiuw0s10001oubuvpxkatgo	cmlnu2x4o0004a803qi7b7y0n	3	3	[10, 12]	4
+cmoiuwu7c000h8htzyulnn6h6	cmoiuw0s10001oubuvpxkatgo	cmlnovvbu0002gj7sa4mcc14w	4	3	[10, 12]	1
+cmoiuwu7m000i8htzvvgjgjmd	cmoiuw0s10001oubuvpxkatgo	cmlnovvbu0003gj7su2dio6sp	4	3	[10, 12]	2
+cmoiuwu7u000j8htz8mv58ncd	cmoiuw0s10001oubuvpxkatgo	cmlt6udpa0009y6dkyir695hh	4	3	[10, 12]	3
+cmoiuwu7y000k8htzr2mb3uta	cmoiuw0s10001oubuvpxkatgo	cmlnu2x4o0004a803qi7b7y0n	4	3	[10, 12]	4
+\.
+
+
+--
+-- Data for Name: weekly_training_plans; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.weekly_training_plans (id, "userId", week, split, "daysPerWeek", "restDays", message, "createdAt", "updatedAt") FROM stdin;
+cmogjtsce0000xi5k5o9q7ja5	cmlnljzmo0000ci25adxyj31m	1	HYPERTROPHY_FOCUS	5	{5,6}	\N	2026-04-27 01:59:07.455	2026-04-27 02:02:08.344
+cmoiuw0s10001oubuvpxkatgo	cmly7l0lr0004j4ro5nauilf8	1	UPPER_LOWER	4	{4,5,6}	\N	2026-04-28 16:44:19.825	2026-04-28 16:44:57.827
+\.
+
+
+--
+-- Name: push_subscriptions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.push_subscriptions_id_seq', 5, true);
+
+
+--
+-- Name: _prisma_migrations _prisma_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public._prisma_migrations
+    ADD CONSTRAINT _prisma_migrations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: exercises exercises_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.exercises
+    ADD CONSTRAINT exercises_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: favorite_exercises favorite_exercises_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.favorite_exercises
+    ADD CONSTRAINT favorite_exercises_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: least_favorite_exercises least_favorite_exercises_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.least_favorite_exercises
+    ADD CONSTRAINT least_favorite_exercises_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: push_subscriptions push_subscriptions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.push_subscriptions
+    ADD CONSTRAINT push_subscriptions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: training_day_executions training_day_executions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.training_day_executions
+    ADD CONSTRAINT training_day_executions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: training_exercise_executions training_exercise_executions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.training_exercise_executions
+    ADD CONSTRAINT training_exercise_executions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_profiles user_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_profiles
+    ADD CONSTRAINT user_profiles_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_states user_states_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_states
+    ADD CONSTRAINT user_states_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: weekly_training_exercises weekly_training_exercises_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.weekly_training_exercises
+    ADD CONSTRAINT weekly_training_exercises_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: weekly_training_plans weekly_training_plans_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.weekly_training_plans
+    ADD CONSTRAINT weekly_training_plans_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: exercises_name_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX exercises_name_idx ON public.exercises USING btree (name);
+
+
+--
+-- Name: exercises_primaryMuscleGroup_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "exercises_primaryMuscleGroup_idx" ON public.exercises USING btree ("primaryMuscleGroup");
+
+
+--
+-- Name: favorite_exercises_userId_exerciseId_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX "favorite_exercises_userId_exerciseId_key" ON public.favorite_exercises USING btree ("userId", "exerciseId");
+
+
+--
+-- Name: favorite_exercises_userId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "favorite_exercises_userId_idx" ON public.favorite_exercises USING btree ("userId");
+
+
+--
+-- Name: least_favorite_exercises_userId_exerciseId_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX "least_favorite_exercises_userId_exerciseId_key" ON public.least_favorite_exercises USING btree ("userId", "exerciseId");
+
+
+--
+-- Name: least_favorite_exercises_userId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "least_favorite_exercises_userId_idx" ON public.least_favorite_exercises USING btree ("userId");
+
+
+--
+-- Name: push_subscriptions_endpoint_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX push_subscriptions_endpoint_key ON public.push_subscriptions USING btree (endpoint);
+
+
+--
+-- Name: push_subscriptions_userId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "push_subscriptions_userId_idx" ON public.push_subscriptions USING btree ("userId");
+
+
+--
+-- Name: training_day_executions_userId_startTime_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "training_day_executions_userId_startTime_idx" ON public.training_day_executions USING btree ("userId", "startTime");
+
+
+--
+-- Name: training_day_executions_userId_week_dayOfWeek_startTime_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX "training_day_executions_userId_week_dayOfWeek_startTime_key" ON public.training_day_executions USING btree ("userId", week, "dayOfWeek", "startTime");
+
+
+--
+-- Name: training_day_executions_week_dayOfWeek_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "training_day_executions_week_dayOfWeek_idx" ON public.training_day_executions USING btree (week, "dayOfWeek");
+
+
+--
+-- Name: training_exercise_executions_executionId_orderInDay_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "training_exercise_executions_executionId_orderInDay_idx" ON public.training_exercise_executions USING btree ("executionId", "orderInDay");
+
+
+--
+-- Name: user_profiles_userId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "user_profiles_userId_idx" ON public.user_profiles USING btree ("userId");
+
+
+--
+-- Name: user_profiles_userId_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX "user_profiles_userId_key" ON public.user_profiles USING btree ("userId");
+
+
+--
+-- Name: user_states_userId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "user_states_userId_idx" ON public.user_states USING btree ("userId");
+
+
+--
+-- Name: user_states_userId_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX "user_states_userId_key" ON public.user_states USING btree ("userId");
+
+
+--
+-- Name: users_email_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email);
+
+
+--
+-- Name: users_login_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX users_login_key ON public.users USING btree (login);
+
+
+--
+-- Name: weekly_training_exercises_planId_dayOfWeek_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "weekly_training_exercises_planId_dayOfWeek_idx" ON public.weekly_training_exercises USING btree ("planId", "dayOfWeek");
+
+
+--
+-- Name: weekly_training_exercises_planId_dayOfWeek_orderInDay_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX "weekly_training_exercises_planId_dayOfWeek_orderInDay_key" ON public.weekly_training_exercises USING btree ("planId", "dayOfWeek", "orderInDay");
+
+
+--
+-- Name: weekly_training_plans_userId_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "weekly_training_plans_userId_idx" ON public.weekly_training_plans USING btree ("userId");
+
+
+--
+-- Name: weekly_training_plans_userId_week_key; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX "weekly_training_plans_userId_week_key" ON public.weekly_training_plans USING btree ("userId", week);
+
+
+--
+-- Name: favorite_exercises favorite_exercises_exerciseId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.favorite_exercises
+    ADD CONSTRAINT "favorite_exercises_exerciseId_fkey" FOREIGN KEY ("exerciseId") REFERENCES public.exercises(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: favorite_exercises favorite_exercises_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.favorite_exercises
+    ADD CONSTRAINT "favorite_exercises_userId_fkey" FOREIGN KEY ("userId") REFERENCES public.users(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: least_favorite_exercises least_favorite_exercises_exerciseId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.least_favorite_exercises
+    ADD CONSTRAINT "least_favorite_exercises_exerciseId_fkey" FOREIGN KEY ("exerciseId") REFERENCES public.exercises(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: least_favorite_exercises least_favorite_exercises_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.least_favorite_exercises
+    ADD CONSTRAINT "least_favorite_exercises_userId_fkey" FOREIGN KEY ("userId") REFERENCES public.users(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: push_subscriptions push_subscriptions_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.push_subscriptions
+    ADD CONSTRAINT "push_subscriptions_userId_fkey" FOREIGN KEY ("userId") REFERENCES public.users(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: training_day_executions training_day_executions_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.training_day_executions
+    ADD CONSTRAINT "training_day_executions_userId_fkey" FOREIGN KEY ("userId") REFERENCES public.users(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: training_exercise_executions training_exercise_executions_executionId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.training_exercise_executions
+    ADD CONSTRAINT "training_exercise_executions_executionId_fkey" FOREIGN KEY ("executionId") REFERENCES public.training_day_executions(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: training_exercise_executions training_exercise_executions_exerciseId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.training_exercise_executions
+    ADD CONSTRAINT "training_exercise_executions_exerciseId_fkey" FOREIGN KEY ("exerciseId") REFERENCES public.exercises(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: user_profiles user_profiles_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_profiles
+    ADD CONSTRAINT "user_profiles_userId_fkey" FOREIGN KEY ("userId") REFERENCES public.users(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: user_states user_states_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.user_states
+    ADD CONSTRAINT "user_states_userId_fkey" FOREIGN KEY ("userId") REFERENCES public.users(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: weekly_training_exercises weekly_training_exercises_exerciseId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.weekly_training_exercises
+    ADD CONSTRAINT "weekly_training_exercises_exerciseId_fkey" FOREIGN KEY ("exerciseId") REFERENCES public.exercises(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+
+
+--
+-- Name: weekly_training_exercises weekly_training_exercises_planId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.weekly_training_exercises
+    ADD CONSTRAINT "weekly_training_exercises_planId_fkey" FOREIGN KEY ("planId") REFERENCES public.weekly_training_plans(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: weekly_training_plans weekly_training_plans_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.weekly_training_plans
+    ADD CONSTRAINT "weekly_training_plans_userId_fkey" FOREIGN KEY ("userId") REFERENCES public.users(id) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: SCHEMA public; Type: ACL; Schema: -; Owner: postgres
+--
+
+REVOKE USAGE ON SCHEMA public FROM PUBLIC;
+
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict wkBcDnA8YCf563tTGKREtLyRAfSOB6i8A5ZSApRqahDnthrDITHyFbEVJvrJXgO
+

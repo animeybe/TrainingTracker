@@ -115,7 +115,7 @@ export function TrainingPage() {
             {isNextWeekPlanStale && (
               <button
                 className="training-page__generate-next-week-btn"
-                onClick={() => async () => {
+                onClick={async () => {
                   setPlanGenerationLoading(true);
                   await generatePlan({ forcingNewWeek: false });
                   setPlanGenerationLoading(false);
