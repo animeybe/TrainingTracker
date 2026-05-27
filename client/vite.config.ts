@@ -48,48 +48,12 @@ export default defineConfig({
       includeAssets: ["favicon.ico", "robots.txt", "manifest/icons/*"],
       filename: "service-worker.js",
       manifest: manifest,
-      workbox: {
+      // ✅ Используем свой service-worker.js с push-обработчиками
+      strategies: "injectManifest",
+      injectManifest: {
+        swSrc: "public/service-worker.js",
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,json}"],
         additionalManifestEntries: [{ url: "/", revision: null }],
-        navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api/, /^\/manifest/, /^\/screenshots/],
-
-        runtimeCaching: [
-          // 1. Статика: Cache‑first (не меняется)
-          {
-            urlPattern: /\.(?:js|css|html|ico|png|svg|webp|woff2|json)$/,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "static-resources",
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 30 * 24 * 60 * 60,
-              },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-
-          // 2. API: Только сеть (без кэширования Service Worker'ом)
-          {
-            urlPattern: /\/api\/.*/,
-            handler: "NetworkOnly",
-          },
-
-          // 3. Шрифты Google
-          {
-            urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "google-fonts",
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 30 * 24 * 60 * 60,
-              },
-            },
-          },
-        ],
       },
     }),
   ],
