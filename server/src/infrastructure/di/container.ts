@@ -61,6 +61,7 @@ import {
   ExercisePreferenceService,
   TrainingPlanGenerationService,
   PushService,
+  TrainingCleanupService,
 } from "../../domain/services";
 
 // ==============================================================================
@@ -102,6 +103,7 @@ export enum ServiceKeys {
   TRAINING_PLAN_GENERATION_SERVICE = "trainingPlanGenerationService",
   EXERCISE_PREFERENCE_SERVICE = "exercisePreferenceService",
   PUSH_SERVICE = "pushService",
+  TRAINING_CLEANUP_SERVICE = "trainingCleanupService",
 }
 
 // ==============================================================================
@@ -151,6 +153,9 @@ interface ServiceRegistry {
 
   // Уведомления
   [ServiceKeys.PUSH_SERVICE]: PushService;
+
+  // Отчистка старых незакрытых записей тренировок
+  [ServiceKeys.TRAINING_CLEANUP_SERVICE]: TrainingCleanupService;
 }
 
 // ==============================================================================
@@ -319,6 +324,14 @@ class Container {
         this.get(ServiceKeys.DIFFICULTY_CALCULATOR),
         this.get(ServiceKeys.PLAN_GENERATOR),
       );
+
+
+    const trainingCleanupService = new TrainingCleanupService(
+      this.get(ServiceKeys.TRAINING_DAY_EXECUTION_REPO)
+    );
+
+    this.services[ServiceKeys.TRAINING_CLEANUP_SERVICE] = trainingCleanupService;
+    trainingCleanupService.start();
 
     this.initialized = true;
   }

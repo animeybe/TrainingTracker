@@ -86,4 +86,13 @@ export class PrismaTrainingDayExecutionRepository {
       return false;
     }
   }
+
+  async findAbandoned(before: Date): Promise<TrainingDayExecutionDto[]> {
+    return await prisma.trainingDayExecution.findMany({
+      where: {
+        endTime: null,
+        startTime: { lt: before },
+      },
+    });
+  }
 }

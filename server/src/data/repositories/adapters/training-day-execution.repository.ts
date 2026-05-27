@@ -64,4 +64,9 @@ export class TrainingDayExecutionRepositoryImpl implements ITrainingDayExecution
   async delete(id: string): Promise<boolean> {
     return await this.prismaRepo.delete(id);
   }
+
+  async findAbandoned(before: Date): Promise<TrainingDayExecutionEntity[]> {
+    const dtos = await this.prismaRepo.findAbandoned(before);
+    return dtos.map(TrainingDayExecutionMapper.toEntity);
+  }
 }

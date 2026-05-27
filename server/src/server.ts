@@ -8,7 +8,7 @@ import fs from "fs";
 import { logger } from "./common/utils";
 import apiRouter from "./presentation/routes";
 
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.PORT || "3001", 10);
 
 const ALLOWED_ORIGINS = [
   "https://localhost:5173",
@@ -113,7 +113,7 @@ if (fs.existsSync("./localhost-key.pem") && fs.existsSync("./localhost.pem")) {
   logger.info("⚠️ Сертификаты не найдены, запуск по HTTP");
 }
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   logger.info(
     `🚀 Server running: ${server === app ? "http" : "https"}://localhost:${PORT}`,
   );

@@ -22,4 +22,5 @@ export interface ITrainingDayExecutionRepository {
   ): Promise<TrainingDayExecutionEntity | null>;
   finishTraining(id: string): Promise<TrainingDayExecutionEntity | null>;
   delete(id: string): Promise<boolean>;
+  findAbandoned(before: Date): Promise<TrainingDayExecutionEntity[]>;
 }
