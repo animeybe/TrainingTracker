@@ -8,6 +8,46 @@ import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
 import type { ErrorType } from "@/shared/ui/components/ErrorUI/model/types";
 import { useCallback, useState, useMemo } from "react";
 import type { TrainingDay } from "@/shared/api/types";
+import { requirePremium } from "@/lib/premium/premium";
+import { useSafeAuthContext } from "@/shared/hooks/useSafeAuth";
+
+const SPLIT_OPTIONS = [
+  {
+    value: "recommended",
+    label: "✨ Рекомендованный для Вас",
+    description: "Система подберёт оптимальный сплит на основе вашего профиля",
+  },
+  {
+    value: "PPL",
+    label: "Push/Pull/Legs (PPL)",
+    description: "Три тренировочных дня: жимовые, тяговые, ноги",
+  },
+  {
+    value: "FULL_BODY",
+    label: "Full Body (Фулбоди)",
+    description: "Тренировка всего тела за одну сессию",
+  },
+  {
+    value: "UPPER_LOWER",
+    label: "Upper/Lower (Верх/Низ)",
+    description: "Чередование верха и низа тела",
+  },
+  {
+    value: "BRO_SPLIT",
+    label: "Bro Split (По группам мышц)",
+    description: "Каждый день — отдельная группа мышц",
+  },
+  {
+    value: "STRENGTH_FOCUS",
+    label: "Силовой фокус",
+    description: "Акцент на базовые упражнения и силу",
+  },
+  {
+    value: "HYPERTROPHY_FOCUS",
+    label: "Гипертрофия (на массу)",
+    description: "Акцент на объём и рост мышц",
+  },
+] as const;
 
 export function TrainingPage() {
   const {
@@ -29,9 +69,12 @@ export function TrainingPage() {
     openWellbeingModal,
     isNextWeekPlanStale,
     dismissWellbeingWarning,
+    deletePlan,
   } = useTrainingPlan();
 
   const { profile, loadingProfile } = useProfile();
+
+  const { user } = useSafeAuthContext();
 
   const [planGenerationLoading, setPlanGenerationLoading] =
     useState<boolean>(false);
@@ -43,6 +86,10 @@ export function TrainingPage() {
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(
     today.dayIndex,
   );
+
+  // Состояние для выбора сплита
+  const [selectedSplit, setSelectedSplit] = useState<string>("recommended");
+  const [showSplitSelector, setShowSplitSelector] = useState(false);
 
   const handleRetry = useCallback(() => {
     setLocalError(null);
@@ -112,19 +159,39 @@ export function TrainingPage() {
               Неделя {weekPlan.week}
             </p>
 
-            {isNextWeekPlanStale && (
+            {/* Кнопки управления планом */}
+            <div className="training-page__plan-actions">
+              {isNextWeekPlanStale && (
+                <button
+                  className="training-page__generate-next-week-btn"
+                  onClick={async () => {
+                    setPlanGenerationLoading(true);
+                    await generatePlan({ forcingNewWeek: false });
+                    setPlanGenerationLoading(false);
+                  }}
+                  disabled={loadingPlan}
+                  type="button">
+                  Создать план на следующую неделю
+                </button>
+              )}
+
               <button
-                className="training-page__generate-next-week-btn"
+                className="training-page__delete-plan-btn"
                 onClick={async () => {
-                  setPlanGenerationLoading(true);
-                  await generatePlan({ forcingNewWeek: false });
-                  setPlanGenerationLoading(false);
+                  if (
+                    window.confirm(
+                      "Текущий план будет удалён НАВСЕГДА. Создать новый?",
+                    )
+                  ) {
+                    setPlanGenerationLoading(true);
+                    await deletePlan();
+                    setPlanGenerationLoading(false);
+                  }
                 }}
-                disabled={loadingPlan}
                 type="button">
-                Создать план на следующую неделю
+                🗑 Создать новый план
               </button>
-            )}
+            </div>
           </div>
 
           {/* Календарь недели */}
@@ -291,6 +358,8 @@ export function TrainingPage() {
   }
 
   // ==================== ПЛАН НЕ СГЕНЕРИРОВАН ====================
+  const selectedOption = SPLIT_OPTIONS.find((s) => s.value === selectedSplit);
+
   return (
     <div className="training-page__no-plan">
       <div className="training-page__profile">
@@ -331,11 +400,61 @@ export function TrainingPage() {
       )}
 
       <div className="training-page__controls">
+        {/* Селектор сплита */}
+        <div className="training-page__split-selector">
+          <button
+            className="training-page__split-toggle"
+            onClick={() => setShowSplitSelector(!showSplitSelector)}
+            type="button">
+            <span className="training-page__split-toggle-label">
+              Тип сплита:
+            </span>
+            <span className="training-page__split-toggle-value">
+              {selectedOption?.label}
+            </span>
+            <span
+              className={`training-page__split-toggle-arrow ${showSplitSelector ? "open" : ""}`}>
+              ▼
+            </span>
+          </button>
+
+          {showSplitSelector && (
+            <div className="training-page__split-dropdown">
+              {SPLIT_OPTIONS.map((split) => (
+                <button
+                  key={split.value}
+                  className={`training-page__split-option ${selectedSplit === split.value ? "selected" : ""}`}
+                  onClick={() => {
+                    if (
+                      split.value !== "recommended" &&
+                      !requirePremium(user?.role)
+                    )
+                      return;
+                    setSelectedSplit(split.value);
+                    setShowSplitSelector(false);
+                  }}
+                  type="button">
+                  <span className="training-page__split-option-label">
+                    {split.label}
+                  </span>
+                  <span className="training-page__split-option-desc">
+                    {split.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <button
           className="training-page__generate-btn"
           onClick={async () => {
             setPlanGenerationLoading(true);
-            await generatePlan({ forcingNewWeek: false });
+            await generatePlan({
+              forcingNewWeek: false,
+              preferredSplit:
+                selectedSplit === "recommended" ? undefined : selectedSplit,
+            });
             setPlanGenerationLoading(false);
           }}
           disabled={loadingPlan || isProfileIncomplete}
@@ -344,7 +463,9 @@ export function TrainingPage() {
             ? "Создаём план..."
             : isProfileIncomplete
               ? "План не доступен — профиль не заполнен"
-              : "Создать индивидуальный план на неделю"}
+              : selectedSplit === "recommended"
+                ? "✨ Создать индивидуальный план на неделю"
+                : `Создать план (${selectedOption?.label})`}
         </button>
       </div>
     </div>

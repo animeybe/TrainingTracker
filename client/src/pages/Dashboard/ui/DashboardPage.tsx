@@ -4,7 +4,7 @@
  *
  * Отображает:
  * - Приветствие пользователя
- * - Роль (USER/ADMIN)
+ * - Роль (USER/PREMIUM/ADMIN)
  * - Дату регистрации
  * - Статистику профиля (ИМТ, калории, БЖУ)
  * - Избранные/нелюбимые упражнения
@@ -320,18 +320,20 @@ export function DashboardPage() {
         </div>
 
         <div
-          className="dashboard-content-block-left__role"
+          className={`dashboard-content-block-left__role ${
+            user?.role === "ADMIN"
+              ? "dashboard-content-block-left__role--admin"
+              : user?.role === "PREMIUM"
+                ? "dashboard-content-block-left__role--premium"
+                : "dashboard-content-block-left__role--user"
+          }`}
           onClick={handleRoleClick}
-          style={
-            {
-              color:
-                user?.role === "ADMIN"
-                  ? "var(--boolean-false)"
-                  : "var(--boolean-true)",
-              cursor: user?.role === "ADMIN" ? "pointer" : "default",
-            } as React.CSSProperties
-          }>
-          [{user?.role ?? "USER"}]
+          style={{
+            cursor: user?.role === "ADMIN" ? "pointer" : "default",
+          }}>
+          {user?.role === "PREMIUM"
+            ? "👑 PREMIUM"
+            : `[${user?.role ?? "USER"}]`}
         </div>
 
         <div className="dashboard-content-block-left__created">

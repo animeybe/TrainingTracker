@@ -165,6 +165,7 @@ export interface RecommendSplitResponse {
 export interface GeneratePlanRequest {
   week?: number;
   wellbeing?: Wellbeing;
+  preferredSplit?: string;
 }
 
 export interface WeekPlanResponse {

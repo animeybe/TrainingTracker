@@ -40,4 +40,8 @@ export const planApi = {
   // POST /api/plan/user-plans — без параметров
   getUserPlans: (): Promise<GetUserPlansResponse> =>
     apiRequest("/plan/user-plans", { method: "POST" }),
+
+  // DELETE /api/plan
+  deletePlan: (): Promise<{ success: boolean }> =>
+    apiRequest("/plan", { method: "DELETE" }),
 };

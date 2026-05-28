@@ -6,15 +6,7 @@ import { AppProviders } from "./app/providers/AppProviders";
 import { registerSW } from "virtual:pwa-register";
 import { initOfflineQueue } from "@/lib/offline/offlineQueue";
 
-registerSW({
-  immediate: true,
-  onNeedRefresh() {
-    // Не показываем уведомление, обновляем молча
-  },
-  onOfflineReady() {
-    // Не показываем уведомление
-  },
-});
+registerSW({ immediate: true });
 initOfflineQueue();
 
 createRoot(document.getElementById("root")!).render(

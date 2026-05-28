@@ -18,6 +18,11 @@ import type {
   Wellbeing,
 } from "../api/types";
 
+interface GeneratePlanParams {
+  forcingNewWeek?: boolean;
+  preferredSplit?: string;
+}
+
 interface UseTrainingPlanReturn {
   weekPlan: WeekPlan | null;
   todayPlan: TodayPlanResponse | null;
@@ -28,7 +33,7 @@ interface UseTrainingPlanReturn {
   loadingPlan: boolean;
   loadingTodayPlan: boolean;
   isProfileIncomplete: boolean;
-  generatePlan: (params?: { forcingNewWeek?: boolean }) => Promise<void>;
+  generatePlan: (params?: GeneratePlanParams) => Promise<void>;
   loadTodayPlan: (wellbeing: Wellbeing) => Promise<void>;
   setWellbeing: (wellbeing: Wellbeing) => void;
   selectDay: (dayIndex: number) => void;
@@ -42,6 +47,7 @@ interface UseTrainingPlanReturn {
   isNextWeekPlanStale: boolean;
   dismissWellbeingWarning: () => void;
   loadPlanFromCacheOnly: (week: number) => WeekPlan | null;
+  deletePlan: () => Promise<void>;
 }
 
 // ==================== ФУНКЦИИ КЭШИРОВАНИЯ ПЛАНА ====================
@@ -346,8 +352,10 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
 
   // ── Генерация плана ─────────────────────────────────
   const generatePlan = useCallback(
-    async (params?: { forcingNewWeek?: boolean }) => {
+    async (params?: GeneratePlanParams) => {
       const forcingNewWeek = params?.forcingNewWeek ?? false;
+      const preferredSplit = params?.preferredSplit ?? "UPPER_LOWER";
+
       if (
         !userId ||
         !checkProfileInCompleteness(profile) ||
@@ -361,6 +369,7 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
         const response = await planApi.generatePlan({
           wellbeing,
           week: forcingNewWeek ? currentWeek + 1 : currentWeek,
+          preferredSplit: preferredSplit,
         });
 
         const plan = response as unknown as WeekPlan;
@@ -399,6 +408,30 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
     [userId, profile, loadingPlan, currentWeek, wellbeing, today.dayIndex],
   );
 
+  // ── Удаление плана ─────────────────────────────────
+  const deletePlan = useCallback(async () => {
+    try {
+      await planApi.deletePlan();
+      setWeekPlan(null);
+      setTodayPlan(null);
+      setCurrentWeek(1);
+      // Очистить кэш
+      if (userId) {
+        Object.keys(localStorage).forEach((key) => {
+          if (
+            key.includes("plan") ||
+            key.includes("training") ||
+            key.includes("wellbeing")
+          ) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+    } catch (error) {
+      logger.error("deletePlan failed", error as Error);
+    }
+  }, [userId]);
+
   const openWellbeingModal = useCallback(() => setShowWellbeingModal(true), []);
 
   useEffect(() => {
@@ -429,5 +462,6 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
     isNextWeekPlanStale,
     dismissWellbeingWarning,
     loadPlanFromCacheOnly,
+    deletePlan,
   };
 };

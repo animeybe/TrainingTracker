@@ -16,6 +16,7 @@ import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
 import { logger } from "@/lib/utils/logger";
 import toast from "react-hot-toast";
 import { ExercisePreferencesModal } from "@/shared/ui/components/ExercisePreferencesModal/ExercisePreferencesModal";
+import type { Exercise } from "@/shared/api/types";
 
 type SupergroupKey = keyof typeof MUSCLE_SUPERGROUPS;
 type MuscleGroup =
@@ -51,6 +52,9 @@ export function ExerciseBasePage() {
   const [sortType, setSortType] = useState<"name" | "muscle" | "difficulty">(
     "name",
   );
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(
+    null,
+  );
 
   const sortingRef = useRef<HTMLDivElement>(null);
 
@@ -77,7 +81,6 @@ export function ExerciseBasePage() {
         toast.error("Упражнение уже в нелюбимых! Сначала уберите его");
         return;
       }
-
       await toggleFavorite(exerciseId);
     },
     [isLeastFavorite, toggleFavorite],
@@ -89,7 +92,6 @@ export function ExerciseBasePage() {
         toast.error("Упражнение уже в избранном! Сначала уберите его");
         return;
       }
-
       await toggleLeastFavorite(exerciseId);
     },
     [isFavorite, toggleLeastFavorite],
@@ -146,28 +148,19 @@ export function ExerciseBasePage() {
   }, [exercises, filteredExercises, search, sortType]);
 
   const groupedExercises = useMemo(() => {
-    if (!sortedExercises.length) return sortedExercises;
+    if (!sortedExercises.length) return [];
+    // Группировка выключена — показываем все
     if (!groupingEnabled) return sortedExercises;
+    // Выбрана конкретная мышца — показываем упражнения для неё
     if (selectedMuscleGroup) {
       return sortedExercises.filter((exercise) => {
         const secondary = exercise.secondaryMuscles || [];
         return secondary.includes(selectedMuscleGroup);
       });
     }
-    if (selectedSupergroup) {
-      const supergroupMuscles = MUSCLE_SUPERGROUPS[selectedSupergroup];
-      return sortedExercises.filter((exercise) => {
-        const secondary = exercise.secondaryMuscles || [];
-        return supergroupMuscles.some((muscle) => secondary.includes(muscle));
-      });
-    }
-    return sortedExercises;
-  }, [
-    groupingEnabled,
-    selectedSupergroup,
-    selectedMuscleGroup,
-    sortedExercises,
-  ]);
+    // Выбрана супергруппа или ничего — НЕ показываем упражнения
+    return [];
+  }, [groupingEnabled, selectedMuscleGroup, sortedExercises]);
 
   const handlePreferencesModalOpen = useCallback(() => {
     setIsPreferencesModalOpen(true);
@@ -385,7 +378,10 @@ export function ExerciseBasePage() {
       <div className="exercise-base-grid">
         {groupedExercises.length > 0 ? (
           groupedExercises.map((exercise) => (
-            <div key={exercise.id} className="exercise-base-grid-card">
+            <div
+              key={exercise.id}
+              className="exercise-base-grid-card"
+              onClick={() => setSelectedExercise(exercise)}>
               <div className="exercise-base-grid-card-content">
                 <div className="exercise-base-grid-card-info">
                   <h3 className="exercise-base-grid-card-info__name">
@@ -399,11 +395,6 @@ export function ExerciseBasePage() {
                     <span className="exercise-base-grid-card-info-add__difficulty">
                       {exercise.difficulty}
                     </span>
-                    {exercise.description && (
-                      <div className="exercise-base-grid-card-info-add__desc">
-                        <p className="exercise-desc">{exercise.description}</p>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -456,6 +447,89 @@ export function ExerciseBasePage() {
           <div className="no-exercises">Упражнения не найдены</div>
         )}
       </div>
+
+      {/* Модальное окно упражнения */}
+      {selectedExercise && (
+        <div
+          className="exercise-detail-overlay"
+          onClick={() => setSelectedExercise(null)}>
+          <div
+            className="exercise-detail-modal"
+            onClick={(e) => e.stopPropagation()}>
+            <button
+              className="exercise-detail-modal__close"
+              onClick={() => setSelectedExercise(null)}
+              type="button">
+              ×
+            </button>
+
+            {/* Фото */}
+            <div className="exercise-detail-modal__image">
+              {selectedExercise.imageUrl ? (
+                <img
+                  src={selectedExercise.imageUrl}
+                  alt={selectedExercise.name}
+                />
+              ) : (
+                <div className="exercise-detail-modal__image-placeholder">
+                  <span>📷</span>
+                  <span>Нет фото</span>
+                </div>
+              )}
+            </div>
+
+            {/* Название */}
+            <h2 className="exercise-detail-modal__title">
+              {selectedExercise.name}
+            </h2>
+
+            {/* Теги */}
+            <div className="exercise-detail-modal__tags">
+              <span className="exercise-detail-modal__tag exercise-detail-modal__tag--muscle">
+                {MUSCLE_GROUP_LABELS[selectedExercise.primaryMuscleGroup] ||
+                  selectedExercise.primaryMuscleGroup}
+              </span>
+              <span className="exercise-detail-modal__tag exercise-detail-modal__tag--difficulty">
+                {selectedExercise.difficulty === "EASY"
+                  ? "Лёгкая"
+                  : selectedExercise.difficulty === "MEDIUM"
+                    ? "Средняя"
+                    : "Сложная"}
+              </span>
+              {selectedExercise.secondaryMuscles?.map((m) => (
+                <span
+                  key={m}
+                  className="exercise-detail-modal__tag exercise-detail-modal__tag--secondary">
+                  {MUSCLE_GROUP_LABELS[m] || m}
+                </span>
+              ))}
+            </div>
+
+            {/* Описание */}
+            <div className="exercise-detail-modal__description">
+              <h3>Описание</h3>
+              <p>{selectedExercise.description || "Описание отсутствует"}</p>
+            </div>
+
+            {/* Видео */}
+            <div className="exercise-detail-modal__video">
+              <h3>Видео-инструкция</h3>
+              {selectedExercise.videoUrl ? (
+                <iframe
+                  src={selectedExercise.videoUrl}
+                  title={selectedExercise.name}
+                  allowFullScreen
+                />
+              ) : (
+                <div className="exercise-detail-modal__video-placeholder">
+                  <span>🎬</span>
+                  <span>Видео отсутствует</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {isPreferencesModalOpen && (
         <ExercisePreferencesModal
