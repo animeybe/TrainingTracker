@@ -10,3 +10,5 @@ export * from "./prisma-user-profile.repository";
 export * from "./prisma-user-state.repository";
 export * from "./prisma-user.repository";
 export * from "./prisma-weekly-training-exercise.repository";
+export { PrismaTrainingDayTypeRepository } from "./prisma-training-day-type.repository";
+

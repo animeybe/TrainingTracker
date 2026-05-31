@@ -140,6 +140,7 @@ export interface LocalTrainingPlan {
 
 // LocalWeekPlan теперь использует WeeklyCalendar
 export interface LocalWeekPlan {
+  planId?: string;
   week: number;
   split: TypedTrainingSplit;
   trainingDays: LocalTrainingPlan[];

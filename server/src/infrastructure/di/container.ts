@@ -11,6 +11,7 @@ import {
   PrismaWeeklyTrainingExerciseRepository,
   PrismaUserStateRepository,
   PrismaPushSubscriptionRepository,
+  PrismaTrainingDayTypeRepository,
 } from "../../data/repositories";
 import {
   ExerciseRepositoryImpl,
@@ -24,6 +25,7 @@ import {
   WeeklyTrainingExerciseRepositoryImpl,
   UserStateRepositoryImpl,
   PushSubscriptionRepositoryImpl,
+  TrainingDayTypeRepositoryImpl,
 } from "../../data/repositories";
 import {
   IExerciseRepository,
@@ -37,6 +39,7 @@ import {
   IWeeklyTrainingExerciseRepository,
   IUserStateRepository,
   IPushSubscriptionRepository,
+  ITrainingDayTypeRepository,
 } from "../../domain/repositories";
 import {
   ExerciseService,
@@ -49,6 +52,7 @@ import {
   UserProfileService,
   WeeklyTrainingExerciseService,
   UserStateService,
+  TrainingDayTypeService,
 } from "../../domain/services";
 import {
   ExerciseSelectorService,
@@ -63,6 +67,7 @@ import {
   PushService,
   TrainingCleanupService,
 } from "../../domain/services";
+import { ToggleDayService } from "../../domain/services/toggle-day.service";
 
 // ==============================================================================
 // Ключи DI
@@ -104,6 +109,9 @@ export enum ServiceKeys {
   EXERCISE_PREFERENCE_SERVICE = "exercisePreferenceService",
   PUSH_SERVICE = "pushService",
   TRAINING_CLEANUP_SERVICE = "trainingCleanupService",
+  TOGGLE_DAY_SERVICE = "toggleDayService",
+  TRAINING_DAY_TYPE_REPO = "trainingDayTypeRepo",
+  TRAINING_DAY_TYPE_SERVICE = "trainingDayTypeService",
 }
 
 // ==============================================================================
@@ -156,6 +164,9 @@ interface ServiceRegistry {
 
   // Отчистка старых незакрытых записей тренировок
   [ServiceKeys.TRAINING_CLEANUP_SERVICE]: TrainingCleanupService;
+  [ServiceKeys.TOGGLE_DAY_SERVICE]: ToggleDayService;
+  [ServiceKeys.TRAINING_DAY_TYPE_REPO]: ITrainingDayTypeRepository;
+  [ServiceKeys.TRAINING_DAY_TYPE_SERVICE]: TrainingDayTypeService;
 }
 
 // ==============================================================================
@@ -185,6 +196,7 @@ class Container {
     const prismaLeastFavoriteRepo = new PrismaLeastFavoriteExerciseRepository();
     const prismaUserStateRepo = new PrismaUserStateRepository();
     const prismaPushSubscriptionRepo = new PrismaPushSubscriptionRepository();
+    const prismaTrainingDayTypeRepo = new PrismaTrainingDayTypeRepository();
 
     const prismaWeeklyExerciseRepo =
       new PrismaWeeklyTrainingExerciseRepository();
@@ -207,6 +219,10 @@ class Container {
     );
     const pushSubscriptionRepoImpl = new PushSubscriptionRepositoryImpl(
       prismaPushSubscriptionRepo,
+    );
+
+    const trainingDayTypeRepoImpl = new TrainingDayTypeRepositoryImpl(
+      prismaTrainingDayTypeRepo,
     );
 
     const weeklyExerciseRepoImpl = new WeeklyTrainingExerciseRepositoryImpl(
@@ -232,6 +248,8 @@ class Container {
     this.services[ServiceKeys.USER_STATE_REPO] = userStateRepoImpl;
     this.services[ServiceKeys.PUSH_SUBSCRIPTION_REPO] =
       pushSubscriptionRepoImpl;
+
+    this.services[ServiceKeys.TRAINING_DAY_TYPE_REPO] = trainingDayTypeRepoImpl;
 
     this.services[ServiceKeys.WEEKLY_EXERCISE_REPO] = weeklyExerciseRepoImpl;
     this.services[ServiceKeys.TRAINING_DAY_EXECUTION_REPO] =
@@ -272,6 +290,10 @@ class Container {
     // Сервис Push
     this.services[ServiceKeys.PUSH_SERVICE] = new PushService(
       this.get(ServiceKeys.PUSH_SUBSCRIPTION_REPO),
+    );
+
+    this.services[ServiceKeys.TRAINING_DAY_TYPE_SERVICE] = new TrainingDayTypeService(
+      this.get(ServiceKeys.TRAINING_DAY_TYPE_REPO),
     );
 
     // Сервисы генерации плана
@@ -328,6 +350,19 @@ class Container {
 
     const trainingCleanupService = new TrainingCleanupService(
       this.get(ServiceKeys.TRAINING_DAY_EXECUTION_REPO)
+    );
+
+    // Сервис смены типа дня
+    this.services[ServiceKeys.TOGGLE_DAY_SERVICE] = new ToggleDayService(
+      this.get(ServiceKeys.PLAN_SERVICE),
+      this.get(ServiceKeys.WEEKLY_EXERCISE_SERVICE),
+      this.get(ServiceKeys.PROFILE_SERVICE),
+      this.get(ServiceKeys.FAVORITE_SERVICE),
+      this.get(ServiceKeys.LEAST_FAVORITE_SERVICE),
+      this.get(ServiceKeys.EXERCISE_SERVICE),
+      this.get(ServiceKeys.PLAN_GENERATOR),
+      this.get(ServiceKeys.TRAINING_DAY_TYPE_SERVICE),
+      this.get(ServiceKeys.TRAINING_PLAN_GENERATION_SERVICE),
     );
 
     this.services[ServiceKeys.TRAINING_CLEANUP_SERVICE] = trainingCleanupService;

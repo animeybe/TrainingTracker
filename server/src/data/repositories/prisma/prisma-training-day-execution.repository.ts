@@ -95,4 +95,12 @@ export class PrismaTrainingDayExecutionRepository {
       },
     });
   }
+  async findActiveBetween(after: Date, before: Date): Promise<TrainingDayExecutionDto[]> {
+    return await prisma.trainingDayExecution.findMany({
+      where: {
+        endTime: null,
+        startTime: { gte: after, lte: before }
+      }
+    });
+  }
 }

@@ -60,6 +60,10 @@ export class WeeklyTrainingExerciseService {
     return await this.repo.deleteAllByPlanId(planId);
   }
 
+  async deleteExercise(id: string): Promise<boolean> {
+    return await this.repo.delete(id);
+  }
+
   async delete(id: string): Promise<boolean> {
     return await this.repo.delete(id);
   }

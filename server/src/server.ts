@@ -60,19 +60,19 @@ app.use("/api", createRateLimiter(RATE_LIMIT_API_MAX));
 app.use((req, res, next) => {
   const { path } = req;
 
-  // Статические файлы могут кэшироваться
+  // Статические файлы могут кэшироваться надолго
   if (!path.startsWith("/api")) {
     res.set("Cache-Control", "public, max-age=3600, s-maxage=86400");
   }
-  // API запросы — без кэширования
+  // API запросы: GET — кэшируем (для офлайн-доступа), мутации — нет
   else {
-    res.set(
-      "Cache-Control",
-      "no-store, no-cache, must-revalidate, proxy-revalidate",
-    );
-    res.set("Pragma", "no-cache");
-    res.set("Expires", "0");
-    res.set("Surrogate-Control", "no-store");
+    if (req.method === "GET") {
+      // Разрешаем кэширование GET-запросов браузером и Service Worker'ом
+      res.set("Cache-Control", "private, max-age=300");
+    } else {
+      // Мутации (POST/PUT/DELETE) не кэшируем
+      res.set("Cache-Control", "no-store");
+    }
   }
   next();
 });

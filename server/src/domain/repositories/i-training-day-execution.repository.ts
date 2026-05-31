@@ -23,4 +23,5 @@ export interface ITrainingDayExecutionRepository {
   finishTraining(id: string): Promise<TrainingDayExecutionEntity | null>;
   delete(id: string): Promise<boolean>;
   findAbandoned(before: Date): Promise<TrainingDayExecutionEntity[]>;
+  findActiveBetween(after: Date, before: Date): Promise<TrainingDayExecutionEntity[]>;
 }

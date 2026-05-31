@@ -367,6 +367,16 @@ export class PlanController {
       const exercises = await weeklyExerciseService.findByPlanId(weeklyPlan.id);
       const allExercises = await exerciseService.findAll();
 
+      console.log('🔍 getPlan INPUT:', {
+        weeklyPlanId: weeklyPlan.id,
+        weeklyPlanSplit: weeklyPlan.split,
+        exercisesCount: exercises.length,
+        exercisesByDay: exercises.reduce((acc, ex) => {
+          acc[ex.dayOfWeek] = (acc[ex.dayOfWeek] || 0) + 1;
+          return acc;
+        }, {} as Record<number, number>),
+      });
+
       const weekPlan = await this.buildLocalWeekPlan(
         weeklyPlan.split as TrainingSplit,
         weeklyPlan.week,
@@ -374,9 +384,22 @@ export class PlanController {
         exercises,
         profile,
         allExercises,
+        weeklyPlan.id,
       );
 
+      console.log('🔍 built weekPlan:', {
+        splitName: weekPlan.split.name,
+        trainingDays: weekPlan.trainingDays.map(d => ({ dayOfWeek: d.dayOfWeek, dayType: d.dayType })),
+      });
+
       res.json({ data: weekPlan });
+      console.log('🔍 getPlan DEBUG:', {
+        split: weeklyPlan.split,
+        week: weeklyPlan.week,
+        trainingDaysCount: weekPlan.trainingDays.length,
+        firstDayType: weekPlan.trainingDays[0]?.dayType,
+        splitName: weekPlan.split.name,
+      });
     } catch (error: any) {
       logger.error("Plan getPlan error", error);
       res.status(500).json({ error: "Ошибка загрузки плана" });
@@ -517,6 +540,7 @@ export class PlanController {
     exercises: WeeklyTrainingExerciseEntity[],
     profile: UserProfileEntity,
     allExercises: ExerciseEntity[],
+    planId: string,
   ): Promise<LocalWeekPlan> {
     const bmi = calculateBMI(profile.weight!, profile.height!)!;
     const difficulty = difficultyCalc.calculateOverallDifficulty(
@@ -529,6 +553,13 @@ export class PlanController {
     const estimated1RM = planGenerator.estimate1RM(
       profile.weight!,
       "INTERMEDIATE",
+    );
+
+    // Загружаем типы дней из новой таблицы
+    const trainingDayTypeService = container.get(ServiceKeys.TRAINING_DAY_TYPE_SERVICE);
+    const dayTypes = await trainingDayTypeService.getDayTypesForPlan(planId);
+    const dayTypeMap = new Map(
+      dayTypes.map((dt: { dayOfWeek: number; dayType: string }) => [dt.dayOfWeek, dt.dayType])
     );
 
     const dayObjs: LocalTrainingPlan[] = Array.from(
@@ -556,7 +587,7 @@ export class PlanController {
         return {
           dayIndex,
           dayOfWeek: dayIndex,
-          dayType: this.getDayTypeForIndex(dayIndex, split),
+          dayType: (dayTypeMap.get(dayIndex) as DayType) || this.getDayTypeForIndex(dayIndex, split),
           exercises: exerciseSets,
           targetMuscles: [],
           coverage: exerciseSets.length > 0 ? 100 : 0,
@@ -567,13 +598,24 @@ export class PlanController {
       },
     );
 
-    const trainingDays = dayObjs.filter((day) => day.exercises.length > 0);
+    // Дни без упражнений, но с сохранённым типом (из training_day_types)
+    for (const [dow, type] of dayTypeMap) {
+      if (!dayObjs[dow].exercises.length) {
+        dayObjs[dow].dayType = type as DayType;
+      }
+    }
+
+    const trainingDays = dayObjs.filter(
+      (day) => day.exercises.length > 0 || (dayTypeMap.has(day.dayOfWeek) && day.dayType !== 'full')
+    );
+
     const totalVolume = trainingDays.reduce(
       (sum, day) => sum + day.volumeLoad,
       0,
     );
 
     return {
+      planId,
       week,
       split: trainingPlanGenerationService.convertSplitToTyped(split),
       trainingDays,
@@ -621,5 +663,105 @@ export class PlanController {
 
     cloneDay.warnings = [`День адаптирован под самочувствие: ${wellbeing}`];
     return cloneDay;
+  }
+
+  // POST /api/plan/exercises — добавить упражнение в план
+  async addExerciseToPlan(
+    req: AuthRequest,
+    res: Response,
+  ): Promise<void> {
+    try {
+      const userId = req.userId!;
+      const { planId, exerciseId, dayOfWeek, sets, repsRange, orderInDay } = req.body;
+
+      if (!planId || !exerciseId || dayOfWeek == null || !sets || !repsRange) {
+        res.status(400).json({ error: "planId, exerciseId, dayOfWeek, sets, repsRange обязательны" });
+        return;
+      }
+
+      console.log('🔍 ADD EXERCISE:', { planId, exerciseId, dayOfWeek, orderInDay, sets, repsRange});
+
+      // Найти максимальный orderInDay для этого дня
+      const existingExercises = await weeklyExerciseService.findByPlanId(planId);
+      const maxOrder = existingExercises
+        .filter(ex => ex.dayOfWeek === dayOfWeek)
+        .reduce((max, ex) => Math.max(max, ex.orderInDay), 0);
+      
+      const exercise = await weeklyExerciseService.createExercise({
+        planId,
+        exerciseId,
+        dayOfWeek,
+        orderInDay: orderInDay ?? (maxOrder + 1),
+        sets,
+        repsRange,
+      });
+
+      res.status(201).json(exercise);
+    } catch (error: any) {
+      logger.error("Add exercise to plan error:", error);
+      res.status(500).json({ error: "Не удалось добавить упражнение" });
+    }
+  }
+
+  // DELETE /api/plan/exercises/:exerciseId — удалить упражнение из плана
+  async removeExerciseFromPlan(
+    req: AuthRequest & Request<{ exerciseId: string }>,
+    res: Response,
+  ): Promise<void> {
+    try {
+      const { exerciseId } = req.params;
+      const { planId, dayOfWeek } = req.query;
+
+      // Найти запись по exerciseId, planId и dayOfWeek
+      const exercises = await weeklyExerciseService.findByPlanId(planId as string);
+      const target = exercises.find(
+        ex => ex.exerciseId === exerciseId && ex.dayOfWeek === Number(dayOfWeek)
+      );
+
+      if (target) {
+        await weeklyExerciseService.deleteExercise(target.id);
+        res.json({ success: true });
+      } else {
+        res.status(404).json({ error: "Упражнение не найдено" });
+      }
+    } catch (error: any) {
+      logger.error("Remove exercise from plan error:", error);
+      res.status(500).json({ error: "Не удалось удалить упражнение" });
+    }
+  }
+
+  // PUT /api/plan/toggle-day — сменить тип дня (отдых ↔ тренировка)
+  async toggleDayType(
+    req: AuthRequest,
+    res: Response,
+  ): Promise<void> {
+    try {
+      const userId = req.userId!;
+      const { week, dayOfWeek, dayType } = req.body;
+
+      if (week == null || dayOfWeek == null) {
+        res.status(400).json({ error: "week и dayOfWeek обязательны" });
+        return;
+      }
+
+      console.log('🔍 CONTROLLER DEBUG:', { week, dayOfWeek, dayType, body: req.body });
+
+      const toggleDayService = container.get(ServiceKeys.TOGGLE_DAY_SERVICE);
+      const result = await toggleDayService.toggleDayType(userId, week, dayOfWeek, dayType);
+
+      if (!result.isOk) {
+        res.status(400).json({ error: result.error!.message });
+        return;
+      }
+
+      res.json({
+        success: true,
+        newType: result.value!.newType,
+        message: result.value!.message,
+      });
+    } catch (error: any) {
+      logger.error("Toggle day type error:", error);
+      res.status(500).json({ error: "Не удалось изменить тип дня" });
+    }
   }
 }

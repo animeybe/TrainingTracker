@@ -69,4 +69,9 @@ export class TrainingDayExecutionRepositoryImpl implements ITrainingDayExecution
     const dtos = await this.prismaRepo.findAbandoned(before);
     return dtos.map(TrainingDayExecutionMapper.toEntity);
   }
+
+  async findActiveBetween(after: Date, before: Date): Promise<TrainingDayExecutionEntity[]> {
+    const dtos = await this.prismaRepo.findActiveBetween(after, before);
+    return dtos.map(TrainingDayExecutionMapper.toEntity);
+  }
 }

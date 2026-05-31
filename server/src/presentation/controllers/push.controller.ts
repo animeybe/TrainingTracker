@@ -88,23 +88,4 @@ export class PushController {
         .json({ error: "Не удалось получить количество устройств" });
     }
   }
-
-  // POST /api/push/test — отправить тестовое уведомление
-  static async sendTest(req: AuthRequest, res: Response): Promise<void> {
-    try {
-      const userId = req.userId!;
-      await pushService.sendToUser(userId, {
-        title: "🏋️ TrainingTracker",
-        body: "Это тестовое уведомление! Всё работает отлично.",
-        url: "/training",
-        tag: "test",
-        requireInteraction: false,
-      });
-
-      res.json({ success: true, message: "Тестовое уведомление отправлено" });
-    } catch (error: any) {
-      logger.error(`Push test failed: ${error.message}`);
-      res.status(500).json({ error: "Не удалось отправить уведомление" });
-    }
-  }
 }

@@ -30,4 +30,23 @@ router.get("/max-week", authenticateToken, (req, res) =>
   controller.getMaxWeekForUser(req as any, res),
 );
 
+router.delete("/", authenticateToken, (req, res) =>
+  controller.deletePlan(req as any, res),
+);
+
+// Добавить упражнение в план
+router.post("/exercises", authenticateToken, (req, res) =>
+  controller.addExerciseToPlan(req as any, res),
+);
+
+// Удалить упражнение из плана
+router.delete("/exercises/:exerciseId", authenticateToken, (req, res) =>
+  controller.removeExerciseFromPlan(req as any, res),
+);
+
+// Сменить тип дня (отдых ↔ тренировка)
+router.put("/toggle-day", authenticateToken, (req, res) =>
+  controller.toggleDayType(req as any, res),
+);
+
 export default router;

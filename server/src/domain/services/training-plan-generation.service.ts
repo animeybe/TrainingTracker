@@ -138,7 +138,13 @@ export class TrainingPlanGenerationService {
         ? (await this.planService.updatePlan(existingPlan.id, createPlanData))!
         : await this.planService.createPlan(createPlanData)!;
 
-      await this.userStateService.updateCurrentWeek(userId, weekToUse + 1);
+      // Увеличиваем неделю только при создании плана на следующую неделю
+      if (options.week && options.week > userState.currentWeek) {
+        await this.userStateService.updateCurrentWeek(userId, weekToUse);
+      } else if (!options.week) {
+        // Если неделя не указана — это новый план, увеличиваем
+        await this.userStateService.updateCurrentWeek(userId, weekToUse + 1);
+      }
 
       const weeklyExercises: WeeklyTrainingExerciseEntity[] = [];
 

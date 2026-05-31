@@ -68,6 +68,27 @@ export class PlanGeneratorService {
         }
       });
 
+      // Универсальное чередование: все типы по очереди, потом повтор
+      // [push,pull,legs,push,pull,legs] вместо [push,push,pull,pull,legs,legs]
+      if (expandedDays.length > 1) {
+        const uniqueTypes = [...new Set(expandedDays.map(d => d.type))];
+        const cycles = Math.floor(expandedDays.length / uniqueTypes.length);
+        const remainder = expandedDays.length % uniqueTypes.length;
+        
+        const ordered: Array<{ type: DayType; frequency: 1 }> = [];
+        for (let cycle = 0; cycle < cycles; cycle++) {
+          for (const type of uniqueTypes) {
+            ordered.push({ type, frequency: 1 });
+          }
+        }
+        for (let i = 0; i < remainder; i++) {
+          ordered.push({ type: uniqueTypes[i], frequency: 1 });
+        }
+        
+        expandedDays.length = 0;
+        expandedDays.push(...ordered);
+      }
+
       const trainingDayOfWeeks = this.distributeDaysEvenly(expandedDays.length);
 
       const trainingDays: LocalTrainingPlan[] = await Promise.all(
@@ -258,6 +279,62 @@ export class PlanGeneratorService {
         return [0, 1, 2, 3, 4, 5]; // Пн-Сб
       default:
         return Array.from({ length: Math.min(daysCount, 7) }, (_, i) => i);
+    }
+  }
+
+  /**
+   * Генерирует ОДИН тренировочный день (для toggle day).
+   * Не перегенерирует всю неделю — только один день.
+   */
+  public async generateSingleDay(
+    dayType: DayType,
+    dayOfWeek: number,
+    favorites: ExerciseEntity[],
+    leastFavorites: ExerciseEntity[],
+    allExercises: ExerciseEntity[],
+    userData: {
+      bmi: number;
+      age: number;
+      goal: Goal;
+      lifestyle: Lifestyle;
+      weight: number;
+      gender: Gender;
+    },
+    options: { week: number; wellbeing: "BAD" | "NORMAL" | "GOOD" },
+  ): Promise<Result<LocalTrainingPlan>> {
+    try {
+      const { bmi, age, goal, lifestyle, weight, gender } = userData;
+      const { week, wellbeing } = options;
+
+      const difficulty = this.difficultyCalc.calculateOverallDifficulty(
+        bmi,
+        age,
+        goal,
+        lifestyle,
+        gender,
+      );
+
+      const dayPlan = await this.generateDay(
+        dayType,
+        dayOfWeek,
+        favorites,
+        leastFavorites,
+        allExercises,
+        bmi,
+        goal,
+        age,
+        gender,
+        lifestyle,
+        week,
+        wellbeing,
+        dayOfWeek % 3,
+        difficulty,
+      );
+
+      return Result.ok(dayPlan);
+    } catch (error) {
+      logger.error("💥 generateSingleDay ERROR", { error: String(error) });
+      return Result.error(new Error("Ошибка генерации одного дня"));
     }
   }
 }

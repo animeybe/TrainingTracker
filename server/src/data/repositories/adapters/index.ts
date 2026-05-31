@@ -10,3 +10,4 @@ export * from "./user-profile.repository";
 export * from "./user-state.repository";
 export * from "./user.repository";
 export * from "./weekly-training-exercise.repository";
+export { TrainingDayTypeRepositoryImpl } from "./training-day-type.repository";
