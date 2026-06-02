@@ -27,6 +27,7 @@ import {
 } from "../common/types/training.types";
 import { TypedTrainingSplit } from "../../common/types/rec-sys.types.types";
 import cuid from "cuid";
+import { isValidSplit } from "../../common/utils/split-utils";
 
 export class TrainingPlanGenerationService {
   constructor(
@@ -47,7 +48,7 @@ export class TrainingPlanGenerationService {
       leastFavorites: ExerciseEntity[];
       allExercises: ExerciseEntity[];
     },
-    options: { week?: number; wellbeing: Wellbeing },
+    options: { week?: number; wellbeing: Wellbeing; preferredSplit?: TrainingSplit },
   ): Promise<
     Result<{
       plan: WeeklyPlanEntity;
@@ -84,14 +85,21 @@ export class TrainingPlanGenerationService {
           new EntityValidationError(["Укажите корректные вес и рост"]),
         );
       }
+ 
+      console.log('🔍 generatePlanForUser options:', JSON.stringify(options));
+      let splitToUse: TrainingSplit;
 
-      const recommendationResult = this.splitRecommender.recommend(profile);
-      if (!recommendationResult.isOk) {
-        return Result.error(recommendationResult.error!);
+      if (options.preferredSplit && isValidSplit(options.preferredSplit)) {
+        splitToUse = options.preferredSplit;
+      } else {
+        const recommendationResult = this.splitRecommender.recommend(profile);
+        if (!recommendationResult.isOk) {
+          return Result.error(recommendationResult.error!);
+        }
+        splitToUse = recommendationResult.value!.split;
       }
 
-      const recommendation: SplitRecommendation = recommendationResult.value!;
-      const typedSplit = this.convertSplitToTyped(recommendation.split);
+      const typedSplit = this.convertSplitToTyped(splitToUse);
 
       const weekPlanResult = await this.planGenerator.generateWeeklyPlan(
         typedSplit,
@@ -129,8 +137,8 @@ export class TrainingPlanGenerationService {
         userId,
         week: weekPlan.week,
         split: weekPlan.split.name,
-        daysPerWeek: recommendation.daysPerWeek,
-        restDays: this.calculateRestDays(recommendation.daysPerWeek),
+        daysPerWeek: typedSplit.days.length,
+        restDays: this.calculateRestDays(typedSplit.days.length),
         message: null,
       };
 

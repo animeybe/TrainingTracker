@@ -208,7 +208,7 @@ export class PlanController {
             leastFavorites: leastFavoriteExercises,
             allExercises,
           },
-          { week: weekToUse, wellbeing },
+          { week: weekToUse, wellbeing, preferredSplit: req.body.preferredSplit },
         );
 
       if (!planResult.isOk) {
@@ -720,6 +720,19 @@ export class PlanController {
 
       if (target) {
         await weeklyExerciseService.deleteExercise(target.id);
+        
+        // Проверить, остались ли ещё упражнения для этого дня
+        const remainingExercises = exercises.filter(
+          ex => ex.dayOfWeek === Number(dayOfWeek) && ex.id !== target.id
+        );
+        
+        // Если это было последнее упражнение — сохраняем тип дня в training_day_types
+        if (remainingExercises.length === 0) {
+          const trainingDayTypeService = container.get(ServiceKeys.TRAINING_DAY_TYPE_SERVICE);
+          // Не удаляем тип дня — он должен остаться для отображения пустого дня
+          // Тип дня уже должен быть сохранён при создании через toggle-day
+        }
+        
         res.json({ success: true });
       } else {
         res.status(404).json({ error: "Упражнение не найдено" });
@@ -762,6 +775,29 @@ export class PlanController {
     } catch (error: any) {
       logger.error("Toggle day type error:", error);
       res.status(500).json({ error: "Не удалось изменить тип дня" });
+    }
+  }
+
+  // DELETE /api/plan — удалить все планы пользователя
+  async deletePlan(
+    req: AuthRequest,
+    res: Response,
+  ): Promise<void> {
+    try {
+      const userId = req.userId!;
+      const plans = await planService.findByUserId(userId);
+
+      for (const plan of plans) {
+        await weeklyExerciseService.deleteAllByPlanId(plan.id);
+        await planService.deletePlan(plan.id);
+      }
+
+      await userStateService.updateCurrentWeek(userId, 1);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error("Delete plan failed", error);
+      res.status(500).json({ error: "Ошибка удаления плана" });
     }
   }
 }

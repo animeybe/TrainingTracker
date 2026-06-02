@@ -199,6 +199,7 @@ model pushSubscription {
 enum Role {
   USER
   ADMIN
+  PREMIUM
 }
 
 enum Gender {

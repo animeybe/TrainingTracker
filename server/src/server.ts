@@ -7,6 +7,7 @@ import https from "https";
 import fs from "fs";
 import { logger } from "./common/utils";
 import apiRouter from "./presentation/routes";
+import { container, ServiceKeys } from "./infrastructure/di/container";
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 
@@ -112,6 +113,9 @@ if (fs.existsSync("./localhost-key.pem") && fs.existsSync("./localhost.pem")) {
   server = app;
   logger.info("⚠️ Сертификаты не найдены, запуск по HTTP");
 }
+
+// Запуск крона очистки и напоминаний
+container.get(ServiceKeys.TRAINING_CLEANUP_SERVICE);
 
 server.listen(PORT, "0.0.0.0", () => {
   logger.info(
