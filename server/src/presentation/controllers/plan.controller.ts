@@ -352,7 +352,9 @@ export class PlanController {
         return;
       }
 
+      console.log('🔍 getPlan params:', { userId, week, params: req.params });
       const weeklyPlan = await planService.findByUserIdAndWeek(userId, week);
+      console.log('🔍 getPlan result:', weeklyPlan?.id, weeklyPlan?.split);
       if (!weeklyPlan) {
         res.status(404).json({ error: `План на неделю ${week} не найден` });
         return;
@@ -606,7 +608,7 @@ export class PlanController {
     }
 
     const trainingDays = dayObjs.filter(
-      (day) => day.exercises.length > 0 || (dayTypeMap.has(day.dayOfWeek) && day.dayType !== 'full')
+      (day) => day.exercises.length > 0 || dayTypeMap.has(day.dayOfWeek)
     );
 
     const totalVolume = trainingDays.reduce(
@@ -705,43 +707,79 @@ export class PlanController {
 
   // DELETE /api/plan/exercises/:exerciseId — удалить упражнение из плана
   async removeExerciseFromPlan(
-    req: AuthRequest & Request<{ exerciseId: string }>,
-    res: Response,
-  ): Promise<void> {
-    try {
-      const { exerciseId } = req.params;
-      const { planId, dayOfWeek } = req.query;
+  req: AuthRequest & Request<{ exerciseId: string }>,
+  res: Response,
+): Promise<void> {
+  try {
+    const { exerciseId } = req.params;
+    const { planId, dayOfWeek } = req.query;
 
-      // Найти запись по exerciseId, planId и dayOfWeek
-      const exercises = await weeklyExerciseService.findByPlanId(planId as string);
-      const target = exercises.find(
-        ex => ex.exerciseId === exerciseId && ex.dayOfWeek === Number(dayOfWeek)
-      );
+    console.log('🔍 REMOVE EXERCISE:', { exerciseId, planId, dayOfWeek });
 
-      if (target) {
-        await weeklyExerciseService.deleteExercise(target.id);
-        
-        // Проверить, остались ли ещё упражнения для этого дня
-        const remainingExercises = exercises.filter(
-          ex => ex.dayOfWeek === Number(dayOfWeek) && ex.id !== target.id
-        );
-        
-        // Если это было последнее упражнение — сохраняем тип дня в training_day_types
-        if (remainingExercises.length === 0) {
-          const trainingDayTypeService = container.get(ServiceKeys.TRAINING_DAY_TYPE_SERVICE);
-          // Не удаляем тип дня — он должен остаться для отображения пустого дня
-          // Тип дня уже должен быть сохранён при создании через toggle-day
-        }
-        
-        res.json({ success: true });
-      } else {
-        res.status(404).json({ error: "Упражнение не найдено" });
-      }
-    } catch (error: any) {
-      logger.error("Remove exercise from plan error:", error);
-      res.status(500).json({ error: "Не удалось удалить упражнение" });
+    if (!planId || dayOfWeek === undefined) {
+      res.status(400).json({ error: "planId и dayOfWeek обязательны" });
+      return;
     }
+
+    const exercises = await weeklyExerciseService.findByPlanId(planId as string);
+    
+    // Ищем ВСЕ записи с таким exerciseId в указанный день
+    const targets = exercises.filter(
+      ex => ex.exerciseId === exerciseId && ex.dayOfWeek === Number(dayOfWeek)
+    );
+
+    console.log('🔍 FOUND TARGETS:', targets.length, targets.map(t => ({ id: t.id, exerciseId: t.exerciseId, dayOfWeek: t.dayOfWeek })));
+
+    if (targets.length === 0) {
+      // Упражнение не найдено — но это не ошибка, возможно уже удалено
+      console.log('⚠️ Exercise not found, returning success');
+      res.json({ success: true, message: "Упражнение уже удалено или не найдено" });
+      return;
+    }
+
+    // Удаляем все найденные записи (на случай дубликатов)
+    for (const target of targets) {
+      await weeklyExerciseService.deleteExercise(target.id);
+      console.log('✅ Deleted:', target.id);
+    }
+
+    // Перестраиваем orderInDay для оставшихся упражнений этого дня
+    const remaining = (await weeklyExerciseService.findByPlanId(planId as string))
+      .filter(ex => ex.dayOfWeek === Number(dayOfWeek))
+      .sort((a, b) => a.orderInDay - b.orderInDay);
+
+    for (let i = 0; i < remaining.length; i++) {
+      if (remaining[i].orderInDay !== i + 1) {
+        // Обновляем orderInDay — нужно добавить метод updateOrder в сервис
+        console.log(`📝 Reordering: ${remaining[i].id} from ${remaining[i].orderInDay} to ${i + 1}`);
+      }
+    }
+
+    // Проверяем, остались ли упражнения для этого дня
+    if (remaining.length === 0) {
+      const trainingDayTypeService = container.get(ServiceKeys.TRAINING_DAY_TYPE_SERVICE);
+      // Сохраняем тип дня как "rest" (или текущий тип из training_day_types)
+      const existingType = await trainingDayTypeService.getDayType(planId as string, Number(dayOfWeek));
+      if (!existingType) {
+        // Если тип не сохранён — определяем из сплита
+        const plan = await planService.findByUserIdAndWeek(
+          req.userId!,
+          parseInt(req.query.week as string) || 1
+        );
+        if (plan) {
+          const typedSplit = trainingPlanGenerationService.convertSplitToTyped(plan.split as TrainingSplit);
+          const computedType = typedSplit.days[Number(dayOfWeek) % typedSplit.days.length]?.type || "full";
+          await trainingDayTypeService.setDayType(planId as string, Number(dayOfWeek), computedType);
+        }
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    logger.error("Remove exercise from plan error:", error);
+    res.status(500).json({ error: "Не удалось удалить упражнение" });
   }
+}
 
   // PUT /api/plan/toggle-day — сменить тип дня (отдых ↔ тренировка)
   async toggleDayType(
@@ -757,7 +795,20 @@ export class PlanController {
         return;
       }
 
-      console.log('🔍 CONTROLLER DEBUG:', { week, dayOfWeek, dayType, body: req.body });
+      console.log('🔍 TOGGLE CONTROLLER:', { 
+         week, dayOfWeek, dayType, 
+         body: req.body,
+         hasDayType: !!dayType,
+         dayTypeType: typeof dayType 
+      });
+
+      // Если dayType не передан — попробуем определить из сплита
+      let effectiveDayType = dayType;
+      if (!effectiveDayType && req.body.isRestoring) {
+        // Если восстанавливаем тренировку, а тип не указан — ошибка
+        res.status(400).json({ error: "dayType обязателен при создании тренировки" });
+        return;
+      } 
 
       const toggleDayService = container.get(ServiceKeys.TOGGLE_DAY_SERVICE);
       const result = await toggleDayService.toggleDayType(userId, week, dayOfWeek, dayType);

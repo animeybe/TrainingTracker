@@ -60,11 +60,8 @@ export class ToggleDayService {
         for (const ex of exercisesForDay) {
           await this.weeklyExerciseService.deleteExercise(ex.id);
         }
-        // Удалить тип дня
-        const dayTypeRecord = await this.trainingDayTypeService.getDayTypeRecord(plan.id, dayOfWeek);
-        if (dayTypeRecord) {
-          await this.trainingDayTypeService.deleteDayType(dayTypeRecord.id);
-        }
+        // Сохраняем тип дня как "rest" вместо удаления
+        await this.trainingDayTypeService.setDayType(plan.id, dayOfWeek, "rest");
         logger.info(
           `✅ День ${dayOfWeek} недели ${week} → отдых (удалено ${exercisesForDay.length} упр.)`,
         );

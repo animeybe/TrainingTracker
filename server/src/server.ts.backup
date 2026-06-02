@@ -1,0 +1,298 @@
+// server.ts — Главный файл сервера TrainingTracker
+// Отвечает за: HTTPS/HTTP сервер, CORS, безопасность, rate limiting, кэширование
+
+import express from "express";
+import cors from "cors";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import https from "https";
+import fs from "fs";
+import { logger } from "./common/utils";
+import apiRouter from "./presentation/routes";
+import { container, ServiceKeys } from "./infrastructure/di/container";
+
+// ============================================================
+// КОНФИГУРАЦИЯ
+// ============================================================
+
+const PORT = parseInt(process.env.PORT || "3001", 10);
+
+// Разрешённые источники для CORS (фронтенд)
+const ALLOWED_ORIGINS = [
+  "https://localhost:5173",
+  "https://trainingtracker.ru",
+  "https://www.trainingtracker.ru",
+];
+
+// Настройки rate limiting (ограничение частоты запросов)
+const RATE_LIMIT_WINDOW_MS =
+  parseInt(process.env.RATE_LIMIT_WINDOW_MS!) || 15 * 60 * 1000; // 15 минут
+const RATE_LIMIT_AUTH_MAX = parseInt(process.env.RATE_LIMIT_AUTH_MAX!) || 1000; // для /api/auth
+const RATE_LIMIT_API_MAX = parseInt(process.env.RATE_LIMIT_API_MAX!) || 1000;   // для /api
+
+// ============================================================
+// ИНИЦИАЛИЗАЦИЯ EXPRESS
+// ============================================================
+
+const app = express();
+
+// Парсинг JSON с ограничением размера (защита от больших payloads)
+app.use(express.json({ limit: "10mb" }));
+
+// Helmet для защиты HTTP-заголовков (XSS, кликджекинг и т.д.)
+app.use(helmet());
+
+// ============================================================
+// CORS — контроль доступа с фронтенда
+// ============================================================
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Разрешаем запросы без origin (например, curl или мобильные приложения)
+      if (!origin) return callback(null, true);
+      // Проверяем origin по белому списку
+      if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+      // Логируем блокировку для мониторинга атак
+      logger.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true, // Разрешаем передачу кук и заголовков авторизации
+  }),
+);
+
+// ============================================================
+// RATE LIMITING — защита от DDoS и перебора паролей
+// ============================================================
+
+/**
+ * Создаёт rate limiter с заданными параметрами
+ * @param max — максимальное количество запросов за окно
+ * @param skipLocalhost — пропускать ли запросы с localhost (для тестирования)
+ */
+const createRateLimiter = (max: number, skipLocalhost = true) =>
+  rateLimit({
+    windowMs: RATE_LIMIT_WINDOW_MS,
+    max,
+    message: {
+      error: "Слишком много запросов. Попробуйте позже.",
+      retryAfter: Math.ceil(RATE_LIMIT_WINDOW_MS / 1000),
+    },
+    standardHeaders: true,  // RateLimit-* заголовки
+    legacyHeaders: false,   // Не использовать X-RateLimit-*
+    skip: skipLocalhost
+      ? (req) => {
+          const clientIp = req.ip || "";
+          return ["127.0.0.1", "::1", "localhost"].includes(clientIp);
+        }
+      : undefined,
+  });
+
+// Более строгий лимит для аутентификации (защита от перебора паролей)
+app.use("/api/auth", createRateLimiter(RATE_LIMIT_AUTH_MAX));
+// Общий лимит для всех API запросов
+app.use("/api", createRateLimiter(RATE_LIMIT_API_MAX));
+
+// ============================================================
+// КЭШИРОВАНИЕ — настройка заголовков Cache-Control
+// ============================================================
+
+/**
+ * Middleware для управления кэшированием ответов.
+ * 
+ * Стратегия:
+ * - Статические файлы (не /api) кэшируются агрессивно — 1 час у клиента,
+ *   до 24 часов на CDN/прокси (s-maxage).
+ * - GET запросы к API кэшируются на 5 минут для работы в офлайне
+ *   (например, через Service Worker на фронтенде).
+ * - Мутации (POST, PUT, DELETE) не кэшируются никогда (no-store).
+ */
+app.use((req, res, next) => {
+  const { path, method } = req;
+
+  try {
+    if (!path.startsWith("/api")) {
+      // Статика: кэшируем агрессивно
+      res.set("Cache-Control", "public, max-age=3600, s-maxage=86400");
+    } else if (method === "GET") {
+      // GET API: разрешаем кэширование браузером и Service Worker'ом
+      // private — только для конечного пользователя, не для CDN
+      res.set("Cache-Control", "private, max-age=300");
+    } else {
+      // Мутации: категорически не кэшируем
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    }
+  } catch (error) {
+    // Если заголовки уже отправлены — не крашим приложение
+    logger.error("Ошибка при установке Cache-Control", { error, path, method });
+  }
+  
+  next();
+});
+
+// ============================================================
+// МАРШРУТИЗАЦИЯ
+// ============================================================
+
+// Все API маршруты
+app.use("/api", apiRouter);
+
+// Обработка несуществующих маршрутов (404)
+app.use((req, res) => {
+  logger.warn(`404 Not Found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ error: "Route not found" });
+});
+
+// ============================================================
+// ГЛОБАЛЬНАЯ ОБРАБОТКА ОШИБОК
+// ============================================================
+
+/**
+ * Централизованная обработка ошибок.
+ * Ловит все необработанные ошибки из маршрутов и middleware.
+ * 
+ * Важно: не отправляем стектрейс клиенту в production!
+ */
+app.use(
+  (
+    error: any,
+    req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+  ) => {
+    // Подробное логирование для отладки
+    logger.error(`Global error: ${error.message}`, {
+      stack: error.stack,
+      path: req.path,
+      method: req.method,
+      body: req.body,
+      query: req.query,
+      params: req.params,
+      ip: req.ip,
+    });
+
+    // Определяем статус ошибки
+    const statusCode = error.status || error.statusCode || 500;
+    
+    // Не отправляем внутреннюю информацию в production
+    const isProduction = process.env.NODE_ENV === "production";
+    const message = isProduction
+      ? "Внутренняя ошибка сервера"
+      : error.message || "Внутренняя ошибка сервера";
+
+    res.status(statusCode).json({
+      error: message,
+      // В dev-режиме можно вернуть больше деталей
+      ...(isProduction ? {} : { stack: error.stack }),
+    });
+  },
+);
+
+// ============================================================
+// ЗАПУСК СЕРВЕРА (HTTPS или HTTP)
+// ============================================================
+
+/**
+ * Пытаемся запустить HTTPS с сертификатами Let's Encrypt.
+ * Если сертификатов нет — запускаем HTTP (для локальной разработки).
+ */
+let server: https.Server | express.Express;
+
+function startServer() {
+  try {
+    // Проверяем наличие SSL-сертификатов
+    const keyPath = "./localhost-key.pem";
+    const certPath = "./localhost.pem";
+
+    if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+      const options = {
+        key: fs.readFileSync(keyPath),
+        cert: fs.readFileSync(certPath),
+      };
+      server = https.createServer(options, app);
+      logger.info("✅ Запуск сервера по HTTPS");
+    } else {
+      server = app;
+      logger.warn("⚠️ SSL-сертификаты не найдены, запуск по HTTP (режим разработки)");
+    }
+
+    // Запускаем фоновые задачи (очистка тренировок, напоминания)
+    try {
+      container.get(ServiceKeys.TRAINING_CLEANUP_SERVICE);
+      logger.info("✅ Фоновые задачи запущены");
+    } catch (error) {
+      logger.error("❌ Ошибка при запуске фоновых задач", { error });
+      // Не прерываем запуск сервера из-за ошибки крона
+    }
+
+    // Запускаем сервер на всех интерфейсах (0.0.0.0)
+    server.listen(PORT, "0.0.0.0", () => {
+      const protocol = server === app ? "http" : "https";
+      logger.info(
+        `🚀 Сервер запущен: ${protocol}://localhost:${PORT}`,
+      );
+      logger.info(
+        `📊 Rate limits: auth=${RATE_LIMIT_AUTH_MAX}/15min, api=${RATE_LIMIT_API_MAX}/15min`,
+      );
+      logger.info(
+        `🌍 Доступные origins: ${ALLOWED_ORIGINS.join(", ")}`,
+      );
+    });
+
+    // Обработка ошибок запуска сервера
+    server.on("error", (error: any) => {
+      if (error.code === "EADDRINUSE") {
+        logger.error(`❌ Порт ${PORT} уже занят!`);
+        process.exit(1);
+      } else {
+        logger.error("❌ Ошибка сервера:", { error });
+      }
+    });
+
+  } catch (error) {
+    logger.error("❌ Критическая ошибка при запуске сервера:", { error });
+    process.exit(1);
+  }
+}
+
+// ============================================================
+// GRACEFUL SHUTDOWN (безопасное завершение)
+// ============================================================
+
+/**
+ * Обработчики сигналов для корректного завершения работы.
+ * Закрываем соединения, завершаем фоновые задачи.
+ */
+process.on("SIGTERM", () => {
+  logger.info("📴 Получен SIGTERM, завершаем работу...");
+  if (server && typeof server.close === "function") {
+    server.close(() => {
+      logger.info("✅ Сервер остановлен");
+      process.exit(0);
+    });
+  } else {
+    process.exit(0);
+  }
+});
+
+process.on("SIGINT", () => {
+  logger.info("📴 Получен SIGINT (Ctrl+C), завершаем работу...");
+  process.exit(0);
+});
+
+// Обработка неотловленных ошибок и промисов
+process.on("uncaughtException", (error) => {
+  logger.error("💥 Неотловленная ошибка:", { error });
+  // Даём время на запись логов перед падением
+  setTimeout(() => process.exit(1), 1000);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error("💥 Необработанный Promise rejection:", { reason });
+});
+
+// ============================================================
+// ЗАПУСК
+// ============================================================
+startServer();
+
+export default app;

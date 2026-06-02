@@ -190,6 +190,8 @@ export class TrainingPlanGenerationService {
         }
       }
 
+      // Добавляем planId в originalPlan для фронта
+      weekPlan.planId = plan.id;
       return Result.ok({ plan, weeklyExercises, originalPlan: weekPlan });
     } catch (error) {
       console.error("💥 TrainingPlanGeneration ERROR", {
