@@ -32,7 +32,4 @@ export const pushApi = {
   // GET /api/push/count — количество устройств
   getDeviceCount: (): Promise<PushDeviceCountResponse> =>
     apiRequest("/push/count"),
-
-  sendTest: (): Promise<{ success: boolean; message: string }> =>
-    apiRequest("/push/test", { method: "POST" }),
 };

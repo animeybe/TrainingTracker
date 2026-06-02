@@ -19,6 +19,12 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Единая точка входа для всех API-запросов.
+ *
+ * Онлайн: делает fetch, кэширует GET-ответы через Service Worker.
+ * Офлайн: для GET — берёт из Cache Storage (SW), для мутаций — сохраняет в очередь.
+ */
 export const apiRequest = async <T = unknown>(
   url: string,
   options: RequestInit = {},
@@ -38,10 +44,10 @@ export const apiRequest = async <T = unknown>(
   const config: RequestInit = {
     ...options,
     headers,
-    cache: "no-store",
   };
 
   try {
+    // ── Онлайн: пробуем сеть ────────────────────────────
     const response = await fetch(FULL_URL, config);
 
     if (!response.ok) {
@@ -75,7 +81,6 @@ export const apiRequest = async <T = unknown>(
           message = `Ошибка 404: ${message || "Не найдено"}`;
           break;
         case 409:
-          // Сервер уже вернул понятное сообщение
           message = `Ошибка 409: ${message}`;
           break;
         case 429:
@@ -94,25 +99,40 @@ export const apiRequest = async <T = unknown>(
     const data = await response.json();
     return (data.data || data) as T;
   } catch (error) {
+    // Пробрасываем ApiError дальше
     if (error instanceof ApiError) {
       throw error;
     }
 
-    if (error instanceof TypeError && error.message === "Failed to fetch") {
-      if (options.method && options.method !== "GET") {
-        addToQueue({
-          url: FULL_URL,
-          method: options.method,
-          body: options.body ? JSON.parse(options.body as string) : null,
-        });
-        throw new ApiError(
-          "📴 Нет подключения к интернету. Запрос будет отправлен при восстановлении сети",
-          0,
-        );
+    // ── Офлайн или сетевая ошибка ────────────────────────
+    const isGetRequest = !options.method || options.method === "GET";
+
+    if (isGetRequest) {
+      // GET: пробуем загрузить из Cache Storage (через Service Worker)
+      try {
+        const cache = await caches.open("api-cache");
+        const cachedResponse = await cache.match(FULL_URL);
+        if (cachedResponse) {
+          const data = await cachedResponse.json();
+          console.log(`📦 Загружено из кэша: GET ${url}`);
+          return (data.data || data) as T;
+        }
+      } catch {
+        // Кэш недоступен — продолжаем
       }
       throw new ApiError("📴 Нет подключения к интернету", 0);
     }
-    throw error;
+
+    // Мутирующие запросы (POST/PUT/DELETE): сохраняем в офлайн-очередь
+    addToQueue({
+      url: FULL_URL,
+      method: options.method || "GET",
+      body: options.body ? JSON.parse(options.body as string) : null,
+    });
+    throw new ApiError(
+      "📴 Нет подключения к интернету. Запрос будет отправлен при восстановлении сети",
+      0,
+    );
   }
 };
 

@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { AppRoutes } from "..";
 import { ErrorProviderWrapper } from "./ErrorProviderWrapper";
 import { Toaster } from "react-hot-toast";
+import { NetworkStatus } from "@/shared/ui/blocks/NetworkStatus/NetworkStatus";
 
 export function AppProviders() {
   return (
@@ -15,9 +16,8 @@ export function AppProviders() {
           </BrowserRouter>
         </AuthProvider>
       </ThemeProvider>
-      <Toaster
-      position='bottom-right'
-      />
+      <NetworkStatus />
+      <Toaster position="bottom-right" />
     </ErrorProviderWrapper>
   );
 }

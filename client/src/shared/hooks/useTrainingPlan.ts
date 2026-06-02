@@ -16,6 +16,7 @@ import type {
   TodayPlanResponse,
   WeekPlan,
   Wellbeing,
+  TrainingDay,
 } from "../api/types";
 
 interface GeneratePlanParams {
@@ -34,9 +35,11 @@ interface UseTrainingPlanReturn {
   loadingTodayPlan: boolean;
   isProfileIncomplete: boolean;
   generatePlan: (params?: GeneratePlanParams) => Promise<void>;
+  refreshPlan: () => Promise<WeekPlan | null>;
   loadTodayPlan: (wellbeing: Wellbeing) => Promise<void>;
   setWellbeing: (wellbeing: Wellbeing) => void;
   selectDay: (dayIndex: number) => void;
+  setTodayPlanDirectly: (day: TrainingDay | null | undefined) => void;
   showWellbeingModal: boolean;
   showWellbeingWarning: boolean;
   wellbeingWarningAction: Wellbeing | null;
@@ -59,14 +62,12 @@ const getPlanCacheKey = (userId: string, week: number): string => {
 const savePlanToCache = (userId: string, plan: WeekPlan): void => {
   try {
     const cacheKey = getPlanCacheKey(userId, plan.week);
-    localStorage.setItem(
-      cacheKey,
-      JSON.stringify({
-        data: plan,
-        timestamp: Date.now(),
-        week: plan.week,
-      }),
-    );
+    const cacheData = {
+      data: plan,
+      timestamp: Date.now(),
+      week: plan.week,
+    };
+    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
     console.log(`💾 План сохранён в кэш: неделя ${plan.week}`);
   } catch (error) {
     console.error("Ошибка сохранения плана в кэш:", error);
@@ -189,13 +190,65 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
       const cachedPlan = loadPlanFromCache(userId, week);
       if (cachedPlan) {
         setWeekPlan(cachedPlan);
-        console.log("📦 План загружен из кэша (офлайн-режим)");
         return cachedPlan;
       }
+      setWeekPlan(null);
       return null;
     },
     [userId],
   );
+
+  // ── Напрямую установить todayPlan (без замыкания на weekPlan) ──
+  const setTodayPlanDirectly = useCallback(
+    (day: TrainingDay | null | undefined) => {
+      setTodayPlan({
+        data: {
+          today: day ?? null,
+          wellbeingAdjusted: false,
+          message: day ? `День: ${getDayTypeRu(day.dayType)}` : "День отдыха",
+        },
+      });
+    },
+    [],
+  );
+
+  // ── Перезагрузка плана без генерации (для toggle-day и т.п.) ──
+  const refreshPlan = useCallback(async () => {
+    if (!userId || currentWeek == null) return null;
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const response = await planApi.getPlan(userId, currentWeek);
+      console.log("🔍 getPlan ответ:", response);
+      const plan = response as unknown as WeekPlan | null;
+      console.log(
+        "🔍 plan дни:",
+        plan?.trainingDays?.length,
+        "день 0 упр:",
+        plan?.trainingDays?.find((d) => d.dayOfWeek === 0)?.exercises?.length,
+      );
+
+      if (plan) {
+        plan.planId =
+          plan.planId ||
+          ((plan as unknown as Record<string, unknown>).planId as string);
+        setWeekPlan(plan);
+        savePlanToCache(userId, plan);
+      }
+      return plan;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("fetch")) {
+        const cached = loadPlanFromCache(userId, currentWeek);
+        if (cached) {
+          setWeekPlan(cached);
+          return cached;
+        }
+      }
+      logger.error("refreshPlan failed", error as Error);
+      return null;
+    }
+  }, [userId, currentWeek]);
 
   // ── Главная загрузка (ВСЕ запросы последовательно) ──
   useEffect(() => {
@@ -205,13 +258,11 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
     (async () => {
       setLoadingPlan(true);
       try {
-        // 1. Упражнения
         const exResponse = await exerciseApi.getAllExercises();
         setExercises(
           Array.isArray(exResponse) ? exResponse : (exResponse?.data ?? []),
         );
 
-        // 2. userState
         let week = 1;
         try {
           const userState = await userStateApi.getCurrentWeek();
@@ -221,7 +272,6 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
           setCurrentWeek(1);
         }
 
-        // 3. maxWeek
         try {
           const maxData = await planApi.getMaxWeek();
           setMaxWeek(maxData.maxWeek);
@@ -229,49 +279,72 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
           setMaxWeek(week);
         }
 
-        // 4. План — сначала из кэша, потом из API
         let plan: WeekPlan | null = null;
 
-        // Пытаемся загрузить из localStorage
-        plan = loadPlanFromCache(userId, week);
-
-        if (plan) {
-          setWeekPlan(plan);
-          console.log("📦 План загружен из localStorage кэша");
-
-          // Обновить todayPlan из закэшированного плана
-          if (plan?.trainingDays?.length) {
-            const todayDayPlan = plan.trainingDays.find(
-              (d) => d.dayOfWeek === today.dayIndex,
-            );
-            if (todayDayPlan) {
-              setTodayPlan({
-                data: {
-                  today: todayDayPlan,
-                  wellbeingAdjusted: false,
-                  message: `Сегодня: ${getDayTypeRu(todayDayPlan.dayType)}`,
-                },
-              });
+        try {
+          plan = (await planApi.getPlan(
+            userId,
+            week,
+          )) as unknown as WeekPlan | null;
+          if (plan) {
+            plan.planId =
+              plan.planId ||
+              ((plan as unknown as Record<string, unknown>).planId as string);
+            savePlanToCache(userId, plan);
+            setWeekPlan(plan);
+            // Установить todayPlan из загруженного плана
+            if (plan?.trainingDays?.length) {
+              const todayDayPlan = plan.trainingDays.find(
+                (d) => d.dayOfWeek === today.dayIndex,
+              );
+              if (todayDayPlan) {
+                setTodayPlan({
+                  data: {
+                    today: todayDayPlan,
+                    wellbeingAdjusted: false,
+                    message: `Сегодня: ${getDayTypeRu(todayDayPlan.dayType)}`,
+                  },
+                });
+              }
             }
-          }
-        } else {
-          // Если в кэше нет — загружаем из API
-          try {
-            plan = (await planApi.getPlan(
-              userId,
-              week,
-            )) as unknown as WeekPlan | null;
-            if (plan) {
-              savePlanToCache(userId, plan);
-              setWeekPlan(plan);
-              console.log("🌐 План загружен из API и сохранён в кэш");
-            }
-          } catch {
+          } else {
             setWeekPlan(null);
+          }
+        } catch (error: unknown) {
+          if (error instanceof Error && error.message?.includes("404")) {
+            setWeekPlan(null);
+          } else {
+            // 📴 Офлайн или ошибка сети — загружаем из localStorage
+            console.error("Ошибка загрузки плана:", error);
+            const cachedPlan = loadPlanFromCache(userId, week);
+            if (cachedPlan) {
+              cachedPlan.planId =
+                cachedPlan.planId ||
+                ((cachedPlan as unknown as Record<string, unknown>)
+                  .planId as string);
+              setWeekPlan(cachedPlan);
+              // Установить todayPlan из кэша
+              if (cachedPlan?.trainingDays?.length) {
+                const todayDayPlan = cachedPlan.trainingDays.find(
+                  (d) => d.dayOfWeek === today.dayIndex,
+                );
+                if (todayDayPlan) {
+                  setTodayPlan({
+                    data: {
+                      today: todayDayPlan,
+                      wellbeingAdjusted: false,
+                      message: `Сегодня: ${getDayTypeRu(todayDayPlan.dayType)}`,
+                    },
+                  });
+                }
+              }
+              console.log("📦 План загружен из localStorage (офлайн)");
+            } else {
+              setWeekPlan(null);
+            }
           }
         }
 
-        // 5. Wellbeing
         const stored = getStoredWellbeingToday();
         if (stored) setWellbeing(stored);
         else setShowWellbeingModal(true);
@@ -283,7 +356,6 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
     })();
   }, [userId]); // eslint-disable-line
 
-  // ── Wellbeing ────────────────────────────────────────
   const handleWellbeingSubmit = useCallback(
     async (newWellbeing: Wellbeing) => {
       setShowWellbeingModal(false);
@@ -336,7 +408,6 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
     [weekPlan],
   );
 
-  // ── Проверка устаревания ────────────────────────────
   const lastPlanDate = useMemo(() => {
     if (!weekPlan?.generatedAt) return null;
     const date = new Date(weekPlan.generatedAt);
@@ -350,7 +421,6 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
 
   const isNextWeekPlanStale = useMemo(() => daysDiff > 7, [daysDiff]);
 
-  // ── Генерация плана ─────────────────────────────────
   const generatePlan = useCallback(
     async (params?: GeneratePlanParams) => {
       const forcingNewWeek = params?.forcingNewWeek ?? false;
@@ -374,13 +444,11 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
 
         const plan = response as unknown as WeekPlan;
 
-        // Сохраняем в state и в кэш
         setWeekPlan(plan);
         savePlanToCache(userId, plan);
         setCurrentWeek(plan.week);
         setMaxWeek((prev) => Math.max(prev ?? 0, plan.week));
 
-        // Установи todayPlan из нового плана
         if (plan?.trainingDays?.length) {
           const todayDayPlan = plan.trainingDays.find(
             (d) => d.dayOfWeek === today.dayIndex,
@@ -408,14 +476,12 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
     [userId, profile, loadingPlan, currentWeek, wellbeing, today.dayIndex],
   );
 
-  // ── Удаление плана ─────────────────────────────────
   const deletePlan = useCallback(async () => {
     try {
       await planApi.deletePlan();
       setWeekPlan(null);
       setTodayPlan(null);
       setCurrentWeek(1);
-      // Очистить кэш
       if (userId) {
         Object.keys(localStorage).forEach((key) => {
           if (
@@ -449,9 +515,11 @@ export const useTrainingPlan = (): UseTrainingPlanReturn => {
     loadingTodayPlan,
     isProfileIncomplete,
     generatePlan,
+    refreshPlan,
     loadTodayPlan,
     setWellbeing,
     selectDay,
+    setTodayPlanDirectly,
     showWellbeingModal,
     showWellbeingWarning,
     wellbeingWarningAction,

@@ -89,7 +89,11 @@ export async function clearQueue(): Promise<void> {
   });
 }
 
-// Обработать очередь (отправить все запросы)
+/**
+ * Обработать очередь: отправить все накопленные запросы на сервер.
+ * При успехе — показывает toast-уведомление.
+ * Возвращает статистику: сколько успешно, сколько с ошибкой.
+ */
 export async function processQueue(): Promise<{
   success: number;
   failed: number;
@@ -101,7 +105,6 @@ export async function processQueue(): Promise<{
 
   let success = 0;
   let failed = 0;
-  const failedIds: string[] = [];
 
   for (const item of queue) {
     try {
@@ -119,16 +122,31 @@ export async function processQueue(): Promise<{
         success++;
         await removeFromQueue(item.id);
         console.log(`✅ Отправлено: ${item.method} ${item.url}`);
+
+        // Toast-уведомление об успешной синхронизации
+        try {
+          const { toast } = await import("react-hot-toast");
+          const action = item.method === "POST" ? "сохранена" : "обновлена";
+          const resource = item.url.includes("training-executions")
+            ? "Тренировка"
+            : item.url.includes("favorites")
+              ? "Избранное"
+              : "Данные";
+          toast.success(`✅ ${resource} ${action}`, {
+            duration: 2500,
+            position: "bottom-right",
+          });
+        } catch {
+          console.warn("react-hot-toast не доступен");
+        }
       } else {
         failed++;
-        failedIds.push(item.id);
         console.warn(
           `❌ Ошибка ${response.status}: ${item.method} ${item.url}`,
         );
       }
     } catch {
       failed++;
-      failedIds.push(item.id);
       console.error(`❌ Сеть недоступна: ${item.method} ${item.url}`);
     }
   }
@@ -146,7 +164,20 @@ export function initOfflineQueue(): void {
 
   window.addEventListener("online", () => {
     console.log("🌐 Интернет появился — обрабатываем очередь");
-    processQueue();
+    processQueue().then((result) => {
+      if (result.success > 0) {
+        try {
+          import("react-hot-toast").then(({ toast }) => {
+            toast.success(`🔄 Синхронизировано: ${result.success} запросов`, {
+              duration: 3000,
+              position: "bottom-right",
+            });
+          });
+        } catch {
+          console.warn("react-hot-toast не доступен");
+        }
+      }
+    });
   });
 
   window.addEventListener("offline", () => {

@@ -31,7 +31,6 @@ import type { ErrorType } from "@/shared/ui/components/ErrorUI/model/types";
 import { useExercises } from "@/shared/hooks/useExercises";
 import { useTrainingPlan } from "@/shared/hooks/useTrainingPlan";
 import { usePushNotifications } from "@/shared/hooks/usePushNotifications";
-import { pushApi } from "@/shared/api";
 
 // ======================================================================
 // 🔧 УТИЛИТЫ
@@ -476,27 +475,6 @@ export function DashboardPage() {
               </span>
             )}
           </div>
-
-          {/* 🧪 Тестовое уведомление (только для разработки) */}
-          {pushApi.sendTest && (
-            <button
-              onClick={async () => {
-                try {
-                  await pushApi.sendTest();
-                  setTimeout(() => {}, 3000);
-                } catch {
-                  alert("Ошибка отправки тестового уведомления");
-                }
-              }}
-              disabled={!isSubscribed}
-              style={{
-                marginTop: 8,
-                fontSize: 12,
-                color: "var(--text-primary)",
-              }}>
-              🧪 Тест уведомления
-            </button>
-          )}
         </div>
       </section>
 

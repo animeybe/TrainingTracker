@@ -1,24 +1,32 @@
 // public/service-worker.js
-import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
+import {
+  precacheAndRoute,
+  cleanupOutdatedCaches,
+  createHandlerBoundToURL,
+} from "workbox-precaching";
 import { registerRoute, NavigationRoute } from "workbox-routing";
-import { CacheFirst, NetworkOnly } from "workbox-strategies";
+import { CacheFirst, NetworkFirst } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
-import { createHandlerBoundToURL } from "workbox-precaching";
 
-// Workbox вставит precache-манифест сюда автоматически
+// ═══════════════════════════════════════════════════════════════
+// PRECACHE — автоматически вставлен Workbox
+// ═══════════════════════════════════════════════════════════════
 precacheAndRoute(self.__WB_MANIFEST);
-
 cleanupOutdatedCaches();
 
-// Navigation route (SPA fallback)
-registerRoute(
-  new NavigationRoute(createHandlerBoundToURL("/index.html"), {
-    denylist: [/^\/api/, /^\/manifest/, /^\/screenshots/],
-  }),
-);
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION — все маршруты → index.html (SPA fallback)
+// ═══════════════════════════════════════════════════════════════
+const handler = createHandlerBoundToURL("/index.html");
+const navigationRoute = new NavigationRoute(handler, {
+  denylist: [/^\/api/, /^\/manifest/, /^\/screenshots/],
+});
+registerRoute(navigationRoute);
 
-// Статика: CacheFirst
+// ═══════════════════════════════════════════════════════════════
+// СТАТИКА: CacheFirst (JS, CSS, картинки, шрифты — почти не меняются)
+// ═══════════════════════════════════════════════════════════════
 registerRoute(
   /\.(?:js|css|html|ico|png|svg|webp|woff2|json)$/,
   new CacheFirst({
@@ -26,20 +34,38 @@ registerRoute(
     plugins: [
       new ExpirationPlugin({
         maxEntries: 100,
-        maxAgeSeconds: 30 * 24 * 60 * 60,
+        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 дней
       }),
-      new CacheableResponsePlugin({
-        statuses: [0, 200],
-      }),
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
     ],
   }),
   "GET",
 );
 
-// API: только сеть
-registerRoute(/\/api\/.*/, new NetworkOnly(), "GET");
+// ═══════════════════════════════════════════════════════════════
+// API: NetworkFirst (сеть → fallback на кэш через 3 секунды)
+// Это решает проблему: при отключении Wi-Fi navigator.onLine = true,
+// но запросы не проходят. Через 3 секунды таймаута отдаём кэш.
+// ═══════════════════════════════════════════════════════════════
+registerRoute(
+  /\/api\/.*/,
+  new NetworkFirst({
+    cacheName: "api-cache",
+    networkTimeoutSeconds: 3, // ждём сеть 3 секунды, потом кэш
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 200,
+        maxAgeSeconds: 7 * 24 * 60 * 60, // 7 дней
+      }),
+      new CacheableResponsePlugin({ statuses: [200] }),
+    ],
+  }),
+  "GET",
+);
 
-// Google Fonts
+// ═══════════════════════════════════════════════════════════════
+// GOOGLE FONTS: CacheFirst (почти никогда не меняются)
+// ═══════════════════════════════════════════════════════════════
 registerRoute(
   /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
   new CacheFirst({
@@ -54,10 +80,10 @@ registerRoute(
   "GET",
 );
 
-// ─── PUSH-УВЕДОМЛЕНИЯ ────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// PUSH-УВЕДОМЛЕНИЯ
+// ═══════════════════════════════════════════════════════════════
 self.addEventListener("push", (event) => {
-  console.log("📨 Push получен!", event);
-
   let data;
   try {
     data = event.data?.json();
@@ -67,42 +93,37 @@ self.addEventListener("push", (event) => {
       body: event.data?.text() || "Новое уведомление",
     };
   }
-
-  console.log("📨 Данные уведомления:", data);
-
-  const options = {
-    body: data.body || "Новое уведомление",
-    icon: "/manifest/icons/icon-192x192.png",
-    badge: "/manifest/icons/icon-192x192.png",
-    vibrate: [200, 100, 200],
-    tag: data.tag || "default",
-    data: data.url || "/",
-    requireInteraction: data.requireInteraction || false,
-  };
-
   event.waitUntil(
-    self.registration.showNotification(
-      data.title || "TrainingTracker",
-      options,
-    ),
+    self.registration.showNotification(data.title || "TrainingTracker", {
+      body: data.body,
+      icon: "/manifest/icons/icon-192x192.png",
+      badge: "/manifest/icons/icon-192x192.png",
+      vibrate: [200, 100, 200],
+      tag: data.tag || "default",
+      data: data.url || "/",
+      requireInteraction: data.requireInteraction || false,
+    }),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
-  console.log("👆 Клик по уведомлению");
   event.notification.close();
-
-  const url = event.notification.data || "/";
   event.waitUntil(
     self.clients.matchAll({ type: "window" }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url === url && "focus" in client) {
+        if (client.url === event.notification.data && "focus" in client)
           return client.focus();
-        }
       }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(url);
-      }
+      if (self.clients.openWindow)
+        return self.clients.openWindow(event.notification.data || "/");
     }),
   );
+});
+
+// ═══════════════════════════════════════════════════════════════
+// АКТИВАЦИЯ — мгновенно захватываем контроль над страницами
+// ═══════════════════════════════════════════════════════════════
+self.skipWaiting();
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
 });

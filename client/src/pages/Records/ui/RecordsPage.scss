@@ -1,8 +1,70 @@
+// ═══════════════════════════════════════════════════════════════
+// RecordsPage.scss — страница записи тренировок
+// ═══════════════════════════════════════════════════════════════
+
+// ─── Миксины ─────────────────────────────────────────────────
+@mixin card {
+  background: var(--bg-secondary);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+
+  [data-theme="dark"] & {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+}
+
+@mixin button-base {
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.3s ease;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+@mixin button-primary($start, $end, $shadow-color) {
+  @include button-base;
+  background: linear-gradient(135deg, $start 0%, $end 100%);
+  color: #ffffff;
+  box-shadow: 0 10px 30px rgba($shadow-color, 0.4);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 40px rgba($shadow-color, 0.5);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ОСНОВНОЙ БЛОК
+// ═══════════════════════════════════════════════════════════════
+
 .records-page {
   min-height: 100vh;
-  padding: 2rem 1rem;
-  max-width: 1000px;
+  padding: 1.5rem 1rem;
+  max-width: 800px;
   margin: 0 auto;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  color: var(--text-primary);
+
+  @media (min-width: 480px) {
+    padding: 2rem 1.5rem;
+  }
+
+  @media (min-width: 768px) {
+    padding: 2.5rem 2rem;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // НЕТ ПЛАНА
+  // ═══════════════════════════════════════════════════════════
 
   &__no-plan {
     min-height: 70vh;
@@ -10,69 +72,96 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 1rem;
     text-align: center;
-  }
+    padding: 1rem;
 
-  &__no-plan h2 {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--text-secondary);
-    margin: 0 0 0.8rem 0;
-  }
+    h2 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      margin: 0 0 0.8rem 0;
 
-  &__no-plan p {
-    font-size: 1.1rem;
-    color: var(--text-primary);
-    margin: 0 0 1.5rem 0;
-    line-height: 1.5;
-    max-width: 520px;
-  }
+      @media (min-width: 480px) {
+        font-size: 1.9rem;
+      }
 
-  &__no-plan button {
-    padding: 0.9rem 2.2rem;
-    font-size: 1.1rem;
-    font-weight: 700;
-    background: var(--text-secondary);
-    color: white;
-    border: none;
-    border-radius: 50px;
-    cursor: pointer;
-    box-shadow: 0 8px 25px rgba(79, 172, 254, 0.35);
-    transition: all 0.3s ease;
-
-    &:hover:not(:disabled) {
-      transform: translateY(-3px);
-      box-shadow: 0 12px 35px rgba(79, 172, 254, 0.45);
+      @media (min-width: 768px) {
+        font-size: 2.2rem;
+      }
     }
 
-    &:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
+    p {
+      font-size: 1rem;
+      color: var(--text-primary);
+      margin: 0 0 1.5rem 0;
+      line-height: 1.5;
+      max-width: 520px;
+
+      @media (min-width: 480px) {
+        font-size: 1.1rem;
+      }
+    }
+
+    button {
+      padding: 0.9rem 2.2rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      background: var(--text-accent, #2563eb);
+      color: #ffffff;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 8px 25px rgba(37, 99, 235, 0.35);
+      transition: all 0.3s ease;
+
+      &:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 35px rgba(37, 99, 235, 0.45);
+      }
     }
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // ЗАГОЛОВОК
+  // ═══════════════════════════════════════════════════════════
 
   &__header {
     text-align: center;
     margin-bottom: 2rem;
+
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin: 0 0 0.4rem 0;
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+
+      @media (min-width: 480px) {
+        font-size: 2.2rem;
+      }
+
+      @media (min-width: 768px) {
+        font-size: 2.6rem;
+      }
+    }
+
+    p {
+      font-size: 0.95rem;
+      color: var(--text-secondary, #666);
+      margin: 0;
+      font-weight: 500;
+
+      @media (min-width: 480px) {
+        font-size: 1.05rem;
+      }
+    }
   }
 
-  &__header h1 {
-    font-size: 2.4rem;
-    font-weight: 800;
-    margin: 0 0 0.5rem 0;
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  &__header p {
-    font-size: 1.1rem;
-    color: #666;
-    margin: 0;
-    font-weight: 500;
-  }
+  // ═══════════════════════════════════════════════════════════
+  // НЕ НАЧАТА
+  // ═══════════════════════════════════════════════════════════
 
   &__start {
     display: flex;
@@ -80,178 +169,199 @@
     align-items: center;
     justify-content: center;
     gap: 1rem;
-    min-height: 45vh;
+    min-height: 40vh;
     text-align: center;
-  }
 
-  &__start p {
-    font-size: 1.05rem;
-    color: var(--text-primary);
-    margin: 0;
-  }
-
-  &__start button {
-    padding: 1.1rem 2.6rem;
-    font-size: 1.15rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-    color: white;
-    border: none;
-    border-radius: 50px;
-    cursor: pointer;
-    box-shadow: 0 10px 30px rgba(39, 174, 96, 0.4);
-    transition: all 0.3s ease;
-
-    &:hover:not(:disabled) {
-      transform: translateY(-3px);
-      box-shadow: 0 15px 40px rgba(39, 174, 96, 0.5);
+    p {
+      font-size: 1.05rem;
+      color: var(--text-primary);
+      margin: 0;
     }
 
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+    button {
+      @include button-primary(#27ae60, #2ecc71, rgba(39, 174, 96, 0.4));
+      padding: 1rem 2.4rem;
+      font-size: 1.1rem;
+      border-radius: 28px;
+
+      @media (min-width: 480px) {
+        padding: 1.1rem 2.8rem;
+        font-size: 1.2rem;
+        border-radius: 32px;
+      }
     }
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // ИНФО-БЛОК (самочувствие + заметки)
+  // ═══════════════════════════════════════════════════════════
 
   &__info {
-    background: white;
-    border-radius: 20px;
-    padding: 1.5rem;
+    @include card;
     margin-bottom: 1.5rem;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  }
 
-  &__info > div {
-    font-weight: 600;
-    margin-bottom: 1rem;
-  }
+    > div {
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
 
-  &__info textarea {
-    width: 100%;
-    padding: 1rem;
-    border: 2px solid #e0e0e0;
-    border-radius: 12px;
-    font-size: 1rem;
-    resize: vertical;
-    transition: border-color 0.3s;
+    textarea {
+      width: 100%;
+      padding: 1rem;
+      border: 2px solid rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      font-size: 1rem;
+      resize: vertical;
+      transition: border-color 0.3s;
+      background: var(--bg-primary);
+      color: var(--text-primary);
 
-    &:focus {
-      outline: none;
-      border-color: #4facfe;
+      [data-theme="dark"] & {
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+
+      &:focus {
+        outline: none;
+        border-color: var(--text-accent, #4facfe);
+        box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+      }
     }
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // КНОПКА ДОБАВЛЕНИЯ УПРАЖНЕНИЯ
+  // ═══════════════════════════════════════════════════════════
 
   &__add-btn {
+    @include button-primary(#3498db, #2980b9, rgba(52, 152, 219, 0.4));
     margin: 0.5rem 0 1.5rem;
-    padding: 0.9rem 2rem;
-    font-size: 1.05rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    cursor: pointer;
-    box-shadow: 0 6px 18px rgba(52, 152, 219, 0.3);
-    transition: all 0.3s;
+    padding: 0.85rem 2rem;
+    font-size: 1rem;
+    border-radius: 14px;
 
-    &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 25px rgba(52, 152, 219, 0.4);
-    }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+    @media (min-width: 480px) {
+      padding: 0.95rem 2.2rem;
+      font-size: 1.05rem;
+      border-radius: 16px;
     }
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // СПИСОК УПРАЖНЕНИЙ
+  // ═══════════════════════════════════════════════════════════
 
   &__exercises {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.2rem;
     margin-bottom: 2rem;
+
+    @media (min-width: 480px) {
+      gap: 1.5rem;
+    }
   }
 
+  // ─── Карточка упражнения ────────────────────────────────
   &__exercise {
-    background: white;
-    border-radius: 24px;
-    padding: 1.5rem;
-    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
-    border: 1px solid #f0f0f0;
+    @include card;
+
+    h3 {
+      margin: 0 0 0.3rem 0;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+
+      @media (min-width: 480px) {
+        font-size: 1.35rem;
+      }
+    }
+
+    > span {
+      display: inline-block;
+      margin-bottom: 1rem;
+      color: var(--text-secondary, #666);
+      font-size: 0.9rem;
+    }
   }
 
-  &__exercise h3 {
-    margin: 0 0 0.4rem 0;
-    font-size: 1.3rem;
-    font-weight: 700;
-    color: #2c3e50;
-  }
-
-  &__exercise span {
-    display: inline-block;
-    margin-bottom: 1rem;
-    color: #666;
-    font-size: 0.95rem;
-  }
-
+  // ─── Строка подхода ─────────────────────────────────────
   &__set {
     display: grid;
-    grid-template-columns: 44px 1fr 1fr;
-    gap: 0.8rem;
+    grid-template-columns: 40px 1fr 1fr;
+    gap: 0.7rem;
     align-items: center;
-    padding: 0.85rem 1rem;
-    margin-bottom: 0.8rem;
-    background: #f8f9ff;
-    border-radius: 16px;
-    border: 1px solid #e0e8ff;
-  }
-
-  &__set span {
-    font-weight: 700;
-    color: #667eea;
-    text-align: center;
-  }
-
-  &__set input {
-    width: 100%;
     padding: 0.8rem 1rem;
-    border: 2px solid #e0e0e0;
-    border-radius: 12px;
-    font-size: 1rem;
-    font-weight: 600;
-    text-align: center;
+    margin-bottom: 0.7rem;
+    background: var(--bg-primary);
+    border-radius: 14px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
 
-    &:focus {
-      outline: none;
-      border-color: #4facfe;
-      box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+    [data-theme="dark"] & {
+      border-color: rgba(255, 255, 255, 0.06);
+    }
+
+    span {
+      font-weight: 700;
+      color: var(--text-accent, #667eea);
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.75rem 0.9rem;
+      border: 2px solid rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-align: center;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      transition: border-color 0.3s;
+
+      [data-theme="dark"] & {
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+
+      &:focus {
+        outline: none;
+        border-color: var(--text-accent, #4facfe);
+        box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+      }
+    }
+
+    @media (max-width: 500px) {
+      grid-template-columns: 30px 1fr;
+
+      input:last-child {
+        grid-column: 2 / -1;
+      }
     }
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // КНОПКА ЗАВЕРШЕНИЯ
+  // ═══════════════════════════════════════════════════════════
 
   &__finish-btn {
+    @include button-primary(#9b59b6, #8e44ad, rgba(155, 89, 182, 0.4));
     display: block;
     margin: 0 auto;
-    padding: 1.1rem 3rem;
-    font-size: 1.15rem;
-    font-weight: 800;
-    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
-    color: white;
-    border: none;
-    border-radius: 50px;
-    cursor: pointer;
-    box-shadow: 0 12px 35px rgba(155, 89, 182, 0.4);
-    transition: all 0.3s ease;
+    padding: 1rem 3rem;
+    font-size: 1.1rem;
+    border-radius: 28px;
 
-    &:hover:not(:disabled) {
-      transform: translateY(-3px);
-      box-shadow: 0 18px 45px rgba(155, 89, 182, 0.5);
-    }
-
-    &:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
+    @media (min-width: 480px) {
+      padding: 1.1rem 3.5rem;
+      font-size: 1.2rem;
+      border-radius: 32px;
     }
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // ЗАВЕРШЕНА
+  // ═══════════════════════════════════════════════════════════
 
   &__completed {
     display: flex;
@@ -259,129 +369,129 @@
     justify-content: center;
     min-height: 50vh;
     text-align: center;
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: #27ae60;
+
+    p {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--boolean-true, #27ae60);
+      padding: 2rem;
+      @include card;
+    }
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // МОДАЛЬНЫЕ ОКНА
+  // ═══════════════════════════════════════════════════════════
 
   &__modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
     padding: 1rem;
+    backdrop-filter: blur(4px);
   }
 
   &__modal {
     width: 100%;
-    max-width: 560px;
+    max-width: 500px;
     max-height: 80vh;
-    overflow: auto;
-    background: white;
+    overflow-y: auto;
+    background: var(--bg-secondary);
     border-radius: 20px;
     padding: 1.5rem;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-  }
+    border: 1px solid rgba(0, 0, 0, 0.08);
 
-  &__modal h3 {
-    margin: 0 0 1rem 0;
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: #2c3e50;
-  }
-
-  &__modal > div {
-    display: flex;
-    flex-direction: column;
-    gap: 0.8rem;
-    margin-bottom: 1rem;
-  }
-
-  &__modal button {
-    width: 100%;
-    padding: 0.8rem 1rem;
-    border: none;
-    border-radius: 12px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  &__modal > div > button {
-    background: #f0f4ff;
-    border: 2px solid #c0d0ff;
-    text-align: left;
-
-    &:hover {
-      background: #e0e8ff;
-      border-color: #809fff;
-    }
-  }
-
-  &__modal p {
-    margin: 0;
-    color: #666;
-    line-height: 1.5;
-  }
-
-  &__modal > button:last-child {
-    background: #f5f5f5;
-    color: #555;
-    margin-top: 0.8rem;
-  }
-
-  &__modal > button:not(:last-child) {
-    margin-top: 0.8rem;
-  }
-
-  @media (max-width: 768px) {
-    padding: 1.2rem 0.8rem;
-
-    &__header h1 {
-      font-size: 2rem;
+    [data-theme="dark"] & {
+      border-color: rgba(255, 255, 255, 0.08);
     }
 
-    &__set {
-      grid-template-columns: 36px 1fr 1fr;
-      gap: 0.6rem;
-      padding: 0.75rem 0.85rem;
+    h3 {
+      margin: 0 0 1rem 0;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-primary);
     }
 
-    &__exercise {
-      padding: 1.2rem;
+    // Список упражнений в модалке
+    > div {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      margin-bottom: 1rem;
+
+      > button {
+        width: 100%;
+        padding: 0.8rem 1rem;
+        border: 2px solid rgba(0, 0, 0, 0.08);
+        border-radius: 12px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: left;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+
+        [data-theme="dark"] & {
+          border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        &:hover {
+          background: var(--text-accent, #e0e8ff);
+          border-color: var(--text-accent, #809fff);
+          color: #ffffff;
+
+          [data-theme="dark"] & {
+            background: rgba(255, 255, 255, 0.1);
+          }
+        }
+      }
     }
 
-    &__modal {
-      padding: 1.2rem;
-    }
-  }
-
-  @media (max-width: 500px) {
-    &__header h1 {
-      font-size: 1.7rem;
+    p {
+      margin: 0;
+      color: var(--text-secondary, #666);
+      line-height: 1.5;
     }
 
-    &__header p {
-      font-size: 0.95rem;
-    }
-
-    &__start button,
-    &__finish-btn {
+    // Кнопки внизу модалки
+    > button {
       width: 100%;
-      padding: 1rem 1.2rem;
-      font-size: 1rem;
+      padding: 0.8rem 1rem;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 0.7rem;
+
+      &:first-of-type {
+        background: var(--text-accent, #4facfe);
+        color: #ffffff;
+
+        &:hover {
+          filter: brightness(1.1);
+        }
+      }
+
+      &:last-of-type {
+        background: var(--bg-primary);
+        color: var(--text-primary);
+
+        [data-theme="dark"] & {
+          background: rgba(255, 255, 255, 0.05);
+        }
+      }
     }
 
-    &__set {
-      grid-template-columns: 30px 1fr;
-    }
-
-    &__set input:last-child {
-      grid-column: 2 / -1;
+    @media (max-width: 480px) {
+      padding: 1.2rem;
     }
   }
 }

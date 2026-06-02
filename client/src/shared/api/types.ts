@@ -131,6 +131,7 @@ export interface TrainingDay {
 }
 
 export interface WeekPlan {
+  planId?: string;
   week: number;
   split: TypedTrainingSplit;
   trainingDays: TrainingDay[];

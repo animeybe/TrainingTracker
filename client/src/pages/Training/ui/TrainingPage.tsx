@@ -6,10 +6,17 @@ import { useTrainingPlan } from "@/shared/hooks/useTrainingPlan";
 import { getSplitNameRu, getDayTypeRu } from "@/lib/utils";
 import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
 import type { ErrorType } from "@/shared/ui/components/ErrorUI/model/types";
-import { useCallback, useState, useMemo } from "react";
-import type { TrainingDay } from "@/shared/api/types";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import type { TrainingDay, Exercise } from "@/shared/api/types";
 import { requirePremium } from "@/lib/premium/premium";
 import { useSafeAuthContext } from "@/shared/hooks/useSafeAuth";
+import { ExerciseDetailModal } from "@/shared/ui/components/ExerciseDetailModal/ExerciseDetailModal";
+import { ExercisePickerModal } from "@/shared/ui/components/ExercisePickerModal/ExercisePickerModal";
+import { MUSCLE_GROUP_LABELS } from "@/pages/ExerciseBase/common/utils/muscleGroupInterpreter";
+import { retryWithReload } from "@/lib/utils/errorActions";
+import { planApi } from "@/shared/api/planApi";
+import { useExercises } from "@/shared/hooks/useExercises";
+import { motion, AnimatePresence } from "framer-motion";
 
 const SPLIT_OPTIONS = [
   {
@@ -49,6 +56,39 @@ const SPLIT_OPTIONS = [
   },
 ] as const;
 
+const SPLIT_DAY_TYPES: Record<string, { value: string; label: string }[]> = {
+  PPL: [
+    { value: "push", label: "Push (Жимовые)" },
+    { value: "pull", label: "Pull (Тяговые)" },
+    { value: "legs", label: "Legs (Ноги)" },
+  ],
+  UPPER_LOWER: [
+    { value: "upper", label: "Upper (Верх)" },
+    { value: "lower", label: "Lower (Низ)" },
+  ],
+  FULL_BODY: [{ value: "full", label: "Full Body" }],
+  BRO_SPLIT: [
+    { value: "chest", label: "Грудь" },
+    { value: "back", label: "Спина" },
+    { value: "shoulders", label: "Плечи" },
+    { value: "legs", label: "Ноги" },
+    { value: "arms", label: "Руки" },
+  ],
+  STRENGTH_FOCUS: [
+    { value: "lower", label: "Lower (Низ)" },
+    { value: "push", label: "Push (Жимовые)" },
+    { value: "pull", label: "Pull (Тяговые)" },
+    { value: "upper", label: "Upper (Верх)" },
+  ],
+  HYPERTROPHY_FOCUS: [
+    { value: "chest", label: "Грудь" },
+    { value: "back", label: "Спина" },
+    { value: "shoulders", label: "Плечи" },
+    { value: "arms", label: "Руки" },
+    { value: "legs", label: "Ноги" },
+  ],
+};
+
 export function TrainingPage() {
   const {
     weekPlan,
@@ -60,6 +100,7 @@ export function TrainingPage() {
     loadingTodayPlan,
     isProfileIncomplete,
     generatePlan,
+    refreshPlan,
     selectDay,
     showWellbeingModal,
     showWellbeingWarning,
@@ -70,52 +111,48 @@ export function TrainingPage() {
     isNextWeekPlanStale,
     dismissWellbeingWarning,
     deletePlan,
+    setTodayPlanDirectly,
   } = useTrainingPlan();
 
   const { profile, loadingProfile } = useProfile();
-
   const { user } = useSafeAuthContext();
+  const { allExercises } = useExercises();
 
-  const [planGenerationLoading, setPlanGenerationLoading] =
-    useState<boolean>(false);
-
+  const [planGenerationLoading, setPlanGenerationLoading] = useState(false);
   const [localError, setLocalError] = useState<{
     type: ErrorType;
     message?: string;
   } | null>(null);
-  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(
-    today.dayIndex,
-  );
-
-  // Состояние для выбора сплита
-  const [selectedSplit, setSelectedSplit] = useState<string>("recommended");
+  const [selectedDayIndex, setSelectedDayIndex] = useState(today.dayIndex);
+  const [selectedSplit, setSelectedSplit] = useState("recommended");
   const [showSplitSelector, setShowSplitSelector] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(
+    null,
+  );
+  const [showExercisePicker, setShowExercisePicker] = useState(false);
 
-  const handleRetry = useCallback(() => {
-    setLocalError(null);
-    window.location.reload();
-  }, []);
+  const [toggleDayConfirm, setToggleDayConfirm] = useState<{
+    dayIndex: number;
+    isRest: boolean;
+  } | null>(null);
 
-  // Извлекаем данные из обёрток
+  const [showDayTypePicker, setShowDayTypePicker] = useState(false);
+  const [selectedDayType, setSelectedDayType] = useState<string>("");
+
   const todayData = todayPlan?.data?.today ?? null;
 
-  // Все тренировочные дни из плана
   const allTrainingDays = useMemo(
     () => weekPlan?.trainingDays ?? [],
     [weekPlan],
   );
 
-  // Выбранный день (из календаря или сегодня)
   const selectedDay: TrainingDay | null = useMemo(() => {
-    if (selectedDayIndex === today.dayIndex && todayData) {
-      return todayData;
-    }
+    if (selectedDayIndex === today.dayIndex && todayData) return todayData;
     return (
       allTrainingDays.find((d) => d.dayOfWeek === selectedDayIndex) ?? null
     );
   }, [selectedDayIndex, today.dayIndex, todayData, allTrainingDays]);
 
-  // Дни недели для календаря
   const dayNames = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
   const dayFullNames = [
     "Понедельник",
@@ -127,12 +164,136 @@ export function TrainingPage() {
     "Воскресенье",
   ];
 
+  const isSelectedDayTraining = selectedDay !== null;
+
+  const availableDayTypes = useMemo(() => {
+    if (!weekPlan) return [];
+    return SPLIT_DAY_TYPES[weekPlan.split.name] || [];
+  }, [weekPlan]);
+
+  const handleToggleDayType = useCallback(() => {
+    const isRest = !isSelectedDayTraining;
+
+    if (isRest) {
+      if (availableDayTypes.length > 1) {
+        setSelectedDayType(availableDayTypes[0].value);
+        setShowDayTypePicker(true);
+      } else {
+        setSelectedDayType(availableDayTypes[0]?.value || "full");
+        setToggleDayConfirm({ dayIndex: selectedDayIndex, isRest: true });
+      }
+    } else {
+      setToggleDayConfirm({ dayIndex: selectedDayIndex, isRest: false });
+    }
+  }, [selectedDayIndex, isSelectedDayTraining, availableDayTypes]);
+
+  const handleDayTypeSelected = useCallback(() => {
+    setShowDayTypePicker(false);
+    setToggleDayConfirm({ dayIndex: selectedDayIndex, isRest: true });
+  }, [selectedDayIndex]);
+
+  const confirmToggleDay = useCallback(async () => {
+    if (!toggleDayConfirm || !weekPlan) return;
+
+    try {
+      await planApi.toggleDayType({
+        week: weekPlan.week,
+        dayOfWeek: toggleDayConfirm.dayIndex,
+        dayType: selectedDayType || undefined,
+      });
+
+      const updatedPlan = await refreshPlan();
+
+      if (updatedPlan) {
+        const dayPlan = updatedPlan.trainingDays.find(
+          (d) => d.dayOfWeek === selectedDayIndex,
+        );
+        setTodayPlanDirectly(dayPlan);
+      }
+    } catch (err) {
+      console.error("Не удалось изменить тип дня:", err);
+    } finally {
+      setToggleDayConfirm(null);
+      setSelectedDayType("");
+    }
+  }, [
+    toggleDayConfirm,
+    weekPlan,
+    selectedDayType,
+    selectedDayIndex,
+    refreshPlan,
+    setTodayPlanDirectly,
+  ]);
+
+  const handleAddExercise = useCallback(
+    async (exercise: Exercise) => {
+      if (!weekPlan || !selectedDay) return;
+      try {
+        await planApi.addExerciseToPlan({
+          planId: weekPlan.planId as string,
+          exerciseId: exercise.id,
+          dayOfWeek: selectedDayIndex,
+          sets: 3,
+          repsRange: [8, 10],
+        });
+        setShowExercisePicker(false);
+
+        const updatedPlan = await refreshPlan();
+
+        if (updatedPlan) {
+          const dayPlan = updatedPlan.trainingDays.find(
+            (d) => d.dayOfWeek === selectedDayIndex,
+          );
+          setTodayPlanDirectly(dayPlan);
+        }
+      } catch (err) {
+        console.error("Не удалось добавить упражнение:", err);
+      }
+    },
+    [
+      weekPlan,
+      selectedDay,
+      selectedDayIndex,
+      refreshPlan,
+      setTodayPlanDirectly,
+    ],
+  );
+
+  const handleRemoveExercise = useCallback(
+    async (exerciseId: string) => {
+      if (!weekPlan?.planId) return;
+
+      try {
+        await planApi.removeExerciseFromPlan(
+          exerciseId,
+          weekPlan.planId,
+          selectedDayIndex,
+        );
+
+        const updatedPlan = await refreshPlan();
+        if (updatedPlan) {
+          const dayPlan = updatedPlan.trainingDays.find(
+            (d) => d.dayOfWeek === selectedDayIndex,
+          );
+          setTodayPlanDirectly(dayPlan);
+        }
+      } catch (err) {
+        console.error("Не удалось удалить упражнение:", err);
+      }
+    },
+    [weekPlan, refreshPlan, selectedDayIndex, setTodayPlanDirectly],
+  );
+
+  useEffect(() => {
+    selectDay(selectedDayIndex);
+  }, [selectedDayIndex]);
+
   if (localError) {
     return (
       <InfoPage
         type={localError.type}
         message={localError.message}
-        retryAction={handleRetry}
+        retryAction={() => retryWithReload(() => setLocalError(null))}
       />
     );
   }
@@ -145,12 +306,10 @@ export function TrainingPage() {
     );
   }
 
-  // ==================== ПЛАН СГЕНЕРИРОВАН ====================
   if (weekPlan) {
     return (
       <div className="training-page">
         <div className="training-page__plan">
-          {/* Заголовок */}
           <div className="training-page__plan-header">
             <h1 className="training-page__plan-title">
               Недельный план: {getSplitNameRu(weekPlan.split.name)}
@@ -158,8 +317,6 @@ export function TrainingPage() {
             <p className="training-page__plan-subtitle">
               Неделя {weekPlan.week}
             </p>
-
-            {/* Кнопки управления планом */}
             <div className="training-page__plan-actions">
               {isNextWeekPlanStale && (
                 <button
@@ -174,7 +331,6 @@ export function TrainingPage() {
                   Создать план на следующую неделю
                 </button>
               )}
-
               <button
                 className="training-page__delete-plan-btn"
                 onClick={async () => {
@@ -194,7 +350,6 @@ export function TrainingPage() {
             </div>
           </div>
 
-          {/* Календарь недели */}
           <div className="training-page__calendar">
             {dayNames.map((dayName, idx) => {
               const dayPlan = allTrainingDays.find((d) => d.dayOfWeek === idx);
@@ -207,7 +362,6 @@ export function TrainingPage() {
                   className={`training-page__day-cell ${isToday ? "training-page__day-cell--today" : ""} ${isSelected ? "training-page__day-cell--selected" : ""}`}
                   onClick={() => {
                     setSelectedDayIndex(idx);
-                    selectDay(idx);
                   }}>
                   <span className="training-page__day-name">{dayName}</span>
                   {dayPlan ? (
@@ -222,14 +376,22 @@ export function TrainingPage() {
             })}
           </div>
 
-          {/* Выбранный день */}
           <div className="training-page__today">
-            <h2 className="training-page__today-day">
-              {dayFullNames[selectedDayIndex]}
-              {selectedDayIndex === today.dayIndex && " (сегодня)"}
-            </h2>
+            <div className="training-page__today-header">
+              <h2 className="training-page__today-day">
+                {dayFullNames[selectedDayIndex]}
+                {selectedDayIndex === today.dayIndex && " (сегодня)"}
+              </h2>
+              <button
+                className="training-page__toggle-day-link"
+                onClick={handleToggleDayType}
+                type="button">
+                {isSelectedDayTraining
+                  ? "Отменить тренировку?"
+                  : "Устроить тренировку?"}
+              </button>
+            </div>
 
-            {/* Wellbeing — только для сегодня */}
             {selectedDayIndex === today.dayIndex && (
               <div className="training-page__today-controls">
                 <div className="training-page__current-wellbeing">
@@ -261,32 +423,89 @@ export function TrainingPage() {
             ) : selectedDay ? (
               <>
                 <p className="training-page__today-message">
-                  {selectedDay.exercises.length > 0
-                    ? `План на день: ${getDayTypeRu(selectedDay.dayType)}`
-                    : "День отдыха"}
+                  План на день: {getDayTypeRu(selectedDay.dayType)}
                 </p>
 
-                {/* Упражнения выбранного дня */}
-                {selectedDay.exercises.length > 0 && (
+                {selectedDay.exercises.length > 0 ? (
                   <div className="training-page__today-exercises">
-                    {selectedDay.exercises.map((ex, idx) => {
-                      const exercise = exercises.find(
-                        (e) => e.id === ex.exerciseId,
-                      );
-                      return (
-                        <div
-                          key={idx}
-                          className="training-page__today-exercise">
-                          <span className="training-page__exercise-name">
-                            {exercise?.name || "Неизвестное упражнение"}
-                          </span>
-                          <span className="training-page__exercise-info">
-                            {ex.sets} подхода × {ex.targetRepsRange[0]}–
-                            {ex.targetRepsRange[1]} повторений
-                          </span>
-                        </div>
-                      );
-                    })}
+                    <AnimatePresence>
+                      {selectedDay.exercises.map((ex) => {
+                        const exercise = exercises.find(
+                          (e) => e.id === ex.exerciseId,
+                        );
+                        return (
+                          <motion.div
+                            key={ex.exerciseId}
+                            className="training-page__today-exercise"
+                            layout
+                            initial={{ opacity: 0, x: -30 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{
+                              opacity: 0,
+                              x: 50,
+                              height: 0,
+                              margin: 0,
+                              padding: 0,
+                              borderWidth: 0,
+                            }}
+                            transition={{
+                              type: "spring",
+                              stiffness: 300,
+                              damping: 25,
+                            }}
+                            onClick={() => {
+                              if (exercise) setSelectedExercise(exercise);
+                            }}>
+                            <div className="training-page__today-exercise-left">
+                              <span className="training-page__exercise-name">
+                                {exercise?.name || "Неизвестное упражнение"}
+                              </span>
+                              {exercise?.secondaryMuscles?.[0] && (
+                                <span className="training-page__exercise-muscle">
+                                  {MUSCLE_GROUP_LABELS[
+                                    exercise.secondaryMuscles[0]
+                                  ] ||
+                                    MUSCLE_GROUP_LABELS[
+                                      exercise.primaryMuscleGroup
+                                    ]}
+                                </span>
+                              )}
+                            </div>
+                            <div className="training-page__today-exercise-right">
+                              <span className="training-page__exercise-info">
+                                {ex.sets} подхода × {ex.targetRepsRange[0]}–
+                                {ex.targetRepsRange[1]} повторений
+                              </span>
+                              <button
+                                className="training-page__exercise-remove-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveExercise(ex.exerciseId);
+                                }}
+                                type="button"
+                                title="Удалить из плана">
+                                ✕
+                              </button>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                    <button
+                      className="training-page__today-exercise training-page__today-exercise--add"
+                      onClick={() => setShowExercisePicker(true)}
+                      type="button">
+                      <span className="training-page__add-icon">+</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="training-page__today-exercises">
+                    <button
+                      className="training-page__today-exercise training-page__today-exercise--add"
+                      onClick={() => setShowExercisePicker(true)}
+                      type="button">
+                      <span className="training-page__add-icon">+</span>
+                    </button>
                   </div>
                 )}
               </>
@@ -298,7 +517,6 @@ export function TrainingPage() {
           </div>
         </div>
 
-        {/* Wellbeing модалка */}
         {showWellbeingModal && (
           <div className="training-page__modal-overlay">
             <div className="training-page__modal">
@@ -329,7 +547,6 @@ export function TrainingPage() {
           </div>
         )}
 
-        {/* Wellbeing предупреждение */}
         {showWellbeingWarning && (
           <div className="training-page__warning-overlay">
             <div className="training-page__warning-modal">
@@ -353,54 +570,165 @@ export function TrainingPage() {
             </div>
           </div>
         )}
+
+        {selectedExercise && (
+          <ExerciseDetailModal
+            exercise={selectedExercise}
+            onClose={() => setSelectedExercise(null)}
+          />
+        )}
+
+        {showExercisePicker && (
+          <ExercisePickerModal
+            exercises={allExercises || []}
+            onSelect={handleAddExercise}
+            onClose={() => setShowExercisePicker(false)}
+            existingExerciseIds={
+              selectedDay?.exercises.map((e) => e.exerciseId) || []
+            }
+          />
+        )}
+
+        {showDayTypePicker && (
+          <div className="training-page__modal-overlay">
+            <div className="training-page__modal">
+              <h2 className="training-page__modal-title">
+                Какой тип тренировки?
+              </h2>
+              <p className="training-page__modal-subtitle">
+                Выберите тип тренировки для этого дня
+              </p>
+              <div className="training-page__modal-buttons">
+                {availableDayTypes.map((dayType) => (
+                  <button
+                    key={dayType.value}
+                    className={`training-page__modal-btn ${selectedDayType === dayType.value ? "training-page__modal-btn--selected" : ""}`}
+                    onClick={() => setSelectedDayType(dayType.value)}
+                    type="button">
+                    {dayType.label}
+                  </button>
+                ))}
+              </div>
+              <div className="training-page__modal-actions">
+                <button
+                  className="training-page__warning-btn training-page__warning-btn--confirm"
+                  onClick={handleDayTypeSelected}
+                  type="button">
+                  Продолжить
+                </button>
+                <button
+                  className="training-page__warning-btn"
+                  onClick={() => setShowDayTypePicker(false)}
+                  type="button">
+                  Отмена
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {toggleDayConfirm && (
+          <div
+            className="training-page__warning-overlay"
+            onClick={() => setToggleDayConfirm(null)}>
+            <div
+              className="training-page__warning-modal"
+              onClick={(e) => e.stopPropagation()}>
+              <p className="training-page__warning-text">
+                {toggleDayConfirm.isRest
+                  ? `⚠️ Вы запланировали день отдыха. Добавление тренировки ${selectedDayType ? `типа "${selectedDayType}"` : ""} может нарушить восстановление организма. Продолжить?`
+                  : "⚠️ Текущий план на этот день будет удалён. Сделать этот день выходным?"}
+              </p>
+              <div className="training-page__warning-buttons">
+                <button
+                  className="training-page__warning-btn training-page__warning-btn--confirm"
+                  onClick={confirmToggleDay}>
+                  Да
+                </button>
+                <button
+                  className="training-page__warning-btn"
+                  onClick={() => {
+                    setToggleDayConfirm(null);
+                    setSelectedDayType("");
+                  }}>
+                  Нет
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
-  // ==================== ПЛАН НЕ СГЕНЕРИРОВАН ====================
   const selectedOption = SPLIT_OPTIONS.find((s) => s.value === selectedSplit);
 
   return (
     <div className="training-page__no-plan">
       <div className="training-page__profile">
         <h3 className="training-page__profile-title">Ваши данные</h3>
-        <div className="training-page__profile-row">
-          <span className="training-page__profile-label">Возраст:</span>
-          <span>{profile?.age ?? "Пока пусто"}</span>
-        </div>
-        <div className="training-page__profile-row">
-          <span className="training-page__profile-label">Вес:</span>
-          <span>{profile?.weight ?? "Пока пусто"} кг</span>
-        </div>
-        <div className="training-page__profile-row">
-          <span className="training-page__profile-label">Рост:</span>
-          <span>{profile?.height ?? "Пока пусто"} см</span>
-        </div>
-        <div className="training-page__profile-row">
-          <span className="training-page__profile-label">Цель:</span>
-          <span>{profile?.goal ?? "Пока не указана"}</span>
-        </div>
-        <div className="training-page__profile-row">
-          <span className="training-page__profile-label">Образ жизни:</span>
-          <span>{profile?.lifestyle ?? "Пока не указан"}</span>
-        </div>
-        <div className="training-page__profile-row">
-          <span className="training-page__profile-label">BMI:</span>
-          <span>
-            {profile?.bmi?.toFixed(1) ?? "Не расчитан"} (
-            {profile?.bmiCategory ?? "–"})
-          </span>
+        <div className="training-page__profile-grid">
+          <div className="training-page__profile-card">
+            <span className="training-page__profile-card-icon">🎂</span>
+            <span className="training-page__profile-card-label">Возраст</span>
+            <span
+              className={`training-page__profile-card-value ${!profile?.age ? "training-page__profile-card-value--empty" : ""}`}>
+              {profile?.age ? `${profile.age} лет` : "Не указан"}
+            </span>
+          </div>
+          <div className="training-page__profile-card">
+            <span className="training-page__profile-card-icon">⚖️</span>
+            <span className="training-page__profile-card-label">Вес</span>
+            <span
+              className={`training-page__profile-card-value ${!profile?.weight ? "training-page__profile-card-value--empty" : ""}`}>
+              {profile?.weight ? `${profile.weight} кг` : "Не указан"}
+            </span>
+          </div>
+          <div className="training-page__profile-card">
+            <span className="training-page__profile-card-icon">📏</span>
+            <span className="training-page__profile-card-label">Рост</span>
+            <span
+              className={`training-page__profile-card-value ${!profile?.height ? "training-page__profile-card-value--empty" : ""}`}>
+              {profile?.height ? `${profile.height} см` : "Не указан"}
+            </span>
+          </div>
+          <div className="training-page__profile-card">
+            <span className="training-page__profile-card-icon">🎯</span>
+            <span className="training-page__profile-card-label">Цель</span>
+            <span
+              className={`training-page__profile-card-value ${!profile?.goal ? "training-page__profile-card-value--empty" : ""}`}>
+              {profile?.goal ?? "Не указана"}
+            </span>
+          </div>
+          <div className="training-page__profile-card">
+            <span className="training-page__profile-card-icon">🚶</span>
+            <span className="training-page__profile-card-label">
+              Образ жизни
+            </span>
+            <span
+              className={`training-page__profile-card-value ${!profile?.lifestyle ? "training-page__profile-card-value--empty" : ""}`}>
+              {profile?.lifestyle ?? "Не указан"}
+            </span>
+          </div>
+          <div
+            className={`training-page__profile-card ${!profile?.bmi ? "training-page__profile-card--warning" : ""}`}>
+            <span className="training-page__profile-card-icon">📊</span>
+            <span className="training-page__profile-card-label">BMI</span>
+            <span
+              className={`training-page__profile-card-value ${!profile?.bmi ? "training-page__profile-card-value--empty" : ""}`}>
+              {profile?.bmi
+                ? `${profile.bmi.toFixed(1)} (${profile.bmiCategory})`
+                : "Не рассчитан"}
+            </span>
+          </div>
         </div>
       </div>
-
       {isProfileIncomplete && (
         <p className="training-page__error">
           Перед тем как создать план — полностью заполните профиль
         </p>
       )}
-
       <div className="training-page__controls">
-        {/* Селектор сплита */}
         <div className="training-page__split-selector">
           <button
             className="training-page__split-toggle"
@@ -417,7 +745,6 @@ export function TrainingPage() {
               ▼
             </span>
           </button>
-
           {showSplitSelector && (
             <div className="training-page__split-dropdown">
               {SPLIT_OPTIONS.map((split) => (
@@ -445,7 +772,6 @@ export function TrainingPage() {
             </div>
           )}
         </div>
-
         <button
           className="training-page__generate-btn"
           onClick={async () => {

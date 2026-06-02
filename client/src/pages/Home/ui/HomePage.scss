@@ -13,26 +13,10 @@
     display: flex;
     flex-direction: column;
   }
-
-  &__about {
-    width: 100%;
-    color: var(--text-primary);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 60px 20px;
-    text-align: center;
-    margin-top: auto; // прижимаем к низу, если есть место
-  }
-
-  &__about-title {
-    font-size: 2.5em;
-    margin-bottom: 0.5em;
-  }
 }
 
 // ═══════════════════════════════════════
-// HERO (десктоп ≥1025px)
+// HERO
 // ═══════════════════════════════════════
 .hero {
   display: flex;
@@ -124,6 +108,386 @@
 }
 
 // ═══════════════════════════════════════
+// FEATURES
+// ═══════════════════════════════════════
+.features {
+  padding: 80px 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+
+  &__title {
+    text-align: center;
+    font-size: clamp(1.8em, 4vw, 2.5em);
+    margin-bottom: 50px;
+    color: var(--text-primary);
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+  }
+
+  &__card {
+    background: var(--bg-secondary);
+    border-radius: 20px;
+    padding: 28px 24px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    text-align: center;
+
+    [data-theme="dark"] & {
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    &:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+      border-color: var(--text-accent);
+
+      [data-theme="dark"] & {
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      }
+    }
+
+    &-icon {
+      font-size: 2.5rem;
+      display: block;
+      margin-bottom: 16px;
+    }
+
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 0 0 10px;
+      color: var(--text-primary);
+    }
+
+    p {
+      font-size: 0.95rem;
+      color: var(--text-secondary, #666);
+      line-height: 1.5;
+      margin: 0;
+
+      [data-theme="dark"] & {
+        color: #aaa;
+      }
+    }
+  }
+
+  @media (max-width: 480px) {
+    padding: 50px 16px;
+
+    &__grid {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    &__card {
+      padding: 20px 16px;
+    }
+  }
+}
+
+// ═══════════════════════════════════════
+// HOW IT WORKS
+// ═══════════════════════════════════════
+.how-it-works {
+  padding: 80px 20px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+
+  &__title {
+    text-align: center;
+    font-size: clamp(1.8em, 4vw, 2.5em);
+    margin-bottom: 50px;
+    color: var(--text-primary);
+  }
+
+  &__steps {
+    display: flex;
+    gap: 32px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  &__step {
+    flex: 1;
+    min-width: 220px;
+    max-width: 280px;
+    text-align: center;
+    padding: 24px;
+    background: var(--bg-secondary);
+    border-radius: 20px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+
+    [data-theme="dark"] & {
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    &-number {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--bg-accent);
+      color: var(--text-onAccent);
+      font-size: 1.5rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+
+    h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: 0 0 8px;
+      color: var(--text-primary);
+    }
+
+    p {
+      font-size: 0.9rem;
+      color: var(--text-secondary, #666);
+      line-height: 1.5;
+      margin: 0;
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 50px 16px;
+
+    &__steps {
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    &__step {
+      max-width: 100%;
+    }
+  }
+}
+
+// ═══════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════
+.stats {
+  display: flex;
+  justify-content: center;
+  gap: clamp(20px, 5vw, 60px);
+  padding: 60px 20px;
+  flex-wrap: wrap;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+
+  &__item {
+    text-align: center;
+    min-width: 100px;
+  }
+
+  &__number {
+    display: block;
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 800;
+    color: var(--text-accent);
+  }
+
+  &__label {
+    font-size: 0.9rem;
+    color: var(--text-secondary, #666);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  @media (max-width: 480px) {
+    gap: 24px;
+    padding: 40px 16px;
+  }
+}
+
+// ═══════════════════════════════════════
+// CTA
+// ═══════════════════════════════════════
+.cta {
+  padding: 80px 20px;
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+
+  &__title {
+    font-size: clamp(1.8em, 4vw, 2.5em);
+    color: var(--text-primary);
+    margin-bottom: 12px;
+  }
+
+  &__subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary, #666);
+    margin-bottom: 36px;
+  }
+
+  &__btn {
+    cursor: pointer;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    max-width: 420px;
+    height: 64px;
+    border: none;
+    border-radius: 12px;
+    padding: 20px;
+    background-color: var(--bg-accent);
+    color: var(--text-onAccent);
+    font-family: inherit;
+    font-size: 1.15em;
+    font-weight: 700;
+    transition: all 0.2s ease;
+
+    [data-theme="light"] &:hover {
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+    }
+    [data-theme="dark"] &:hover {
+      box-shadow: 0 10px 20px rgba(255, 49, 49, 0.4);
+    }
+  }
+
+  &__btn-arrow {
+    font-size: 1.5em;
+  }
+
+  @media (max-width: 480px) {
+    padding: 50px 16px;
+  }
+}
+
+// ═══════════════════════════════════════
+// PWA GUIDE
+// ═══════════════════════════════════════
+.pwa-guide {
+  padding: 80px 20px 100px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  text-align: center;
+
+  &__title {
+    font-size: clamp(1.8em, 4vw, 2.5em);
+    color: var(--text-primary);
+    margin-bottom: 12px;
+  }
+
+  &__subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary, #666);
+    line-height: 1.6;
+    margin-bottom: 50px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+
+    [data-theme="dark"] & {
+      color: #aaa;
+    }
+  }
+
+  &__steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 24px;
+    margin-bottom: 40px;
+  }
+
+  &__step {
+    background: var(--bg-secondary);
+    border-radius: 20px;
+    padding: 28px 20px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+
+    [data-theme="dark"] & {
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    &:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+      border-color: var(--text-accent);
+    }
+
+    &-icon {
+      font-size: 2.5rem;
+      display: block;
+      margin-bottom: 12px;
+    }
+
+    h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin: 0 0 10px;
+      color: var(--text-primary);
+    }
+
+    p {
+      font-size: 0.9rem;
+      color: var(--text-secondary, #666);
+      line-height: 1.5;
+      margin: 0;
+
+      [data-theme="dark"] & {
+        color: #aaa;
+      }
+    }
+  }
+
+  &__hint {
+    background: rgba(37, 99, 235, 0.1);
+    border: 1px solid rgba(37, 99, 235, 0.3);
+    border-radius: 14px;
+    padding: 16px 24px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+    text-align: left;
+
+    [data-theme="dark"] & {
+      background: rgba(255, 215, 0, 0.1);
+      border-color: rgba(255, 215, 0, 0.3);
+    }
+  }
+
+  @media (max-width: 480px) {
+    padding: 50px 16px 80px;
+
+    &__steps {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    &__step {
+      padding: 20px 16px;
+    }
+
+    &__hint {
+      font-size: 0.85rem;
+      padding: 12px 16px;
+    }
+  }
+}
+
+// ═══════════════════════════════════════
 // 📱 ПЛАНШЕТЫ (768px — 1024px)
 // ═══════════════════════════════════════
 @media (min-width: 768px) and (max-width: 1024px) {
@@ -131,12 +495,6 @@
     &__content {
       padding-bottom: 100px;
       justify-content: space-between;
-    }
-    &__about {
-      padding: 50px 20px 100px;
-    }
-    &__about-title {
-      font-size: 2.2em;
     }
   }
 
@@ -162,20 +520,17 @@
       letter-spacing: 1px;
       line-height: 1.1;
     }
-
     &__subtitle {
       font-size: 1.6em;
       margin-bottom: 22px;
       font-weight: 400;
     }
-
     &__description {
       font-size: 1.05em;
       line-height: 1.6em;
       margin-bottom: 40px;
       max-width: 480px;
     }
-
     &__btn {
       width: auto;
       min-width: 340px;
@@ -186,7 +541,6 @@
       letter-spacing: 0.5px;
       box-shadow: 0 6px 20px rgba(255, 49, 49, 0.2);
     }
-
     &__btn-arrow {
       font-size: 1.6em;
     }
@@ -202,18 +556,12 @@
       padding-bottom: 100px;
       justify-content: space-between;
     }
-    &__about {
-      padding: 40px 20px 120px;
-    }
-    &__about-title {
-      font-size: 2em;
-    }
   }
 
   .hero {
     flex: 1;
     display: flex;
-    align-items: center; // вертикальное центрирование
+    align-items: center;
     height: auto;
     min-height: auto;
 
@@ -226,23 +574,18 @@
       gap: 16px;
     }
 
-    // Крупнее заголовок — легче читать
     &__title {
       font-size: clamp(1.8em, 6vw, 3em);
       margin-bottom: 20px;
       letter-spacing: 1px;
       line-height: 1.1;
     }
-
-    // Подзаголовок — читаемый
     &__subtitle {
       font-size: 1.3em;
       margin-bottom: 20px;
       font-weight: 400;
       opacity: 0.85;
     }
-
-    // Описание — минимальный комфортный размер
     &__description {
       font-size: 1.05em;
       line-height: 1.6em;
@@ -250,8 +593,6 @@
       max-width: 100%;
       padding: 0 8px;
     }
-
-    // Кнопка — большая, удобная для пальца
     &__btn {
       width: 80%;
       height: 60px;
@@ -260,7 +601,6 @@
       letter-spacing: 0.5px;
       box-shadow: 0 6px 20px rgba(255, 49, 49, 0.25);
     }
-
     &__btn-arrow {
       font-size: 1.6em;
     }
@@ -275,12 +615,6 @@
     &__content {
       padding-bottom: 90px;
     }
-    &__about {
-      padding: 32px 20px 100px;
-    }
-    &__about-title {
-      font-size: 1.6em;
-    }
   }
 
   .hero {
@@ -290,29 +624,24 @@
       padding-bottom: 4vh;
       gap: 12px;
     }
-
     &__title {
       font-size: 2.4em;
       margin-bottom: 10px;
     }
-
     &__subtitle {
       font-size: 1.15em;
       margin-bottom: 18px;
     }
-
     &__description {
-      font-size: 1em; // 16px — минимальный комфортный
+      font-size: 1em;
       line-height: 1.55em;
       margin-bottom: 32px;
     }
-
     &__btn {
       height: 66px;
       font-size: 1.05em;
       border-radius: 12px;
     }
-
     &__btn-arrow {
       font-size: 1.5em;
     }
@@ -329,21 +658,17 @@
       padding-top: 6vh;
       gap: 10px;
     }
-
     &__title {
       font-size: 1.7em;
     }
-
     &__subtitle {
       font-size: 1.05em;
       margin-bottom: 14px;
     }
-
     &__description {
       font-size: 0.95em;
       margin-bottom: 24px;
     }
-
     &__btn {
       height: 62px;
       font-size: 1em;
