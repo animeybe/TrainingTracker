@@ -3,7 +3,7 @@ export const ROUTE_PERMISSIONS = {
   "exercise-base": ["USER", "ADMIN", "PREMIUM"],
   admin: ["ADMIN"],
   "admin/settings": ["ADMIN"],
-  health: ["USER", "ADMIN", "PREMIUM"],
+  records: ["USER", "ADMIN", "PREMIUM"],
   training: ["USER", "ADMIN", "PREMIUM"],
 };
 

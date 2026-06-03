@@ -172,35 +172,50 @@ export function TrainingPage() {
   }, [weekPlan]);
 
   const handleToggleDayType = useCallback(() => {
-    const isRest = !isSelectedDayTraining;
+    const isCurrentlyTraining = isSelectedDayTraining;
 
-    if (isRest) {
+    if (!isCurrentlyTraining) {
+      // Сейчас отдых → делаем тренировкой (нужен выбор типа)
       if (availableDayTypes.length > 1) {
         setSelectedDayType(availableDayTypes[0].value);
         setShowDayTypePicker(true);
       } else {
         setSelectedDayType(availableDayTypes[0]?.value || "full");
-        setToggleDayConfirm({ dayIndex: selectedDayIndex, isRest: true });
+        setToggleDayConfirm({ dayIndex: selectedDayIndex, isRest: false });
       }
     } else {
-      setToggleDayConfirm({ dayIndex: selectedDayIndex, isRest: false });
+      // Сейчас тренировка → делаем выходным (тип НЕ нужен)
+      setSelectedDayType("");
+      setToggleDayConfirm({ dayIndex: selectedDayIndex, isRest: true });
     }
   }, [selectedDayIndex, isSelectedDayTraining, availableDayTypes]);
 
   const handleDayTypeSelected = useCallback(() => {
     setShowDayTypePicker(false);
-    setToggleDayConfirm({ dayIndex: selectedDayIndex, isRest: true });
+    setToggleDayConfirm({ dayIndex: selectedDayIndex, isRest: false });
   }, [selectedDayIndex]);
 
   const confirmToggleDay = useCallback(async () => {
     if (!toggleDayConfirm || !weekPlan) return;
 
     try {
-      await planApi.toggleDayType({
+      const payload: { week: number; dayOfWeek: number; dayType?: string } = {
         week: weekPlan.week,
         dayOfWeek: toggleDayConfirm.dayIndex,
-        dayType: selectedDayType || undefined,
+      };
+
+      // Передаём dayType ТОЛЬКО если восстанавливаем тренировку (isRest = false)
+      if (!toggleDayConfirm.isRest && selectedDayType) {
+        payload.dayType = selectedDayType;
+      }
+
+      console.log("🔍 FRONTEND TOGGLE:", {
+        isRest: toggleDayConfirm.isRest,
+        payload,
+        selectedDayType,
       });
+
+      await planApi.toggleDayType(payload);
 
       const updatedPlan = await refreshPlan();
 
@@ -214,7 +229,6 @@ export function TrainingPage() {
       console.error("Не удалось изменить тип дня:", err);
     } finally {
       setToggleDayConfirm(null);
-      setSelectedDayType("");
     }
   }, [
     toggleDayConfirm,
@@ -636,7 +650,7 @@ export function TrainingPage() {
               onClick={(e) => e.stopPropagation()}>
               <p className="training-page__warning-text">
                 {toggleDayConfirm.isRest
-                  ? `⚠️ Вы запланировали день отдыха. Добавление тренировки ${selectedDayType ? `типа "${selectedDayType}"` : ""} может нарушить восстановление организма. Продолжить?`
+                  ? `⚠️ В плане у Вас день отдыха. Добавление дополнительной тренировки ${selectedDayType ? `типа "${selectedDayType}"` : ""} может сказаться на восстановлении организма. Продолжить?`
                   : "⚠️ Текущий план на этот день будет удалён. Сделать этот день выходным?"}
               </p>
               <div className="training-page__warning-buttons">

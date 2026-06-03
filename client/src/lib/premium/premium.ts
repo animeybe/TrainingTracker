@@ -2,7 +2,7 @@
 import toast from "react-hot-toast";
 
 export function isPremium(role?: string | null): boolean {
-  return role === "PREMIUM";
+  return role === "PREMIUM" || role === "ADMIN";
 }
 
 export function requirePremium(role?: string | null): boolean {
