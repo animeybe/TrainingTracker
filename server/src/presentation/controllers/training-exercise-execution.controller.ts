@@ -24,6 +24,8 @@ export class TrainingExerciseExecutionController {
     try {
       const data = req.body;
 
+      console.log('🔍 POST /exercises body:', JSON.stringify(data));
+
       // Если массив — создаём несколько
       if (Array.isArray(data)) {
         const results = await Promise.all(

@@ -394,6 +394,7 @@ export class PlanController {
         trainingDays: weekPlan.trainingDays.map(d => ({ dayOfWeek: d.dayOfWeek, dayType: d.dayType })),
       });
 
+      res.set('Cache-Control', 'no-cache');
       res.json({ data: weekPlan });
       console.log('🔍 getPlan DEBUG:', {
         split: weeklyPlan.split,
@@ -533,6 +534,22 @@ export class PlanController {
   }
 
   /**
+   * Определяет DayType для дня: сначала из training_day_types, потом из сплита.
+   * Если сохранён "rest" — возвращаем тип из сплита (чтобы UI знал, какой тип тренировки предложить).
+   */
+  private getDayTypeForDay(
+    dayIndex: number,
+    dayTypeMap: Map<number, string>,
+    split: TrainingSplit,
+  ): DayType {
+    const savedType = dayTypeMap.get(dayIndex);
+    if (savedType && savedType !== 'rest') {
+      return savedType as DayType;
+    }
+    return this.getDayTypeForIndex(dayIndex, split);
+  }
+
+  /**
    * Строит LocalWeekPlan из данных БД.
    */
   private async buildLocalWeekPlan(
@@ -589,7 +606,7 @@ export class PlanController {
         return {
           dayIndex,
           dayOfWeek: dayIndex,
-          dayType: (dayTypeMap.get(dayIndex) as DayType) || this.getDayTypeForIndex(dayIndex, split),
+          dayType: this.getDayTypeForDay(dayIndex, dayTypeMap, split),
           exercises: exerciseSets,
           targetMuscles: [],
           coverage: exerciseSets.length > 0 ? 100 : 0,
@@ -602,13 +619,13 @@ export class PlanController {
 
     // Дни без упражнений, но с сохранённым типом (из training_day_types)
     for (const [dow, type] of dayTypeMap) {
-      if (!dayObjs[dow].exercises.length) {
+      if (!dayObjs[dow].exercises.length && type !== 'rest') {
         dayObjs[dow].dayType = type as DayType;
       }
     }
 
     const trainingDays = dayObjs.filter(
-      (day) => day.exercises.length > 0 || dayTypeMap.has(day.dayOfWeek)
+      (day) => day.exercises.length > 0 || (dayTypeMap.has(day.dayOfWeek) && dayTypeMap.get(day.dayOfWeek) !== 'rest')
     );
 
     const totalVolume = trainingDays.reduce(

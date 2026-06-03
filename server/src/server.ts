@@ -98,11 +98,11 @@ app.use((req, res, next) => {
 
   // Статические файлы (фронт): кэшируем агрессивно
   if (!path.startsWith("/api")) {
-    res.set("Cache-Control", "public, max-age=3600, s-maxage=86400");
+    res.set("Cache-Control", "no-cache");
   }
   // API: GET — короткий кэш для офлайн-доступа через SW
   else if (req.method === "GET") {
-    res.set("Cache-Control", "private, max-age=300");
+    res.set("Cache-Control", "no-cache");
   }
   // API: мутации (POST/PUT/DELETE) — не кэшируем
   else {
