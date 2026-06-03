@@ -11,6 +11,7 @@
  *   6. _completed удаляется только при смене дня (новый storageKey) или вручную.
  *   7. При появлении сети — processQueue отправляет очередь, UI обновляется через handleOnline.
  *   8. Один день = одна тренировка. Повторный старт блокируется.
+ *   9. RecentTrainings — таблица последних 7 тренировок с возможностью редактирования.
  */
 
 import "./RecordsPage.scss";
@@ -26,6 +27,8 @@ import type {
   TrainingExerciseExecution,
 } from "@/shared/api/types";
 import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
+import { RecentTrainings } from "@/shared/ui/blocks/RecentTrainings/RecentTrainings";
+import { trainingExecutionApi } from "@/shared/api";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { getQueue } from "@/lib/offline/offlineQueue";
@@ -112,6 +115,7 @@ export function RecordsPage() {
   const {
     dayExecution,
     exerciseExecutions,
+    weekExecutions,
     loadingDay,
     savingExercises,
     startTraining,
@@ -120,30 +124,63 @@ export function RecordsPage() {
     updateDayExecution,
     loadExercisesByDay,
     serverResponded,
+    loadWeekExecutions,
   } = useTrainingExecution(today.dayIndex);
 
   const { allExercises } = useExercises();
 
-  // storageKey зависит от currentWeek (из API или localStorage)
+  const [weekExerciseData, setWeekExerciseData] = useState<
+    Record<string, TrainingExerciseExecution[]>
+  >({});
+
+  // Загружаем упражнения для всех тренировок недели
+  useEffect(() => {
+    if (!weekExecutions.length) return;
+    let cancelled = false;
+    const loadAll = async () => {
+      const data: Record<string, TrainingExerciseExecution[]> = {};
+      for (const exe of weekExecutions) {
+        try {
+          const exercises = await trainingExecutionApi.getExercisesByDay(
+            exe.id,
+          );
+          data[exe.id] = exercises;
+        } catch {
+          data[exe.id] = [];
+        }
+      }
+      if (!cancelled) setWeekExerciseData(data);
+    };
+    loadAll();
+    return () => {
+      cancelled = true;
+    };
+  }, [weekExecutions]);
+
+  // Сортируем тренировки: сверху самые новые
+  const sortedExecutions = useMemo(() => {
+    return [...weekExecutions].sort(
+      (a, b) =>
+        new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
+    );
+  }, [weekExecutions]);
+
   const storageKey = useMemo(() => {
     const week =
       (currentWeek ?? Number(localStorage.getItem("currentWeek"))) || 1;
     return getStorageKey(today.dayIndex, week);
   }, [today.dayIndex, currentWeek]);
 
-  // ─── Серверные данные ─────────────────────────────────
   const serverRecords = useMemo(() => {
     if (!exerciseExecutions?.length || !dayExecution?.id) return null;
     return buildServerRecords(exerciseExecutions, allExercises);
   }, [exerciseExecutions, dayExecution?.id, allExercises]);
 
-  // ─── Данные из localStorage (только если нет серверных) ──
   const localData = useMemo(() => {
     if (serverRecords) return {};
     return getLocalData(storageKey);
   }, [serverRecords, storageKey]);
 
-  // ─── Инициализация состояния ──────────────────────────
   const [exerciseRecords, setExerciseRecords] = useState<ExerciseRecord[]>(
     () => serverRecords ?? localData.records ?? [],
   );
@@ -151,7 +188,6 @@ export function RecordsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showFinishWarning, setShowFinishWarning] = useState(false);
 
-  // ─── Синхронизация: серверные данные приоритетнее ─────
   if (serverRecords && serverRecords.length > 0) {
     const currentIds = JSON.stringify(
       exerciseRecords.map((r) => r.exerciseId).sort(),
@@ -162,7 +198,6 @@ export function RecordsPage() {
     if (currentIds !== serverIds) setExerciseRecords(serverRecords);
   }
 
-  // ─── Очистка при пустом ответе сервера ────────────────
   if (!loadingDay && dayExecution === null && exerciseExecutions.length === 0) {
     if (serverResponded) {
       localStorage.removeItem(storageKey + "_completed");
@@ -179,19 +214,45 @@ export function RecordsPage() {
     [exerciseRecords],
   );
 
-  // ─── Состояние страницы ───────────────────────────────
+  const handleSaveTraining = useCallback(
+    async (
+      executionId: string,
+      data: { notes?: string; exercises?: TrainingExerciseExecution[] },
+    ) => {
+      try {
+        if (data.notes !== undefined)
+          await updateDayExecution(executionId, { notes: data.notes });
+        if (data.exercises) await addExercises(data.exercises);
+        toast.success("✅ Изменения сохранены");
+        await loadWeekExecutions(currentWeek ?? 1);
+      } catch {
+        toast.error("Не удалось сохранить изменения");
+      }
+    },
+    [updateDayExecution, addExercises, loadWeekExecutions, currentWeek],
+  );
+
+  const handleFinishTraining = useCallback(
+    async (executionId: string) => {
+      try {
+        await finishTraining(executionId);
+        toast.success("✅ Тренировка завершена!");
+        await loadWeekExecutions(currentWeek ?? 1);
+      } catch {
+        toast.error("Не удалось завершить тренировку");
+      }
+    },
+    [finishTraining, loadWeekExecutions, currentWeek],
+  );
+
   const pageState: PageState = useMemo(() => {
     if (loadingPlan || loadingDay) return "loading";
     if (!weekPlan) return "no-plan";
-
-    // Завершена: сервер подтвердил (endTime) или офлайн-флаг
     if (
       dayExecution?.endTime ||
       localStorage.getItem(storageKey + "_completed") === "true"
-    ) {
+    )
       return "completed";
-    }
-
     if (dayExecution || exerciseRecords.length > 0) return "in-progress";
     return "not-started";
   }, [
@@ -203,7 +264,6 @@ export function RecordsPage() {
     storageKey,
   ]);
 
-  // ─── Сохранение в localStorage ────────────────────────
   useEffect(() => {
     if (exerciseRecords.length > 0 || dayNotes) {
       saveLocalData(storageKey, {
@@ -214,25 +274,20 @@ export function RecordsPage() {
     }
   }, [exerciseRecords, dayNotes, dayExecution?.id, storageKey]);
 
-  // ─── Начать тренировку ────────────────────────────────
   const handleStart = useCallback(async () => {
     if (!weekPlan) return;
-
     if (dayExecution?.id && !dayExecution.id.startsWith("local-")) {
       toast.error("Тренировка на сегодня уже начата!");
       return;
     }
-
     if (exerciseRecords.length > 0) {
       toast.error("У вас уже есть активная тренировка!");
       return;
     }
-
     if (localStorage.getItem(storageKey + "_completed") === "true") {
       toast.error("Дождитесь синхронизации с сервером");
       return;
     }
-
     try {
       const queue = await getQueue();
       if (
@@ -248,19 +303,16 @@ export function RecordsPage() {
     } catch {
       /* IndexedDB недоступен */
     }
-
     const data: CreateTrainingDayExecution = {
       week: weekPlan.week,
       dayOfWeek: today.dayIndex,
       wellbeingToday: "NORMAL",
       notes: null,
     };
-
     try {
       const newDay = await startTraining(data);
-      if (newDay?.id && !newDay.id.startsWith("local-")) {
+      if (newDay?.id && !newDay.id.startsWith("local-"))
         await loadExercisesByDay(newDay.id);
-      }
     } catch {
       /* startTraining сам показывает toast */
     }
@@ -274,7 +326,6 @@ export function RecordsPage() {
     loadExercisesByDay,
   ]);
 
-  // ─── Добавить упражнение ──────────────────────────────
   const handleAddExercise = useCallback(
     (planExercise: {
       exerciseId: string;
@@ -336,10 +387,8 @@ export function RecordsPage() {
     return todayData.exercises.every((pe) => addedIds.has(pe.exerciseId));
   }, [todayData, addedIds]);
 
-  // ─── Завершить тренировку ─────────────────────────────
   const handleFinish = useCallback(async () => {
     if (!dayExecution) return;
-
     const exerciseData: CreateTrainingExerciseExecution[] = exerciseRecords.map(
       (rec) => ({
         executionId: dayExecution.id,
@@ -352,7 +401,6 @@ export function RecordsPage() {
         orderInDay: rec.orderInDay,
       }),
     );
-
     let hasError = false;
     try {
       await updateDayExecution(dayExecution.id, { notes: dayNotes || null });
@@ -369,15 +417,11 @@ export function RecordsPage() {
     } catch {
       hasError = true;
     }
-
     clearLocalData(storageKey);
     setExerciseRecords([]);
     setDayNotes("");
     setShowFinishWarning(false);
-
-    // Всегда сохраняем флаг завершения (онлайн и офлайн)
     localStorage.setItem(storageKey + "_completed", "true");
-
     if (hasError) {
       toast.success(
         `📴 Тренировка за ${today.dayOfWeek} будет отправлена на сервер при появлении сети`,
@@ -386,6 +430,7 @@ export function RecordsPage() {
     } else {
       setError("empty", "✅ Тренировка на сегодня окончена!");
     }
+    await loadWeekExecutions(currentWeek ?? 1);
   }, [
     dayExecution,
     exerciseRecords,
@@ -396,6 +441,8 @@ export function RecordsPage() {
     updateDayExecution,
     finishTraining,
     addExercises,
+    loadWeekExecutions,
+    currentWeek,
   ]);
 
   // ═══════════════════════════════════════════════════════
@@ -528,11 +575,14 @@ export function RecordsPage() {
         </>
       )}
 
-      {pageState === "completed" && (
-        <div className="records-page__completed">
-          <p>✅ Тренировка на сегодня окончена.</p>
-        </div>
-      )}
+      <RecentTrainings
+        executions={sortedExecutions}
+        exerciseExecutions={weekExerciseData}
+        allExercises={allExercises}
+        onSave={handleSaveTraining}
+        onFinish={handleFinishTraining}
+        showTodayBadge={pageState === "completed"}
+      />
 
       {showAddModal && (
         <div

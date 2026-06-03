@@ -241,17 +241,11 @@ export const useTrainingExecution = (
   // ─── Автообновление при появлении сети ────────────────
   useEffect(() => {
     const handleOnline = async () => {
-      // Сначала синхронизируем офлайн-очередь
-      try {
-        const { processQueue } = await import("@/lib/offline/offlineQueue");
-        await processQueue();
-      } catch {
-        /* очередь недоступна */
-      }
-
-      // Потом загружаем актуальные данные с сервера
-      loadDayExecution(currentWeek, initialDayIndex);
-      loadWeekExecutions(currentWeek);
+      // Даём время initOfflineQueue обработать очередь
+      setTimeout(() => {
+        loadDayExecution(currentWeek, initialDayIndex);
+        loadWeekExecutions(currentWeek);
+      }, 1500);
     };
 
     const handleQueueProcessed = () => {

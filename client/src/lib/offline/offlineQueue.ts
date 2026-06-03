@@ -239,10 +239,6 @@ export async function processQueue(): Promise<{
 }
 
 export function initOfflineQueue(): void {
-  if (navigator.onLine) {
-    processQueue();
-  }
-
   window.addEventListener("online", () => {
     console.log("🌐 Интернет появился — обрабатываем очередь");
     processQueue().then((result) => {

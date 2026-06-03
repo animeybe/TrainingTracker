@@ -154,7 +154,7 @@ export function Header() {
               </li>
               <li
                 onClick={() => {
-                  navigate("/health");
+                  navigate("/records");
                   toggleMobileMenu();
                 }}>
                 Записи тренировок
