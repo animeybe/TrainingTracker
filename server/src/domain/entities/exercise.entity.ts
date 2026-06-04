@@ -6,6 +6,7 @@ import type {
   MuscleGroup,
   PrimaryMuscleGroup,
 } from "../../common/types/enums.types";
+import { ExerciseCategory } from "@prisma/client";
 
 export type ExerciseEntity = {
   id: string;
@@ -14,6 +15,7 @@ export type ExerciseEntity = {
   primaryMuscleGroup: PrimaryMuscleGroup;
   secondaryMuscles: MuscleGroup[];
   movementPatterns: MovementPattern[];
+  exerciseCategory?: ExerciseCategory | null;
   trainingFocus: TrainingFocus[];
   difficulty: Difficulty;
   imageUrl: string | null;
@@ -26,6 +28,7 @@ export type CreateExerciseEntity = {
   primaryMuscleGroup: PrimaryMuscleGroup;
   secondaryMuscles: MuscleGroup[];
   movementPatterns: MovementPattern[];
+  exerciseCategory?: ExerciseCategory | null;
   trainingFocus: TrainingFocus[];
   difficulty: Difficulty;
   imageUrl: string | null;
@@ -38,6 +41,7 @@ export type UpdateExerciseEntity = {
   primaryMuscleGroup?: PrimaryMuscleGroup;
   secondaryMuscles?: MuscleGroup[];
   movementPatterns?: MovementPattern[];
+  exerciseCategory?: ExerciseCategory | null;
   trainingFocus?: TrainingFocus[];
   difficulty?: Difficulty;
   imageUrl?: string | null;
