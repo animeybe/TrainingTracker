@@ -6,7 +6,7 @@ import { useTrainingPlan } from "@/shared/hooks/useTrainingPlan";
 import { getSplitNameRu, getDayTypeRu } from "@/lib/utils";
 import { InfoPage } from "@/shared/ui/components/ErrorUI/ui/InfoPage";
 import type { ErrorType } from "@/shared/ui/components/ErrorUI/model/types";
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import type { TrainingDay, Exercise } from "@/shared/api/types";
 import { requirePremium } from "@/lib/premium/premium";
 import { useSafeAuthContext } from "@/shared/hooks/useSafeAuth";
@@ -139,6 +139,9 @@ export function TrainingPage() {
   const [showDayTypePicker, setShowDayTypePicker] = useState(false);
   const [selectedDayType, setSelectedDayType] = useState<string>("");
 
+  const splitToggleRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const todayData = todayPlan?.data?.today ?? null;
 
   const allTrainingDays = useMemo(
@@ -171,11 +174,22 @@ export function TrainingPage() {
     return SPLIT_DAY_TYPES[weekPlan.split.name] || [];
   }, [weekPlan]);
 
+  // Автоматически переворачивает дропдаун вверх, если не хватает места внизу
+  useEffect(() => {
+    if (showSplitSelector && splitToggleRef.current && dropdownRef.current) {
+      const rect = splitToggleRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const dropdownHeight = dropdownRef.current.scrollHeight;
+      const shouldFlip = spaceBelow < dropdownHeight;
+      dropdownRef.current.classList.toggle("dropdown--up", shouldFlip);
+      dropdownRef.current.classList.toggle("dropdown--down", !shouldFlip);
+    }
+  }, [showSplitSelector]);
+
   const handleToggleDayType = useCallback(() => {
     const isCurrentlyTraining = isSelectedDayTraining;
 
     if (!isCurrentlyTraining) {
-      // Сейчас отдых → делаем тренировкой (нужен выбор типа)
       if (availableDayTypes.length > 1) {
         setSelectedDayType(availableDayTypes[0].value);
         setShowDayTypePicker(true);
@@ -184,7 +198,6 @@ export function TrainingPage() {
         setToggleDayConfirm({ dayIndex: selectedDayIndex, isRest: false });
       }
     } else {
-      // Сейчас тренировка → делаем выходным (тип НЕ нужен)
       setSelectedDayType("");
       setToggleDayConfirm({ dayIndex: selectedDayIndex, isRest: true });
     }
@@ -204,16 +217,9 @@ export function TrainingPage() {
         dayOfWeek: toggleDayConfirm.dayIndex,
       };
 
-      // Передаём dayType ТОЛЬКО если восстанавливаем тренировку (isRest = false)
       if (!toggleDayConfirm.isRest && selectedDayType) {
         payload.dayType = selectedDayType;
       }
-
-      console.log("🔍 FRONTEND TOGGLE:", {
-        isRest: toggleDayConfirm.isRest,
-        payload,
-        selectedDayType,
-      });
 
       await planApi.toggleDayType(payload);
 
@@ -301,6 +307,10 @@ export function TrainingPage() {
   useEffect(() => {
     selectDay(selectedDayIndex);
   }, [selectedDayIndex]);
+
+  const handleToggleSplit = useCallback(() => {
+    setShowSplitSelector(!showSplitSelector);
+  }, [showSplitSelector]);
 
   if (localError) {
     return (
@@ -745,8 +755,9 @@ export function TrainingPage() {
       <div className="training-page__controls">
         <div className="training-page__split-selector">
           <button
+            ref={splitToggleRef}
             className="training-page__split-toggle"
-            onClick={() => setShowSplitSelector(!showSplitSelector)}
+            onClick={handleToggleSplit}
             type="button">
             <span className="training-page__split-toggle-label">
               Тип сплита:
@@ -760,7 +771,9 @@ export function TrainingPage() {
             </span>
           </button>
           {showSplitSelector && (
-            <div className="training-page__split-dropdown">
+            <div
+              ref={dropdownRef}
+              className="training-page__split-dropdown dropdown--down">
               {SPLIT_OPTIONS.map((split) => (
                 <button
                   key={split.value}

@@ -1281,7 +1281,6 @@ $border: 1px solid #d0e0ff;
 
   &__split-dropdown {
     position: absolute;
-    top: calc(100% + 6px);
     left: 0;
     right: 0;
     background: var(--bg-secondary, #ffffff);
@@ -1290,7 +1289,18 @@ $border: 1px solid #d0e0ff;
     border: 1px solid rgba(0, 0, 0, 0.1);
     z-index: 100;
     overflow: hidden;
-    animation: slideDown 0.2s ease;
+
+    &.dropdown--down {
+      top: calc(100% + 6px);
+      bottom: auto;
+      animation: slideDown 0.2s ease;
+    }
+
+    &.dropdown--up {
+      top: auto;
+      bottom: calc(100% + 6px);
+      animation: slideUp 0.2s ease;
+    }
 
     [data-theme="dark"] & {
       background: var(--bg-secondary, #1e1e1e);
@@ -1489,5 +1499,16 @@ $border: 1px solid #d0e0ff;
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
