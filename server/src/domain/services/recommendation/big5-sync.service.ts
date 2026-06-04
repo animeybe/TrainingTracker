@@ -1,43 +1,81 @@
 // domain/services/recommendation/big5-sync.service.ts
-import { SELECTOR_CONFIG } from "../../config/selector.config";
+/**
+ * Big5SyncService — ОТЛАДОЧНЫЙ СЕРВИС (не используется в продакшене).
+ *
+ * Назначение:
+ *   При запуске сервера проверяет, что для каждого типа дня (push, pull, legs...)
+ *   есть хотя бы одно COMPOUND упражнение с нужным паттерном движения.
+ *
+ * Как использовать (вручную):
+ *   const allExercises = await exerciseService.findAll();
+ *   Big5SyncService.sync(allExercises);
+ *
+ * Не влияет на генерацию планов — только пишет предупреждения в консоль.
+ */
+
+import { BIG5_PATTERNS } from "../../config/selector.config";
 import { ExerciseEntity } from "../../entities/exercise.entity";
 import { DayType } from "../../common/types/training.types";
 
-/**
- * Синхронизирует bigFiveNames → реальные ID упражнений из базы.
- * Вызывается при загрузке всех упражнений (один раз).
- */
 export class Big5SyncService {
   private static synced = false;
 
+  /**
+   * Проверить наличие BIG5 упражнений для всех типов дней.
+   * Вызывается один раз при старте.
+   */
   static sync(allExercises: ExerciseEntity[]): void {
     if (this.synced) return;
 
-    const days = Object.keys(SELECTOR_CONFIG.bigFiveNames) as DayType[];
+    const days = Object.keys(BIG5_PATTERNS) as DayType[];
 
     for (const day of days) {
-      const names = SELECTOR_CONFIG.bigFiveNames[day];
-      const found = allExercises.filter((ex) => names.includes(ex.name));
-      const foundNames = new Set(found.map((ex) => ex.name));
-      const missing = names.filter((n) => !foundNames.has(n));
+      const patterns = BIG5_PATTERNS[day];
 
-      if (missing.length > 0) {
-        console.warn(`⚠️ BIG5 [${day}]: не найдены — ${missing.join(", ")}`);
+      for (const { muscle, pattern } of patterns) {
+        const found = allExercises.filter(
+          (ex) =>
+            ex.exerciseCategory === "COMPOUND" &&
+            ex.primaryMuscleGroup === muscle &&
+            (ex.movementPatterns || []).some((p) => p === pattern),
+        );
+
+        if (found.length === 0) {
+          console.warn(
+            `⚠️ BIG5 [${day}]: не найдено COMPOUND ${muscle} + ${pattern}`
+          );
+        }
       }
     }
 
     this.synced = true;
-    console.log("✅ BIG5 синхронизирован");
+    console.log("✅ BIG5 синхронизирован (отладка)");
   }
 
-  /** Получить ID BIG5 для конкретного дня */
+  /**
+   * Получить ID BIG5 упражнений для конкретного типа дня.
+   * Используется только для отладки.
+   */
   static getBig5Ids(
     dayType: DayType,
     allExercises: ExerciseEntity[],
   ): string[] {
-    const names = SELECTOR_CONFIG.bigFiveNames[dayType] || [];
-    return allExercises
-      .filter((ex) => names.includes(ex.name))
-      .map((ex) => ex.id);
+    const patterns = BIG5_PATTERNS[dayType] || [];
+    const ids: string[] = [];
+
+    for (const { muscle, pattern } of patterns) {
+      const found = allExercises
+        .filter(
+          (ex) =>
+            ex.exerciseCategory === "COMPOUND" &&
+            ex.primaryMuscleGroup === muscle &&
+            (ex.movementPatterns || []).some((p) => p === pattern),
+        )
+        .map((ex) => ex.id);
+
+      ids.push(...found);
+    }
+
+    return ids;
   }
 }

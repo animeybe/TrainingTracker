@@ -13,6 +13,7 @@ model exercise {
   description            String?
   primaryMuscleGroup     PrimaryMuscleGroup
   secondaryMuscles       MuscleGroup[]
+  exerciseCategory       ExerciseCategory?
   movementPatterns       MovementPattern[]
   trainingFocus          TrainingFocus[]
   difficulty             Difficulty                  @default(EASY)
@@ -315,4 +316,13 @@ enum TrainingSplit {
   BRO_SPLIT
   STRENGTH_FOCUS
   HYPERTROPHY_FOCUS
+}
+
+
+enum ExerciseCategory {
+  COMPOUND
+  ISOLATION
+  STATIC
+  CARDIO
+  MOBILITY
 }
