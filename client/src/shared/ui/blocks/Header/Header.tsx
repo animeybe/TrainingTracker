@@ -54,7 +54,7 @@ export function Header() {
             </li>
             <li
               className="header-nav__item"
-              onClick={() => navigate("/health")}>
+              onClick={() => navigate("/records")}>
               Записи тренировок
             </li>
             <li
@@ -154,7 +154,7 @@ export function Header() {
               </li>
               <li
                 onClick={() => {
-                  navigate("/health");
+                  navigate("/records");
                   toggleMobileMenu();
                 }}>
                 Записи тренировок

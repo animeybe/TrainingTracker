@@ -1,4 +1,16 @@
-import { useReducer, useEffect, useCallback } from "react";
+// AuthProvider.tsx
+/**
+ * AuthProvider — контекст авторизации.
+ *
+ * Стратегия обновления данных:
+ *   1. При монтировании: мгновенно отдаём cachedUser (быстрый UI).
+ *   2. В фоне делаем запрос getMe() для актуальных данных (роль, статус).
+ *   3. При успехе — обновляем cachedUser и state.
+ *   4. При ошибке — если был cachedUser, оставляем его (офлайн-режим).
+ *      Если cachedUser не было — сбрасываем токен.
+ */
+
+import { useReducer, useEffect, useCallback, useRef } from "react";
 import type {
   AuthState,
   AuthAction,
@@ -10,7 +22,7 @@ import { authApi } from "@/shared/api/authApi";
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
-  isLoading: false,
+  isLoading: true, // начинаем с true — показываем загрузку только при первом входе
   error: null,
 };
 
@@ -37,58 +49,50 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
+  const initDone = useRef(false);
 
   useEffect(() => {
+    if (initDone.current) return;
+    initDone.current = true;
+
     const initAuth = async () => {
-      dispatch({ type: "SET_LOADING", payload: true });
+      const token = localStorage.getItem("token");
+      if (!token) {
+        dispatch({ type: "SET_LOADING", payload: false });
+        return;
+      }
 
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) return dispatch({ type: "SET_LOADING", payload: false });
-
-        const cachedUser = localStorage.getItem("cachedUser");
-        if (cachedUser) {
-          try {
-            const parsed = JSON.parse(cachedUser);
-            const user = {
-              ...parsed,
-              createdAt: parsed.createdAt
-                ? new Date(parsed.createdAt)
-                : undefined,
-              updatedAt: parsed.updatedAt
-                ? new Date(parsed.updatedAt)
-                : undefined,
-            };
-            dispatch({ type: "SET_USER", payload: user });
-            return;
-          } catch {
-            localStorage.removeItem("cachedUser");
-          }
+      // 1. Мгновенно отдаём кэш (быстрый UI, работает офлайн)
+      const cachedUser = localStorage.getItem("cachedUser");
+      if (cachedUser) {
+        try {
+          const parsed = JSON.parse(cachedUser);
+          dispatch({ type: "SET_USER", payload: parsed });
+        } catch {
+          localStorage.removeItem("cachedUser");
         }
+      }
 
+      // 2. В фоне обновляем с сервера (актуальная роль, статус)
+      try {
         const user = await Promise.race([
           authApi.getMe(),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Timeout")), 3000),
+            setTimeout(() => reject(new Error("Timeout")), 5000),
           ),
         ]);
 
-        localStorage.setItem(
-          "cachedUser",
-          JSON.stringify({
-            ...user,
-            createdAt: user.createdAt?.toISOString(),
-            updatedAt: user.updatedAt?.toISOString(),
-          }),
-        );
-
+        localStorage.setItem("cachedUser", JSON.stringify(user));
         dispatch({ type: "SET_USER", payload: user });
       } catch (error) {
-        console.warn("Auth restore failed:", error);
-        localStorage.removeItem("token");
-        localStorage.removeItem("cachedUser");
-      } finally {
-        dispatch({ type: "SET_LOADING", payload: false });
+        console.warn("Auth refresh failed:", error);
+        // Если не было кэша — сбрасываем токен
+        if (!cachedUser) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("cachedUser");
+          dispatch({ type: "LOGOUT" });
+        }
+        // Если кэш был — оставляем его (офлайн-режим)
       }
     };
 
@@ -100,8 +104,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: "SET_LOADING", payload: true });
       try {
         await authApi.register(login, password, email);
-        // Автологин после регистрации
         const loginResponse = await authApi.login(login, password);
+        localStorage.setItem("token", loginResponse.token);
+        localStorage.setItem("cachedUser", JSON.stringify(loginResponse.user));
         dispatch({ type: "SET_USER", payload: loginResponse.user });
       } catch (error: unknown) {
         const message =
@@ -120,13 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await authApi.login(login, password);
       localStorage.setItem("token", response.token);
-      localStorage.setItem(
-        "cachedUser",
-        JSON.stringify({
-          ...response.user,
-          createdAt: response.user.createdAt?.toISOString(),
-        }),
-      );
+      localStorage.setItem("cachedUser", JSON.stringify(response.user));
       dispatch({ type: "SET_USER", payload: response.user });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Ошибка входа";
@@ -139,6 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     authApi.logout();
+    localStorage.removeItem("token");
     localStorage.removeItem("cachedUser");
     dispatch({ type: "LOGOUT" });
   }, []);
@@ -153,7 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("cachedUser", JSON.stringify(user));
       dispatch({ type: "SET_USER", payload: user });
     } catch {
-      logout();
+      // Офлайн — оставляем текущего пользователя
     }
   }, []);
 

@@ -5,18 +5,42 @@ import {
   createHandlerBoundToURL,
 } from "workbox-precaching";
 import { registerRoute, NavigationRoute } from "workbox-routing";
-import { CacheFirst, NetworkFirst } from "workbox-strategies";
+import {
+  CacheFirst,
+  NetworkFirst,
+  StaleWhileRevalidate,
+} from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 import { CacheableResponsePlugin } from "workbox-cacheable-response";
 
 // ═══════════════════════════════════════════════════════════════
-// PRECACHE — автоматически вставлен Workbox
+// PRECACHE — Workbox автоматически вставляет __WB_MANIFEST
 // ═══════════════════════════════════════════════════════════════
 precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
 // ═══════════════════════════════════════════════════════════════
-// NAVIGATION — все маршруты → index.html (SPA fallback)
+// HTML-СТРАНИЦЫ: StaleWhileRevalidate
+//   Мгновенно отдаёт закэшированную версию (быстрая загрузка).
+//   В фоне обновляет кэш свежей версией с сервера.
+//   При офлайне — тихо отдаёт кэш, без ошибки браузера.
+// ═══════════════════════════════════════════════════════════════
+registerRoute(
+  ({ request }) => request.destination === "document",
+  new StaleWhileRevalidate({
+    cacheName: "pages-cache",
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 10,
+        maxAgeSeconds: 7 * 24 * 60 * 60,
+      }),
+      new CacheableResponsePlugin({ statuses: [200] }),
+    ],
+  }),
+);
+
+// ═══════════════════════════════════════════════════════════════
+// NAVIGATION — fallback на index.html для SPA-маршрутов
 // ═══════════════════════════════════════════════════════════════
 const handler = createHandlerBoundToURL("/index.html");
 const navigationRoute = new NavigationRoute(handler, {
@@ -25,16 +49,17 @@ const navigationRoute = new NavigationRoute(handler, {
 registerRoute(navigationRoute);
 
 // ═══════════════════════════════════════════════════════════════
-// СТАТИКА: CacheFirst (JS, CSS, картинки, шрифты — почти не меняются)
+// СТАТИКА: StaleWhileRevalidate
+//   Мгновенно отдаёт кэш, обновляет в фоне.
 // ═══════════════════════════════════════════════════════════════
 registerRoute(
-  /\.(?:js|css|html|ico|png|svg|webp|woff2|json)$/,
-  new CacheFirst({
+  /\.(?:js|css|ico|png|svg|webp|woff2|json)$/,
+  new StaleWhileRevalidate({
     cacheName: "static-resources",
     plugins: [
       new ExpirationPlugin({
         maxEntries: 100,
-        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 дней
+        maxAgeSeconds: 7 * 24 * 60 * 60,
       }),
       new CacheableResponsePlugin({ statuses: [0, 200] }),
     ],
@@ -43,19 +68,18 @@ registerRoute(
 );
 
 // ═══════════════════════════════════════════════════════════════
-// API: NetworkFirst (сеть → fallback на кэш через 3 секунды)
-// Это решает проблему: при отключении Wi-Fi navigator.onLine = true,
-// но запросы не проходят. Через 3 секунды таймаута отдаём кэш.
+// API (GET): StaleWhileRevalidate
+//   Мгновенно отдаёт закэшированный ответ, обновляет в фоне.
+//   При офлайне — отдаст последний успешный кэш.
 // ═══════════════════════════════════════════════════════════════
 registerRoute(
   /\/api\/.*/,
-  new NetworkFirst({
+  new StaleWhileRevalidate({
     cacheName: "api-cache",
-    networkTimeoutSeconds: 3, // ждём сеть 3 секунды, потом кэш
     plugins: [
       new ExpirationPlugin({
         maxEntries: 200,
-        maxAgeSeconds: 7 * 24 * 60 * 60, // 7 дней
+        maxAgeSeconds: 7 * 24 * 60 * 60,
       }),
       new CacheableResponsePlugin({ statuses: [200] }),
     ],
@@ -64,7 +88,7 @@ registerRoute(
 );
 
 // ═══════════════════════════════════════════════════════════════
-// GOOGLE FONTS: CacheFirst (почти никогда не меняются)
+// GOOGLE FONTS: CacheFirst
 // ═══════════════════════════════════════════════════════════════
 registerRoute(
   /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
@@ -121,9 +145,17 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// АКТИВАЦИЯ — мгновенно захватываем контроль над страницами
+// АКТИВАЦИЯ — мгновенный захват контроля + очистка старого кэша
 // ═══════════════════════════════════════════════════════════════
 self.skipWaiting();
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    (async () => {
+      const staticCache = await caches.open("static-resources");
+      const keys = await staticCache.keys();
+      for (const key of keys) await staticCache.delete(key);
+      console.log("🗑 static-resources очищен при активации нового SW");
+      await self.clients.claim();
+    })(),
+  );
 });

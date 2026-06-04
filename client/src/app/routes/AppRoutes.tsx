@@ -131,9 +131,9 @@ export const AppRoutes = () => {
           />
         </Route>
 
-        <Route element={<RoleGuard requiredPermission="health" />}>
+        <Route element={<RoleGuard requiredPermission="records" />}>
           <Route
-            path="/health"
+            path="/records"
             element={
               <LazyPage>
                 <RecordsPage />
