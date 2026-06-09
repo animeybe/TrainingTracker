@@ -76,10 +76,10 @@ const SPLIT_DAY_TYPES: Record<string, { value: string; label: string }[]> = {
     { value: "arms", label: "Руки" },
   ],
   STRENGTH_FOCUS: [
-    { value: "lower", label: "Lower (Низ)" },
-    { value: "push", label: "Push (Жимовые)" },
-    { value: "pull", label: "Pull (Тяговые)" },
-    { value: "upper", label: "Upper (Верх)" },
+    { value: "squat", label: "Присед" },
+    { value: "bench", label: "Жим" },
+    { value: "deadlift", label: "Тяга" },
+    { value: "ohp", label: "Жим стоя" },
   ],
   HYPERTROPHY_FOCUS: [
     { value: "chest", label: "Грудь" },

@@ -109,6 +109,14 @@ export const getDayTypeRu = (dayType: DayType): string => {
       return "Руки";
     case "core":
       return "Мышцы кора";
+    case "squat":
+      return "Присед";
+    case "bench":
+      return "Жим";
+    case "deadlift":
+      return "Тяга";
+    case "ohp":
+      return "Жим стоя";
   }
 };
 
