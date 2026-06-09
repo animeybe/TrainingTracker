@@ -12,6 +12,7 @@ import { requirePremium } from "@/lib/premium/premium";
 import { useSafeAuthContext } from "@/shared/hooks/useSafeAuth";
 import { ExerciseDetailModal } from "@/shared/ui/components/ExerciseDetailModal/ExerciseDetailModal";
 import { ExercisePickerModal } from "@/shared/ui/components/ExercisePickerModal/ExercisePickerModal";
+import { InfoTooltip } from "@/shared/ui/components/InfoTooltip/InfoTooltip";
 import { MUSCLE_GROUP_LABELS } from "@/pages/ExerciseBase/common/utils/muscleGroupInterpreter";
 import { retryWithReload } from "@/lib/utils/errorActions";
 import { planApi } from "@/shared/api/planApi";
@@ -116,7 +117,7 @@ export function TrainingPage() {
 
   const { profile, loadingProfile } = useProfile();
   const { user } = useSafeAuthContext();
-  const { allExercises } = useExercises();
+  const { allExercises, leastFavoriteExercises } = useExercises();
 
   const [planGenerationLoading, setPlanGenerationLoading] = useState(false);
   const [localError, setLocalError] = useState<{
@@ -130,25 +131,24 @@ export function TrainingPage() {
     null,
   );
   const [showExercisePicker, setShowExercisePicker] = useState(false);
-
   const [toggleDayConfirm, setToggleDayConfirm] = useState<{
     dayIndex: number;
     isRest: boolean;
   } | null>(null);
-
   const [showDayTypePicker, setShowDayTypePicker] = useState(false);
   const [selectedDayType, setSelectedDayType] = useState<string>("");
+  const [longPressTimer, setLongPressTimer] = useState<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   const splitToggleRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const todayData = todayPlan?.data?.today ?? null;
-
   const allTrainingDays = useMemo(
     () => weekPlan?.trainingDays ?? [],
     [weekPlan],
   );
-
   const selectedDay: TrainingDay | null = useMemo(() => {
     if (selectedDayIndex === today.dayIndex && todayData) return todayData;
     return (
@@ -168,28 +168,32 @@ export function TrainingPage() {
   ];
 
   const isSelectedDayTraining = selectedDay !== null;
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
+  // Множество ID нелюбимых упражнений для проверки forced
+  const leastFavoriteIds = useMemo(
+    () => new Set(leastFavoriteExercises?.map((e) => e.id) || []),
+    [leastFavoriteExercises],
+  );
 
   const availableDayTypes = useMemo(() => {
     if (!weekPlan) return [];
     return SPLIT_DAY_TYPES[weekPlan.split.name] || [];
   }, [weekPlan]);
 
-  // Автоматически переворачивает дропдаун вверх, если не хватает места внизу
+  // Дропдаун вверх/вниз
   useEffect(() => {
     if (showSplitSelector && splitToggleRef.current && dropdownRef.current) {
       const rect = splitToggleRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
-      const dropdownHeight = dropdownRef.current.scrollHeight;
-      const shouldFlip = spaceBelow < dropdownHeight;
+      const shouldFlip = spaceBelow < dropdownRef.current.scrollHeight;
       dropdownRef.current.classList.toggle("dropdown--up", shouldFlip);
       dropdownRef.current.classList.toggle("dropdown--down", !shouldFlip);
     }
   }, [showSplitSelector]);
 
   const handleToggleDayType = useCallback(() => {
-    const isCurrentlyTraining = isSelectedDayTraining;
-
-    if (!isCurrentlyTraining) {
+    if (!isSelectedDayTraining) {
       if (availableDayTypes.length > 1) {
         setSelectedDayType(availableDayTypes[0].value);
         setShowDayTypePicker(true);
@@ -210,21 +214,15 @@ export function TrainingPage() {
 
   const confirmToggleDay = useCallback(async () => {
     if (!toggleDayConfirm || !weekPlan) return;
-
     try {
       const payload: { week: number; dayOfWeek: number; dayType?: string } = {
         week: weekPlan.week,
         dayOfWeek: toggleDayConfirm.dayIndex,
       };
-
-      if (!toggleDayConfirm.isRest && selectedDayType) {
+      if (!toggleDayConfirm.isRest && selectedDayType)
         payload.dayType = selectedDayType;
-      }
-
       await planApi.toggleDayType(payload);
-
       const updatedPlan = await refreshPlan();
-
       if (updatedPlan) {
         const dayPlan = updatedPlan.trainingDays.find(
           (d) => d.dayOfWeek === selectedDayIndex,
@@ -257,15 +255,13 @@ export function TrainingPage() {
           repsRange: [8, 10],
         });
         setShowExercisePicker(false);
-
         const updatedPlan = await refreshPlan();
-
-        if (updatedPlan) {
-          const dayPlan = updatedPlan.trainingDays.find(
-            (d) => d.dayOfWeek === selectedDayIndex,
+        if (updatedPlan)
+          setTodayPlanDirectly(
+            updatedPlan.trainingDays.find(
+              (d) => d.dayOfWeek === selectedDayIndex,
+            ),
           );
-          setTodayPlanDirectly(dayPlan);
-        }
       } catch (err) {
         console.error("Не удалось добавить упражнение:", err);
       }
@@ -282,21 +278,19 @@ export function TrainingPage() {
   const handleRemoveExercise = useCallback(
     async (exerciseId: string) => {
       if (!weekPlan?.planId) return;
-
       try {
         await planApi.removeExerciseFromPlan(
           exerciseId,
           weekPlan.planId,
           selectedDayIndex,
         );
-
         const updatedPlan = await refreshPlan();
-        if (updatedPlan) {
-          const dayPlan = updatedPlan.trainingDays.find(
-            (d) => d.dayOfWeek === selectedDayIndex,
+        if (updatedPlan)
+          setTodayPlanDirectly(
+            updatedPlan.trainingDays.find(
+              (d) => d.dayOfWeek === selectedDayIndex,
+            ),
           );
-          setTodayPlanDirectly(dayPlan);
-        }
       } catch (err) {
         console.error("Не удалось удалить упражнение:", err);
       }
@@ -304,15 +298,34 @@ export function TrainingPage() {
     [weekPlan, refreshPlan, selectedDayIndex, setTodayPlanDirectly],
   );
 
+  // Долгое нажатие для удаления на мобильных
+  const handleTouchStart = useCallback(
+    (exerciseId: string) => {
+      const timer = setTimeout(() => {
+        if (window.confirm("Удалить упражнение из плана?"))
+          handleRemoveExercise(exerciseId);
+      }, 600);
+      setLongPressTimer(timer);
+    },
+    [handleRemoveExercise],
+  );
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  }, [longPressTimer]);
+
   useEffect(() => {
     selectDay(selectedDayIndex);
   }, [selectedDayIndex]);
+  const handleToggleSplit = useCallback(
+    () => setShowSplitSelector(!showSplitSelector),
+    [showSplitSelector],
+  );
 
-  const handleToggleSplit = useCallback(() => {
-    setShowSplitSelector(!showSplitSelector);
-  }, [showSplitSelector]);
-
-  if (localError) {
+  if (localError)
     return (
       <InfoPage
         type={localError.type}
@@ -320,15 +333,12 @@ export function TrainingPage() {
         retryAction={() => retryWithReload(() => setLocalError(null))}
       />
     );
-  }
-
-  if (loadingProfile || loadingPlan || planGenerationLoading) {
+  if (loadingProfile || loadingPlan || planGenerationLoading)
     return (
       <div className="training-page__loading">
         <InfoPage type="loading" />
       </div>
     );
-  }
 
   if (weekPlan) {
     return (
@@ -377,16 +387,11 @@ export function TrainingPage() {
           <div className="training-page__calendar">
             {dayNames.map((dayName, idx) => {
               const dayPlan = allTrainingDays.find((d) => d.dayOfWeek === idx);
-              const isToday = idx === today.dayIndex;
-              const isSelected = idx === selectedDayIndex;
-
               return (
                 <div
                   key={idx}
-                  className={`training-page__day-cell ${isToday ? "training-page__day-cell--today" : ""} ${isSelected ? "training-page__day-cell--selected" : ""}`}
-                  onClick={() => {
-                    setSelectedDayIndex(idx);
-                  }}>
+                  className={`training-page__day-cell ${idx === today.dayIndex ? "training-page__day-cell--today" : ""} ${idx === selectedDayIndex ? "training-page__day-cell--selected" : ""}`}
+                  onClick={() => setSelectedDayIndex(idx)}>
                   <span className="training-page__day-name">{dayName}</span>
                   {dayPlan ? (
                     <span className="training-page__day-type">
@@ -449,7 +454,6 @@ export function TrainingPage() {
                 <p className="training-page__today-message">
                   План на день: {getDayTypeRu(selectedDay.dayType)}
                 </p>
-
                 {selectedDay.exercises.length > 0 ? (
                   <div className="training-page__today-exercises">
                     <AnimatePresence>
@@ -457,6 +461,13 @@ export function TrainingPage() {
                         const exercise = exercises.find(
                           (e) => e.id === ex.exerciseId,
                         );
+                        const isForced =
+                          ex.forced || leastFavoriteIds.has(ex.exerciseId);
+                        const forcedMessage =
+                          ex.forcedReason === "all_excluded"
+                            ? "Исключено слишком много упражнений — план составлен из необходимого минимума"
+                            : "Это упражнение обязательно для данного сплита и не может быть исключено";
+
                         return (
                           <motion.div
                             key={ex.exerciseId}
@@ -479,11 +490,22 @@ export function TrainingPage() {
                             }}
                             onClick={() => {
                               if (exercise) setSelectedExercise(exercise);
-                            }}>
+                            }}
+                            onTouchStart={() => handleTouchStart(ex.exerciseId)}
+                            onTouchEnd={handleTouchEnd}
+                            onTouchMove={handleTouchEnd}>
                             <div className="training-page__today-exercise-left">
                               <span className="training-page__exercise-name">
                                 {exercise?.name || "Неизвестное упражнение"}
+                                {isForced && !isMobile && (
+                                  <InfoTooltip message={forcedMessage} />
+                                )}
                               </span>
+                              {isForced && isMobile && (
+                                <span className="training-page__exercise-forced-badge">
+                                  ⚠️ обязательно
+                                </span>
+                              )}
                               {exercise?.secondaryMuscles?.[0] && (
                                 <span className="training-page__exercise-muscle">
                                   {MUSCLE_GROUP_LABELS[
@@ -497,19 +519,21 @@ export function TrainingPage() {
                             </div>
                             <div className="training-page__today-exercise-right">
                               <span className="training-page__exercise-info">
-                                {ex.sets} подхода × {ex.targetRepsRange[0]}–
-                                {ex.targetRepsRange[1]} повторений
+                                {ex.sets}×{ex.targetRepsRange[0]}–
+                                {ex.targetRepsRange[1]}
                               </span>
-                              <button
-                                className="training-page__exercise-remove-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRemoveExercise(ex.exerciseId);
-                                }}
-                                type="button"
-                                title="Удалить из плана">
-                                ✕
-                              </button>
+                              {!isMobile && (
+                                <button
+                                  className="training-page__exercise-remove-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveExercise(ex.exerciseId);
+                                  }}
+                                  type="button"
+                                  title="Удалить из плана">
+                                  ✕
+                                </button>
+                              )}
                             </div>
                           </motion.div>
                         );
@@ -541,6 +565,7 @@ export function TrainingPage() {
           </div>
         </div>
 
+        {/* Модалки — без изменений */}
         {showWellbeingModal && (
           <div className="training-page__modal-overlay">
             <div className="training-page__modal">
@@ -570,7 +595,6 @@ export function TrainingPage() {
             </div>
           </div>
         )}
-
         {showWellbeingWarning && (
           <div className="training-page__warning-overlay">
             <div className="training-page__warning-modal">
@@ -594,14 +618,22 @@ export function TrainingPage() {
             </div>
           </div>
         )}
-
         {selectedExercise && (
           <ExerciseDetailModal
             exercise={selectedExercise}
             onClose={() => setSelectedExercise(null)}
+            forced={
+              selectedDay?.exercises.find(
+                (e) => e.exerciseId === selectedExercise.id,
+              )?.forced
+            }
+            forcedReason={
+              selectedDay?.exercises.find(
+                (e) => e.exerciseId === selectedExercise.id,
+              )?.forcedReason
+            }
           />
         )}
-
         {showExercisePicker && (
           <ExercisePickerModal
             exercises={allExercises || []}
@@ -612,7 +644,6 @@ export function TrainingPage() {
             }
           />
         )}
-
         {showDayTypePicker && (
           <div className="training-page__modal-overlay">
             <div className="training-page__modal">
@@ -650,7 +681,6 @@ export function TrainingPage() {
             </div>
           </div>
         )}
-
         {toggleDayConfirm && (
           <div
             className="training-page__warning-overlay"
@@ -686,7 +716,6 @@ export function TrainingPage() {
   }
 
   const selectedOption = SPLIT_OPTIONS.find((s) => s.value === selectedSplit);
-
   return (
     <div className="training-page__no-plan">
       <div className="training-page__profile">

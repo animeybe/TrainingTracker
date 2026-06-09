@@ -109,6 +109,8 @@ export interface ExerciseSet {
   sets: number;
   targetRepsRange: [number, number];
   favorite?: boolean;
+  forced?: boolean;
+  forcedReason?: string;
   warning?: string;
   muscleGroup: MuscleGroup;
 }
