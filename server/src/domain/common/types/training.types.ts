@@ -18,7 +18,11 @@ export type DayType =
   | "back"
   | "shoulders"
   | "arms"
-  | "core";
+  | "core"
+  | "squat"
+  | "bench"
+  | "deadlift"
+  | "ohp";
 
 export const DAY_MUSCLE_GROUPS: Record<DayType, MuscleGroup[]> = {
   push: [
@@ -123,6 +127,22 @@ export const DAY_MUSCLE_GROUPS: Record<DayType, MuscleGroup[]> = {
     "CALVES_SOLEUS",
   ],
   core: ["ABS_UPPER", "ABS_LOWER", "OBLIQUES"],
+  squat: [
+    "QUADS_RECTUS_FEMORIS", "QUADS_VASTUS_LATERALIS", "QUADS_VASTUS_MEDIALIS",
+    "GLUTES_MAXIMUS", "HAMSTRINGS", "CALVES_GASTROCNEMIUS", "CALVES_SOLEUS",
+  ],
+  bench: [
+    "CHEST_UPPER", "CHEST_MIDDLE", "CHEST_LOWER",
+    "DELTOIDS_ANTERIOR", "TRICEPS_LONG_HEAD", "TRICEPS_LATERAL_HEAD",
+  ],
+  deadlift: [
+    "LATS", "RHOMBOIDS_UPPER", "ERECTOR_SPINAE_UPPER", "ERECTOR_SPINAE_LOWER",
+    "TRAPEZIUS_UPPER", "HAMSTRINGS", "GLUTES_MAXIMUS", "BICEPS_LONG_HEAD",
+  ],
+  ohp: [
+    "DELTOIDS_ANTERIOR", "DELTOIDS_MEDIAL",
+    "TRICEPS_LONG_HEAD", "TRICEPS_LATERAL_HEAD", "CHEST_UPPER",
+  ],
 };
 
 export interface ExerciseSet {

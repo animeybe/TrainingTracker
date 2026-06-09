@@ -250,10 +250,10 @@ export class TrainingPlanGenerationService {
 
       case "STRENGTH_FOCUS":
         days.push(
-          { type: "lower", frequency: 1 },
-          { type: "push", frequency: 1 },
-          { type: "pull", frequency: 1 },
-          { type: "upper", frequency: 1 },
+          { type: "squat", frequency: 1 },
+          { type: "bench", frequency: 1 },
+          { type: "deadlift", frequency: 1 },
+          { type: "ohp", frequency: 1 },
         );
         break;
 

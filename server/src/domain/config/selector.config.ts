@@ -80,6 +80,27 @@ export const BIG5_PATTERNS: Record<DayType, Array<{ muscle: string; pattern: str
   core: [
     { muscle: "CORE", pattern: "CORE_STABILITY", count: 2 },
   ],
+  // ── STRENGTH_FOCUS: пауэрлифтинг ──
+    squat: [
+    { muscle: "LEGS", pattern: "SQUAT", count: 3 },     // присед + жим ногами + выпады
+    { muscle: "LEGS", pattern: "HINGE", count: 2 },     // румынская + ягодичный мост
+    { muscle: "LEGS", pattern: "SQUAT", count: 1 },     // икры
+  ],
+  bench: [
+    { muscle: "CHEST", pattern: "PUSH", count: 3 },      // жим лёжа + наклонная + отжимания
+    { muscle: "SHOULDERS", pattern: "PUSH", count: 2 },  // жим стоя + разведения
+    { muscle: "ARMS", pattern: "PUSH", count: 1 },       // трицепс
+  ],
+  deadlift: [
+    { muscle: "BACK", pattern: "HINGE", count: 2 },      // становая + гиперэкстензия
+    { muscle: "BACK", pattern: "PULL", count: 3 },       // тяги
+    { muscle: "LEGS", pattern: "HINGE", count: 2 },      // румынская + ягодичный
+  ],
+  ohp: [
+    { muscle: "SHOULDERS", pattern: "PUSH", count: 3 },  // жим стоя + гантелями + разведения
+    { muscle: "CHEST", pattern: "PUSH", count: 2 },      // жим наклонная + отжимания
+    { muscle: "ARMS", pattern: "PUSH", count: 1 },       // трицепс
+  ],
 };
 
 // ═══════════════════════════════════════════════════════════════
