@@ -117,6 +117,34 @@ export class ExerciseSelectorService {
           ? this.excludeAdvancedExercises(fallbackGoalFiltered)
           : fallbackGoalFiltered;
 
+      // ── HYPERTROPHY_FOCUS: особая логика ──────────
+      if (trainingSplit === "HYPERTROPHY_FOCUS" && ["chest", "back", "shoulders", "legs", "arms"].includes(dayType)) {
+        const hypertrophyPlan = this.generateHypertrophyDay(
+          levelFiltered, fallbackLevelFiltered,
+          dayType as "chest" | "back" | "shoulders" | "legs" | "arms",
+          difficulty,
+          favorites.filter(f => !leastFavoriteIds.has(f.id)),
+          leastFavoriteIds,
+        );
+        
+        // Аксессуары сверху
+        const accessories = this.selectAccessories(
+          fallbackLevelFiltered.filter(ex => !hypertrophyPlan.some(p => p.exerciseId === ex.id)),
+          2,
+        );
+        
+        const finalPlan = this.smartSort([...hypertrophyPlan, ...accessories]);
+        const progressed = this.applyProgression(finalPlan, wellbeing, week, lifestyle, gender, trainingSplit);
+        
+        logger.info("🔍 DEBUG HYPERTROPHY PLAN", {
+          total: progressed.length,
+          exercises: progressed.map(e => e.muscleGroup),
+          forced: progressed.filter(e => e.forced).map(e => e.muscleGroup),
+        });
+        
+        return Result.ok(progressed);
+      }
+
       // ── STRENGTH_FOCUS: особая логика ──────────
       if (["squat", "bench", "deadlift", "ohp"].includes(dayType)) {
         const strengthPlan = this.generateStrengthDay(
@@ -128,7 +156,7 @@ export class ExerciseSelectorService {
         );
         
         const finalPlan = this.smartSort(strengthPlan);
-        const progressed = this.applyProgression(finalPlan, wellbeing, week, lifestyle, gender);
+        const progressed = this.applyProgression(finalPlan, wellbeing, week, lifestyle, gender, trainingSplit);
         
         logger.info("🔍 DEBUG STRENGTH PLAN", {
           total: progressed.length,
@@ -300,7 +328,7 @@ export class ExerciseSelectorService {
       }
 
       finalPlan = this.smartSort(finalPlan);
-      finalPlan = this.applyProgression(finalPlan, wellbeing, week, lifestyle, gender);
+      finalPlan = this.applyProgression(finalPlan, wellbeing, week, lifestyle, gender, trainingSplit);
 
       logger.info("🔍 DEBUG FINAL PLAN", {
         total: finalPlan.length,
@@ -313,6 +341,154 @@ export class ExerciseSelectorService {
       logger.error("💥 ExerciseSelector ERROR", { error: String(error) });
       return Result.error(new EntityValidationError(["Ошибка подбора упражнений"]));
     }
+  }
+
+  /**
+   * Генерация для HYPERTROPHY_FOCUS (бодибилдинг).
+   * Большой объём: 3-4 compound + 3-4 isolation + аксессуары.
+   * Избранное в приоритете, нелюбимые → forced.
+   */
+    private generateHypertrophyDay(
+    exercises: ExerciseEntity[],
+    fallbackExercises: ExerciseEntity[],
+    dayType: "chest" | "back" | "shoulders" | "legs" | "arms",
+    difficulty: Difficulty,
+    favorites: ExerciseEntity[],
+    leastFavoriteIds: Set<string>,
+  ): ExerciseSet[] {
+    const configs: Record<string, {
+      compounds: Array<{ pattern: string; muscle: string; count: number }>;
+      isolations: Array<{ muscle: string; count: number; strictPrimary?: boolean }>;
+    }> = {
+      chest: {
+        compounds: [{ pattern: "PUSH", muscle: "CHEST", count: 4 }],
+        isolations: [
+          { muscle: "CHEST_UPPER", count: 2 },
+          { muscle: "CHEST_MIDDLE", count: 2 },
+        ],
+      },
+      back: {
+        compounds: [
+          { pattern: "PULL", muscle: "BACK", count: 3 },
+          { pattern: "HINGE", muscle: "BACK", count: 1 },
+        ],
+        isolations: [
+          { muscle: "LATS", count: 2 },
+          { muscle: "RHOMBOIDS_UPPER", count: 1 },
+          { muscle: "BACK", count: 1 },
+        ],
+      },
+      shoulders: {
+        compounds: [{ pattern: "PUSH", muscle: "SHOULDERS", count: 4 }],
+        isolations: [
+          { muscle: "DELTOIDS_MEDIAL", count: 2 },
+          { muscle: "DELTOIDS_POSTERIOR", count: 2 },
+        ],
+      },
+      legs: {
+        compounds: [
+          { pattern: "SQUAT", muscle: "LEGS", count: 4 },
+          { pattern: "HINGE", muscle: "LEGS", count: 2 },
+        ],
+        isolations: [
+          { muscle: "QUADS_RECTUS_FEMORIS", count: 2 },
+          { muscle: "HAMSTRINGS", count: 2 },
+          { muscle: "CALVES_GASTROCNEMIUS", count: 2 },
+        ],
+      },
+      arms: {
+        compounds: [
+          { pattern: "PULL", muscle: "ARMS", count: 2 },
+          { pattern: "PUSH", muscle: "ARMS", count: 2 },
+        ],
+        isolations: [
+          { muscle: "BICEPS_LONG_HEAD", count: 2, strictPrimary: true },
+          { muscle: "BICEPS_SHORT_HEAD", count: 1, strictPrimary: true },
+          { muscle: "TRICEPS_LONG_HEAD", count: 2, strictPrimary: true },
+          { muscle: "TRICEPS_LATERAL_HEAD", count: 1, strictPrimary: true },
+        ],
+      },
+    };
+
+    const config = configs[dayType];
+    const result: ExerciseSet[] = [];
+    const usedIds = new Set<string>();
+
+    const findCompound = (pool: ExerciseEntity[], pattern: string, muscle: string, count: number): ExerciseEntity[] => {
+      return pool
+        .filter(ex =>
+          !usedIds.has(ex.id) &&
+          ex.exerciseCategory === "COMPOUND" &&
+          this.matchesMuscle(ex, muscle) &&
+          this.hasMovementPattern(ex, pattern) &&
+          this.isSuitableDifficulty(ex, difficulty),
+        )
+        .sort((a, b) => {
+          const aFav = favorites.some(f => f.id === a.id) ? 0 : 1;
+          const bFav = favorites.some(f => f.id === b.id) ? 0 : 1;
+          if (aFav !== bFav) return aFav - bFav;
+          return Math.random() - 0.5;
+        })
+        .slice(0, count);
+    };
+
+    const findIsolation = (pool: ExerciseEntity[], muscle: string, count: number, strictPrimary = false): ExerciseEntity[] => {
+      return pool
+        .filter(ex =>
+          !usedIds.has(ex.id) &&
+          ex.exerciseCategory === "ISOLATION" &&
+          (!strictPrimary ||
+           (ex.primaryMuscleGroup as string) === muscle ||
+           (ex.primaryMuscleGroup === "ARMS" && ["BICEPS_LONG_HEAD", "BICEPS_SHORT_HEAD", "TRICEPS_LONG_HEAD", "TRICEPS_LATERAL_HEAD", "TRICEPS_MEDIAL_HEAD"].includes(muscle))) &&
+          this.matchesMuscle(ex, muscle) &&
+          this.isSuitableDifficulty(ex, difficulty),
+        )
+        .sort((a, b) => {
+          const aFav = favorites.some(f => f.id === a.id) ? 0 : 1;
+          const bFav = favorites.some(f => f.id === b.id) ? 0 : 1;
+          if (aFav !== bFav) return aFav - bFav;
+          return Math.random() - 0.5;
+        })
+        .slice(0, count);
+    };
+
+    const addExercise = (exs: ExerciseEntity[], forced: boolean) => {
+      for (const ex of exs) {
+        usedIds.add(ex.id);
+        const es = this.toExerciseSet(ex, favorites.some(f => f.id === ex.id), difficulty);
+        result.push(forced ? { ...es, forced: true, forcedReason: "all_excluded" } : es);
+      }
+    };
+
+    // 1️⃣ COMPOUND
+    for (const comp of config.compounds) {
+      let found = findCompound(exercises, comp.pattern, comp.muscle, comp.count);
+      const forcedCount = comp.count - found.length;
+      if (forcedCount > 0) {
+        const fallback = findCompound(fallbackExercises, comp.pattern, comp.muscle, forcedCount);
+        found = [...found, ...fallback];
+      }
+      for (const ex of found) {
+        const isForced = !exercises.some(e => e.id === ex.id);
+        addExercise([ex], isForced);
+      }
+    }
+
+    // 2️⃣ ISOLATION
+    for (const iso of config.isolations) {
+      let found = findIsolation(exercises, iso.muscle, iso.count, iso.strictPrimary || false);
+      const forcedCount = iso.count - found.length;
+      if (forcedCount > 0) {
+        const fallback = findIsolation(fallbackExercises, iso.muscle, forcedCount, iso.strictPrimary || false);
+        found = [...found, ...fallback];
+      }
+      for (const ex of found) {
+        const isForced = !exercises.some(e => e.id === ex.id);
+        addExercise([ex], isForced);
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -861,13 +1037,17 @@ export class ExerciseSelectorService {
     week: number,
     lifestyle: Lifestyle,
     gender: Gender,
+    trainingSplit: TrainingSplit, // ← добавить
   ): ExerciseSet[] {
     const genderMultiplier = gender === Gender.Female ? 0.85 : 1.0;
     const lifestyleMultiplier: Record<string, number> = {
       IMMOBILE: 0.75, LIGHT: 0.9, AVERAGE: 1.0, HARD: 1.15,
     };
+    // HYPERTROPHY_FOCUS: +1 подход ко всем упражнениям
+    const hypertrophyBonus = trainingSplit === "HYPERTROPHY_FOCUS" ? 1 : 0;
+    
     return exercises.map((ex) => {
-      let sets = ex.sets;
+      let sets = ex.sets + hypertrophyBonus;
       const wellbeingCoeff = wellbeing === "BAD" ? 0.8 : wellbeing === "GOOD" ? 1.2 : 1.0;
       sets = Math.round(sets * wellbeingCoeff * genderMultiplier * (lifestyleMultiplier[lifestyle] || 1.0));
       sets = Math.max(2, Math.min(5, sets));
