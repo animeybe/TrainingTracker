@@ -81,6 +81,8 @@ export class PlanGeneratorService {
           const dayOfWeek = trainingDayOfWeeks[dayIndex];
           const dayInCycle = dayIndex % 3;
 
+          logger.info("🔍 DEBUG leastFavorites count", { count: leastFavorites.length, dayType: dayConfig.type });
+
           const dayBase = await this.generateDay(
             dayConfig.type,
             dayOfWeek,

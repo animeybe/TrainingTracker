@@ -9,6 +9,8 @@ export type WeeklyTrainingExerciseDto = {
   sets: number;
   repsRange: Prisma.JsonValue;
   orderInDay: number;
+  forced?: boolean | null;
+  forcedReason?: string | null;
 };
 
 export type CreateWeeklyTrainingExerciseDto = {
@@ -18,6 +20,8 @@ export type CreateWeeklyTrainingExerciseDto = {
   sets: number;
   repsRange: Prisma.JsonValue;
   orderInDay: number;
+  forced?: boolean | null;
+  forcedReason?: string | null;
 };
 
 export type UpdateWeeklyTrainingExerciseDto = {
@@ -25,4 +29,6 @@ export type UpdateWeeklyTrainingExerciseDto = {
   sets?: number;
   repsRange?: Prisma.JsonValue;
   orderInDay?: number;
+  forced?: boolean | null;
+  forcedReason?: string | null;
 };

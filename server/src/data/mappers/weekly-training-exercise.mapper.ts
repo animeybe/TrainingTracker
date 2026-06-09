@@ -22,6 +22,8 @@ export class WeeklyTrainingExerciseMapper {
       sets: dto.sets,
       repsRange: dto.repsRange,
       orderInDay: dto.orderInDay,
+      forced: dto.forced,
+      forcedReason: dto.forcedReason,
     };
   }
 
@@ -36,6 +38,8 @@ export class WeeklyTrainingExerciseMapper {
       sets: entity.sets,
       repsRange: entity.repsRange,
       orderInDay: entity.orderInDay,
+      forced: entity.forced,
+      forcedReason: entity.forcedReason,
     };
   }
 
@@ -49,6 +53,8 @@ export class WeeklyTrainingExerciseMapper {
       sets: entity.sets,
       repsRange: entity.repsRange,
       orderInDay: entity.orderInDay,
+      forced: entity.forced,
+      forcedReason: entity.forcedReason,
     };
   }
 
@@ -60,6 +66,8 @@ export class WeeklyTrainingExerciseMapper {
       sets: entity.sets,
       repsRange: entity.repsRange,
       orderInDay: entity.orderInDay,
+      forced: entity.forced,
+      forcedReason: entity.forcedReason,
     };
   }
 }

@@ -131,6 +131,8 @@ model weeklyTrainingExercise {
   sets       Int
   repsRange  Json
   orderInDay Int
+  forced       Boolean?
+  forcedReason String?
   exercise   exercise           @relation(fields: [exerciseId], references: [id])
   plan       weeklyTrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 

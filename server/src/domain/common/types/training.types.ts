@@ -132,6 +132,8 @@ export interface ExerciseSet {
   favorite?: boolean;
   warning?: string;
   muscleGroup: MuscleGroup;
+  forced?: boolean;
+  forcedReason?: string;
   progression?: {
     baseSets: number;
     baseReps: [number, number];

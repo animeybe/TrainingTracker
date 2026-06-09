@@ -6,6 +6,9 @@
  *   1. BIG5 — COMPOUND упражнения по паттернам (PUSH/PULL/SQUAT/HINGE)
  *   2. ISOLATION — добивает непокрытые мышцы, избранное в приоритете
  *   3. ACCESSORIES — пресс, икры, предплечья (лимит зависит от цели)
+ *   4. BRO SPLIT COMPOUND CHECK — если в дне нет COMPOUND на основную мышцу,
+ *      добирает forced из нелюбимых
+ *   5. FALLBACK — если план < 3 упражнений, перегенерирует без нелюбимых
  *
  * Ограничения:
  *   - MAX_PER_MUSCLE_BY_SPLIT — лимит упражнений на общую группу для сплита
@@ -67,6 +70,7 @@ export class ExerciseSelectorService {
 
       // ── ФИЛЬТРАЦИЯ УПРАЖНЕНИЙ ──────────────────────
       const leastFavoriteIds = new Set(leastFavorites.map((ex) => ex.id));
+      logger.info("🔍 DEBUG leastFavoriteIds", { count: leastFavoriteIds.size, sample: [...leastFavoriteIds].slice(0, 3) });
 
       // Исключаем нелюбимые и неподходящие категории (STATIC, CARDIO, MOBILITY)
       const available = allExercises.filter(
@@ -97,6 +101,21 @@ export class ExerciseSelectorService {
           : goalFiltered;
 
       const selectedIds = new Set<string>();
+
+      // Сохраняем ID нелюбимых для пометки forced в fallback
+      const leastFavoriteIdsForFallback = new Set(leastFavoriteIds);
+
+      // Резерв без нелюбимых — для fallback если план окажется пустым
+      const fallbackExercises = allExercises.filter(
+        (ex) => !EXCLUDED_CATEGORIES.includes(ex.exerciseCategory as any),
+      );
+      const fallbackGoalFiltered = fallbackExercises.filter((ex) =>
+        allowedCategories.includes(ex.exerciseCategory || ""),
+      );
+      const fallbackLevelFiltered =
+        experienceLevel === "BEGINNER"
+          ? this.excludeAdvancedExercises(fallbackGoalFiltered)
+          : fallbackGoalFiltered;
 
       // ── 1️⃣ BIG5 — COMPOUND по паттернам ──────────
       const big5 = this.selectBig5(levelFiltered, dayType, difficulty, experienceLevel, trainingSplit);
@@ -130,7 +149,6 @@ export class ExerciseSelectorService {
       });
 
       // ── 3️⃣ ISOLATION — добивка непокрытых мышц ────
-      // Избранные упражнения передаются как приоритет при сортировке
       const isolation = this.selectIsolation(
         levelFiltered.filter((ex) => !selectedIds.has(ex.id)),
         uncoveredMuscles,
@@ -160,9 +178,105 @@ export class ExerciseSelectorService {
         accessories: accessories.map((e) => ({ muscle: e.muscleGroup, id: e.exerciseId })),
       });
 
-      let finalPlan = [...big5, ...isolation, ...accessories];
+      let mainPlan = [...big5, ...isolation];
       const maxTotal = this.getMaxExercises(dayType, difficulty);
-      finalPlan = finalPlan.slice(0, maxTotal);
+      mainPlan = mainPlan.slice(0, maxTotal);
+
+      let finalPlan = [...mainPlan, ...accessories];
+
+      // ── BRO SPLIT: проверяем, есть ли COMPOUND на основную мышцу дня ──
+      const isBroSplitDay = ["chest", "back", "shoulders", "legs", "arms"].includes(dayType);
+      
+      if (isBroSplitDay) {
+        const dayMainMuscles = DAY_MUSCLE_GROUPS[dayType] || [];
+        // Карта всех упражнений для быстрого доступа к категории
+        const allExMap = new Map(allExercises.map(e => [e.id, e]));
+        
+        // Есть ли в плане COMPOUND с primary-мышцей дня?
+        const hasCompound = finalPlan.some(ex => {
+          const fullEx = allExMap.get(ex.exerciseId);
+          return fullEx?.exerciseCategory === "COMPOUND" && 
+                 dayMainMuscles.some(m => 
+                   fullEx.primaryMuscleGroup === m ||
+                   MUSCLE_TO_GENERAL_GROUP[fullEx.primaryMuscleGroup] === MUSCLE_TO_GENERAL_GROUP[m]
+                 );
+        });
+        
+        if (!hasCompound) {
+          logger.info("🔍 DEBUG BRO SPLIT: нет COMPOUND на основную мышцу, добираем forced");
+          
+          // Ищем COMPOUND в нелюбимых для этой мышцы
+          const fallbackCandidates = fallbackLevelFiltered
+            .filter(ex =>
+              ex.exerciseCategory === "COMPOUND" &&
+              dayMainMuscles.some(m => 
+                ex.primaryMuscleGroup === m ||
+                MUSCLE_TO_GENERAL_GROUP[ex.primaryMuscleGroup] === MUSCLE_TO_GENERAL_GROUP[m]
+              ) &&
+              !finalPlan.some(fp => fp.exerciseId === ex.id) &&
+              leastFavoriteIdsForFallback.has(ex.id)
+            )
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 2);
+          
+          for (const ex of fallbackCandidates) {
+            finalPlan.push({
+              ...this.toExerciseSet(ex, false, difficulty),
+              forced: true,
+              forcedReason: "all_excluded"
+            });
+          }
+        }
+      }
+
+      // ── FALLBACK: если план совсем пустой — перегенерируем полностью ──
+      if (finalPlan.length < 3) {
+        logger.info("🔍 DEBUG FALLBACK: план пустой, игнорируем нелюбимые");
+
+        const fallbackSelectedIds = new Set<string>();
+
+        const fallbackBig5 = this.selectBig5(fallbackLevelFiltered, dayType, difficulty, experienceLevel, trainingSplit);
+        fallbackBig5.forEach((ex) => fallbackSelectedIds.add(ex.exerciseId));
+
+        const fallbackTargetMuscles = DAY_MUSCLE_GROUPS[dayType] || [];
+        const fallbackCoveredGroups = new Set(
+          fallbackBig5.map((ex) => MUSCLE_TO_GENERAL_GROUP[ex.muscleGroup || ""] || ex.muscleGroup).filter(Boolean),
+        );
+        const fallbackUncovered = trainingSplit === "BRO_SPLIT"
+          ? fallbackTargetMuscles
+          : fallbackTargetMuscles.filter((m) => !fallbackCoveredGroups.has(MUSCLE_TO_GENERAL_GROUP[m] || m));
+
+        const fallbackIsolation = this.selectIsolation(
+          fallbackLevelFiltered.filter((ex) => !fallbackSelectedIds.has(ex.id)),
+          fallbackUncovered,
+          difficulty,
+          dayType,
+          gender,
+          goal,
+          age,
+          trainingSplit,
+          fallbackBig5,
+          favorites.filter((f) => !leastFavoriteIds.has(f.id)),
+        );
+        fallbackIsolation.forEach((ex) => fallbackSelectedIds.add(ex.exerciseId));
+
+        const fallbackAccessories = this.selectAccessories(
+          fallbackLevelFiltered.filter((ex) => !fallbackSelectedIds.has(ex.id)),
+          accessoryCount,
+        );
+
+        let fallbackMainPlan = [...fallbackBig5, ...fallbackIsolation];
+        fallbackMainPlan = fallbackMainPlan.slice(0, maxTotal);
+        finalPlan = [...fallbackMainPlan, ...fallbackAccessories];
+
+        // Помечаем упражнения, которые были в нелюбимых, как forced
+        finalPlan = finalPlan.map((ex) => {
+          if (leastFavoriteIdsForFallback.has(ex.exerciseId)) {
+            return { ...ex, forced: true, forcedReason: "all_excluded" };
+          }
+          return ex;
+        });
+      }
 
       finalPlan = this.smartSort(finalPlan);
       finalPlan = this.applyProgression(finalPlan, wellbeing, week, lifestyle, gender);
@@ -170,6 +284,7 @@ export class ExerciseSelectorService {
       logger.info("🔍 DEBUG FINAL PLAN", {
         total: finalPlan.length,
         exercises: finalPlan.map((e) => e.muscleGroup),
+        forced: finalPlan.filter((e) => e.forced).map((e) => e.muscleGroup),
       });
 
       return Result.ok(finalPlan);
@@ -265,13 +380,10 @@ export class ExerciseSelectorService {
    * 
    * Приоритет при сортировке:
    *   1. Избранные упражнения
-   *   2. ISOLATION
-   *   3. COMPOUND (только если primaryMuscleGroup в той же общей группе)
+   *   2. Primary-упражнения (где мышца основная)
+   *   3. ISOLATION перед COMPOUND
    * 
-   * Ограничения:
-   *   - EXERCISES_PER_MUSCLE + модификатор MusclePriorityService
-   *   - MAX_PER_MUSCLE_BY_SPLIT
-   *   - Уже выбранные упражнения из BIG5
+   * Для BRO SPLIT: chest/back/legs разрешают secondary (трицепс в жимах, бицепс в тягах).
    */
   private selectIsolation(
     exercises: ExerciseEntity[],
@@ -329,9 +441,8 @@ export class ExerciseSelectorService {
 
       if (allowed <= 0) continue;
 
-      // BRO SPLIT: для грудного/спины/ног — secondary разрешены,
-      // для плеч/рук — только общая группа (isSameGeneralGroup)
-      const allowSecondary = trainingSplit === "BRO_SPLIT" && 
+      // BRO SPLIT: для грудного/спины/ног — secondary разрешены
+      const allowSecondary = trainingSplit === "BRO_SPLIT" &&
         ["chest", "back", "legs"].includes(dayType);
 
       // Подбираем упражнения с приоритетом избранного
@@ -357,16 +468,16 @@ export class ExerciseSelectorService {
           const aFav = favorites.some((f) => f.id === a.id) ? 0 : 1;
           const bFav = favorites.some((f) => f.id === b.id) ? 0 : 1;
           if (aFav !== bFav) return aFav - bFav;
-          
-          // 2. Primary — вперёд (для всех сплитов)
+
+          // 2. Primary — вперёд
           const aPrimary = (a.primaryMuscleGroup as string) === muscle ? 0 : 1;
           const bPrimary = (b.primaryMuscleGroup as string) === muscle ? 0 : 1;
           if (aPrimary !== bPrimary) return aPrimary - bPrimary;
-          
+
           // 3. ISOLATION перед COMPOUND
           if (a.exerciseCategory === "ISOLATION" && b.exerciseCategory !== "ISOLATION") return -1;
           if (a.exerciseCategory !== "ISOLATION" && b.exerciseCategory === "ISOLATION") return 1;
-          
+
           // 4. Разнообразие
           return Math.random() - 0.5;
         })
@@ -411,12 +522,12 @@ export class ExerciseSelectorService {
     if (maxCount <= 0) return [];
 
     const accessoryMuscles = ["ABS_UPPER", "ABS_LOWER", "OBLIQUES", "CALVES_GASTROCNEMIUS", "CALVES_SOLEUS", "FOREARMS_FLEXORS", "FOREARMS_EXTENSORS"];
-    
+
     const result = exercises
       .filter((ex) =>
         ex.exerciseCategory === "ISOLATION" &&
-        ex.primaryMuscleGroup === "CORE" || 
-        accessoryMuscles.includes(ex.primaryMuscleGroup as string)
+        (ex.primaryMuscleGroup === "CORE" ||
+         accessoryMuscles.includes(ex.primaryMuscleGroup as string))
       )
       .sort(() => Math.random() - 0.5)
       .slice(0, maxCount)
@@ -430,38 +541,31 @@ export class ExerciseSelectorService {
   // HELPERS
   // ═══════════════════════════════════════════════════════════
 
-  /** 
-   * Для PPL проверяет, что упражнение соответствует типу дня по паттерну движения.
-   * PUSH день: только PUSH (жимы, разгибания трицепса, разведения в стороны)
-   * PULL день: только PULL/HINGE (тяги, сгибания бицепса, задняя дельта)
-   * LEGS день: только SQUAT/HINGE (приседы, тяги на ноги)
+  /**
+   * Для PPL проверяет, что упражнение соответствует типу дня по паттерну.
+   * PUSH → только PUSH, PULL → PULL/HINGE, LEGS → SQUAT/HINGE.
+   * Остальные сплиты — без ограничений.
    */
   private matchesDayPattern(exercise: ExerciseEntity, dayType: DayType): boolean {
     const patterns = exercise.movementPatterns || [];
-    
     if (dayType === "push") return patterns.includes("PUSH" as any);
     if (dayType === "pull") return patterns.some(p => p === "PULL" || p === "HINGE");
     if (dayType === "legs") return patterns.some(p => p === "SQUAT" || p === "HINGE");
-    
-    // Остальные сплиты — без ограничений по паттерну
     return true;
   }
 
-  /** Проверяет, что primaryMuscleGroup и целевая общая группа совместимы. */
+  /**
+   * Проверяет, что primaryMuscleGroup и целевая общая группа совместимы.
+   * Учитывает анатомические связи: CHEST→TRICEPS, BACK→BICEPS, LEGS→HAMSTRINGS и т.д.
+   * Для дня рук (BRO SPLIT) связи CHEST→TRICEPS и BACK→BICEPS отключены.
+   */
   private isSameGeneralGroup(primary: string, targetGroup: string, dayType?: DayType): boolean {
-    // ARMS подходит для BICEPS и TRICEPS
     if (primary === "ARMS" && (targetGroup === "BICEPS" || targetGroup === "TRICEPS")) return true;
-    // CHEST упражнения часто задействуют TRICEPS (кроме дня рук в BRO SPLIT)
     if (primary === "CHEST" && targetGroup === "TRICEPS" && dayType !== "arms") return true;
-    // BACK упражнения часто задействуют BICEPS (кроме дня рук в BRO SPLIT)
     if (primary === "BACK" && targetGroup === "BICEPS" && dayType !== "arms") return true;
-    // LEGS подходит для QUADS, HAMSTRINGS, GLUTES, CALVES
     if (primary === "LEGS" && ["LEGS", "HAMSTRINGS", "GLUTES", "CALVES"].includes(targetGroup)) return true;
-    // CORE подходит для ABS
     if (primary === "CORE" && targetGroup === "CORE") return true;
-    // ARMS подходит для FOREARMS (предплечья — часть рук)
     if (primary === "ARMS" && targetGroup === "FOREARMS") return true;
-    // Стандартный маппинг
     return (MUSCLE_TO_GENERAL_GROUP[primary] || primary) === targetGroup;
   }
 
@@ -489,9 +593,7 @@ export class ExerciseSelectorService {
   private excludeAdvancedExercises(exercises: ExerciseEntity[]): ExerciseEntity[] {
     return exercises.filter((ex) => {
       const hasBarbell = ex.name.toLowerCase().includes("штанг");
-      const isSquatOrHinge = (ex.movementPatterns || []).some(
-        (p) => p === "SQUAT" || p === "HINGE",
-      );
+      const isSquatOrHinge = (ex.movementPatterns || []).some((p) => p === "SQUAT" || p === "HINGE");
       return !(hasBarbell && isSquatOrHinge);
     });
   }
@@ -504,7 +606,6 @@ export class ExerciseSelectorService {
   ): ExerciseSet {
     const baseSets = this.getBaseSets(exercise);
     const baseReps: [number, number] = this.getBaseReps(difficulty);
-
     return {
       exerciseId: exercise.id,
       sets: baseSets,
@@ -529,27 +630,20 @@ export class ExerciseSelectorService {
   }
 
   private getMaxExercises(dayType: DayType, difficulty: Difficulty): number {
-    // Базовая граница по сложности
     let max: number;
     if (difficulty === "EASY") max = 6;
     else if (difficulty === "HARD") max = 10;
     else max = 8;
 
-    // Надбавка за тип сплита (+2-4 упражнения)
-    if (dayType === "full" || dayType === "upper" || dayType === "lower") max += 2;  // FULL_BODY, UPPER_LOWER
-    else if (["chest", "back", "shoulders", "arms"].includes(dayType)) max += 2;     // BRO_SPLIT
-    // PPL (push, pull, legs) — без надбавки, 8-9 хватает
+    if (dayType === "full" || dayType === "upper" || dayType === "lower") max += 2;
+    else if (["chest", "back", "shoulders", "arms"].includes(dayType)) max += 2;
 
     return max;
   }
 
   private calculateDifficulty(
-    bmi: number,
-    goal: Goal,
-    age: number,
-    lifestyle: Lifestyle,
-    gender: Gender,
-    dayType: DayType,
+    bmi: number, goal: Goal, age: number, lifestyle: Lifestyle,
+    gender: Gender, dayType: DayType,
   ): Difficulty {
     let score = 0;
     if (bmi < 18.5) score -= 15;
@@ -576,12 +670,10 @@ export class ExerciseSelectorService {
   /** Сортировка: COMPOUND → ISOLATION → ACCESSORY, с чередованием мышц. */
   private smartSort(exercises: ExerciseSet[]): ExerciseSet[] {
     const categoryOrder: Record<string, number> = { COMPOUND: 0, ISOLATION: 1, ACCESSORY: 2 };
-
     return exercises.sort((a, b) => {
       const catA = categoryOrder[a.muscleGroup as string] ?? 1;
       const catB = categoryOrder[b.muscleGroup as string] ?? 1;
       if (catA !== catB) return catA - catB;
-
       const muscleA = a.muscleGroup || "";
       const muscleB = b.muscleGroup || "";
       return muscleA.localeCompare(muscleB);
@@ -600,13 +692,11 @@ export class ExerciseSelectorService {
     const lifestyleMultiplier: Record<string, number> = {
       IMMOBILE: 0.75, LIGHT: 0.9, AVERAGE: 1.0, HARD: 1.15,
     };
-
     return exercises.map((ex) => {
       let sets = ex.sets;
       const wellbeingCoeff = wellbeing === "BAD" ? 0.8 : wellbeing === "GOOD" ? 1.2 : 1.0;
       sets = Math.round(sets * wellbeingCoeff * genderMultiplier * (lifestyleMultiplier[lifestyle] || 1.0));
       sets = Math.max(2, Math.min(5, sets));
-
       return { ...ex, sets, targetRepsRange: ex.targetRepsRange };
     });
   }

@@ -17,6 +17,8 @@ export class PrismaWeeklyTrainingExerciseRepository {
         sets: data.sets,
         repsRange: data.repsRange ?? Prisma.JsonNull,
         orderInDay: data.orderInDay,
+        forced: data.forced ?? null,
+        forcedReason: data.forcedReason ?? null,
       },
     });
   }

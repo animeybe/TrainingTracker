@@ -512,6 +512,8 @@ export class PlanController {
         favorite: false,
         warning: entity ? undefined : "Упражнение не найдено в базе",
         muscleGroup: (entity?.primaryMuscleGroup as any) ?? "CHEST_MIDDLE",
+        forced: (planEx as any).forced || undefined,
+        forcedReason: (planEx as any).forcedReason || undefined,
         progression: {
           baseSets: planEx.sets,
           baseReps: repsToJsonArray(planEx.repsRange),
@@ -593,6 +595,8 @@ export class PlanController {
           targetRepsRange: repsToJsonArray(planEx.repsRange),
           favorite: false,
           warning: undefined,
+          forced: (planEx as any).forced || undefined,
+          forcedReason: (planEx as any).forcedReason || undefined,
           muscleGroup: "CHEST_MIDDLE" as any, // будет переопределено ниже
           progression: {
             baseSets: planEx.sets,

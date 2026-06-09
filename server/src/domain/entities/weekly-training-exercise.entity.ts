@@ -9,6 +9,8 @@ export type WeeklyTrainingExerciseEntity = {
   sets: number;
   repsRange: Prisma.JsonValue;
   orderInDay: number;
+  forced?: boolean | null;
+  forcedReason?: string | null;
 };
 
 export type CreateWeeklyTrainingExerciseEntity = {
@@ -18,6 +20,8 @@ export type CreateWeeklyTrainingExerciseEntity = {
   sets: number;
   repsRange: Prisma.JsonValue;
   orderInDay: number;
+  forced?: boolean | null;
+  forcedReason?: string | null;
 };
 
 export type UpdateWeeklyTrainingExerciseEntity = Partial<

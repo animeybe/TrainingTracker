@@ -166,6 +166,10 @@ export class TrainingPlanGenerationService {
         ) {
           const exerciseSet = trainingDay.exercises[orderInDay];
 
+          if (exerciseSet.forced) {
+            console.log('💾 Сохраняем forced:', exerciseSet.exerciseId, exerciseSet.forcedReason);
+          }
+
           const weeklyExData: CreateWeeklyTrainingExerciseEntity = {
             planId: plan.id,
             exerciseId: exerciseSet.exerciseId,
@@ -173,6 +177,8 @@ export class TrainingPlanGenerationService {
             orderInDay: orderInDay + 1,
             sets: exerciseSet.sets,
             repsRange: exerciseSet.targetRepsRange,
+            forced: exerciseSet.forced || null,
+            forcedReason: exerciseSet.forcedReason || null,
           };
 
           const weeklyExEntity =
