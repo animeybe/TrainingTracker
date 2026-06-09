@@ -102,7 +102,11 @@ export type DayType =
   | "arms"
   | "upper"
   | "lower"
-  | "core";
+  | "core"
+  | "squat"
+  | "bench"
+  | "deadlift"
+  | "ohp";
 
 export interface ExerciseSet {
   exerciseId: string;
